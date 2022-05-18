@@ -1,0 +1,80 @@
+html {
+    width: 100%;
+}
+
+body {
+    min-width: 600px;
+    max-width: 1200px;
+    width: 85%;
+    margin: auto;
+}
+
+.content {
+    margin: 2em;
+}
+
+h1 {
+    margin: 2em 0 0 0;
+    color: #2e484c;
+    font-family: 'Julius Sans One', sans-serif;
+    font-size: 1.8em;
+    text-transform: uppercase;
+}
+
+a {
+    font-weight: bold;
+    text-decoration: underline;
+    color: {{config.colors.color1}};
+}
+
+a:link {
+    font-weight: bold;
+    text-decoration: underline;
+    color: {{config.colors.color1}};
+}
+
+a:visited {
+    font-weight: bold;
+    text-decoration: none;
+    color: {{config.colors.color2}};
+}
+
+a:hover, a:focus, a:active {
+    text-decoration: underline;
+    color: {{config.colors.color5}}
+}
+
+p {
+    font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+    font-size: 1.2em;
+    text-align: justify;
+    text-justify: inter-word;
+}
+
+.header {
+    font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+    background-color: {{config.colors.color0}};
+    width: 100%;
+    padding: 4px 12px;
+}
+
+.headerlinks a {
+    font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+    display: flex;
+    float: right;
+    text-align: right;
+    font-weight: normal !important;
+    padding-left: 10px;
+    color: #aaa;
+}
+
+dt {
+    font-weight: bold;
+}
+
+#view-name {
+    color: {{config.colors.color2}};
+}
+
+#title {
+    color: {{config.colors.lightgrey}}

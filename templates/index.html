@@ -1,0 +1,36 @@
+{% extends base %}
+
+{% block title %}BDSlab data visualization{% endblock %}
+
+{% block postamble %}
+
+
+<style>
+  {% include 'styles.css' %}
+</style>
+
+<script>
+  {% include 'bds.js' %}
+
+
+</script>
+
+{% endblock %}
+
+{% block contents %}
+
+<div class="header">
+
+  <span id="title">{{ config.title }}</span>
+    -
+    <span id="view-name">{{ view_name }}</span>
+
+    {% include 'menu.html' %}
+  </div>
+
+  <div class="content">
+
+    {{ super() }}
+
+  </div>
+{% endblock %}

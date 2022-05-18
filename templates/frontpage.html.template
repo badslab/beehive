@@ -1,0 +1,25 @@
+<html>
+  <head>
+    <style>
+      {stylecss}
+    </style>
+    <script>
+      {bdsjs}
+    </script>
+  </head>
+  <body>
+    <div class="header">
+      BDSLab data visualization
+
+      {menu}
+    </div>
+
+
+    <h1>Data Visualization for the BDS lab</h1>
+
+    <ul>
+      <li><a href="./gene_expression">View expression level of individual genes</a></li>
+    </ul>
+
+  </body>
+</html>
