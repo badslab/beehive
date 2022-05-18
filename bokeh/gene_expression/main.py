@@ -52,7 +52,7 @@ w_plottype = create_widget("plottype", Select, title="Show",
                            options=["boxplot", "mean/std"])
 
 w_download = Button(label='Download', align='end')
-w_download_filename = Div(text="", visible=Fals,
+w_download_filename = Div(text="", visible=False,
                           name="download_filename")
 
 # To display text if the gene is not found
