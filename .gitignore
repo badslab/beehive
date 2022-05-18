@@ -2,3 +2,5 @@
 /.python-version
 *.egg-info
 __pycache__
+/bokeh/*/templates
+/data/
