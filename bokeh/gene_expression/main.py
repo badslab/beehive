@@ -29,7 +29,7 @@ db = sqlite3.connect(dbfile)
 
 args = curdoc().session_context.request.arguments
 
-datasets = pd.read_sql('SELECT * FROM STUDY', db)
+datasets = pd.read_sql('SELECT * FROM study', db)
 datasets['full'] = datasets['title'] + ', ' + datasets['author']
 
 
@@ -91,11 +91,11 @@ def get_data() -> pd.DataFrame:
     # default settings for a boxplot -
     # override if other further down
     data['_segment_top'] = data['q99']
-    data['_bar_top'] = data['q80']
+    data['_bar_top'] = data['q75']
     data['_bar_median'] = data['q50']
-    data['_bar_bottom'] = data['q10']
+    data['_bar_bottom'] = data['q25']
     data['_segment_bottom'] = data['q01']
-    # print(data.head(2).T)
+    print(data.head(2).T)
     return data
 
 
@@ -154,9 +154,9 @@ table = DataTable(source=source,
                                   formatter=ScientificFormatter(precision=2)),
                       TableColumn(field='q01', title='1% Quantile',
                                   formatter=ScientificFormatter(precision=2)),
-                      TableColumn(field='q20', title='20% Quantile',
+                      TableColumn(field='q25', title='20% Quantile',
                                   formatter=ScientificFormatter(precision=2)),
-                      TableColumn(field='q80', title='80% Quantile',
+                      TableColumn(field='q75', title='80% Quantile',
                                   formatter=ScientificFormatter(precision=2)),
                       TableColumn(field='q99', title='99% Quantile',
                                   formatter=ScientificFormatter(precision=2)),
@@ -204,8 +204,10 @@ def update_plot():
     w_download_filename.text = f"exp_{dataset['dataset_id']}_{facet}_{gene}.tsv"
 
     if w_plottype.value == "boxplot":
+        print("boxplot")
         pttext = 'Boxplot'
     else:
+        print("meastdplot")
         data['_segment_top'] = data['mean'] + data['std']
         data['_bar_top'] = data['mean']
         data['_bar_bottom'] = 0
@@ -214,12 +216,14 @@ def update_plot():
         pttext = 'Mean/std'
 
     ymax = max(1, 1.01 * data['_segment_top'].max())
+    print(ymax, data['_segment_top'].max())
     source.data = data
 
     title = dataset['title'][:60]
     plot.title.text = (f"{pttext} {gene} vs {facet} - "
                        f"({dataset.dataset_id}) {title}...")
-    plot.y_range.end = ymax
+    print("setting ymax to", ymax)
+    plot.y_range.update(end = ymax, start=-0.1)
 
 
 update_plot()
