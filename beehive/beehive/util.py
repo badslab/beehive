@@ -5,6 +5,18 @@ import hashlib
 import beehive
 
 
+
+def timer(func):
+    def wrapper(*arg, **kw):
+        '''source: http://www.daniweb.com/code/snippet368.html'''
+        t1 = time.time()
+        res = func(*arg, **kw)
+        t2 = time.time()
+        print(f'Function run {1000*(t2-t1):.2f}ms.')
+        return res
+    return wrapper
+
+
 def get_datadir(name):
     """Return a bokeh view's data folder."""
     return beehive.DATADIR / name
