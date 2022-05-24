@@ -12,7 +12,7 @@ app = typer.Typer()
 
 @app.command()
 def obs(h5ad_file: Path = typer.Argument(..., exists=True),
-        skip: Optional[List[str]] = type.Option(None),
+        skip: Optional[List[str]] = typer.Option(None),
         ):
     """Show obs fields."""
     import scanpy as sc

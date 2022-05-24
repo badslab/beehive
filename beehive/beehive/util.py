@@ -58,6 +58,7 @@ def create_widget(name: str,
     new_widget.js_on_change("value", js_onchange)
     return new_widget
 
+
 def getcolor(x, palette, vmax, vmin=None):
     if vmin is None:
         vmin = -vmax
@@ -105,13 +106,15 @@ def sizeof_fmt(num, suffix='B'):
 
 def diskcache(where='~/.cache/simple_disk_cache/', refresh=False):
     from pathlib import Path
+    import inspect
     import pickle
 
     where = Path(where).expanduser()
 
     def dc(func):
         def wrapper(*args, **kwargs):
-            serialized_args = list(args)
+            serialized_args = [inspect.getsource(func)]
+            serialized_args.extend(list(args))
             for k, v in sorted(kwargs.items()):
                 serialized_args.extend([k, v])
             uid = UID(*serialized_args, length=64)

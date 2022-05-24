@@ -10,9 +10,15 @@ from typing import List, Optional
 
 from pathlib import Path
 
-from beehive.h5ad_lite import H5adLite
+from beehive import util, expset
 
 app = typer.Typer()
+
+
+@app.command()
+def test():
+    expset.get_datasets()
+
 
 
 @app.command()
@@ -43,7 +49,7 @@ def h5ad(h5ad_file: Path = typer.Argument(..., exists=True),
 
         dtype = 'numerical'
 
-        #polars/ parquest does not like categories
+        #polars/parquest does not like categories
         if str(v.dtype) == 'category':
             obs[k] = v.astype('str')
             dtype = 'categorical'
