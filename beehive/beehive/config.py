@@ -6,7 +6,8 @@ class colors:
     """Color defintions."""
 
     link: str = "#0077b6"
-    lightgrey: str = "#aeaeae"
+    lightgrey: str = "#dedede"
+    darkgrey: str = "#999999"
 
     color0: str = "#001219"
     color1: str = "#005f73"
