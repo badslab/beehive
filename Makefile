@@ -1,5 +1,16 @@
 SHELL=/bin/bash
 
+
+.ONESHELL:
+serve_cbd2:
+	while true; do 
+		echo "(re)starting)"
+		bokeh serve --use-xheaders \
+			--allow-websocket-origin=data.bdslab.org \
+			 --port 5009 bokeh/gene_expression/	
+		sleep 0.5
+	done
+
 .ONEHSELL:
 serve_moam:
 	pipenv run bokeh serve --port 5009 bokeh/gene_expression/
