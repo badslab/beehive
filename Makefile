@@ -2,7 +2,7 @@ SHELL=/bin/bash
 
 .ONEHSELL:
 serve_moam:
-	pipenv run bokeh serve --port 5009 bokeh/gene_expression/
+	pipenv run bokeh serve --port 5009 bokeh/gene_expression/  bokeh/diffexp/
 
 
 .SILENT:
