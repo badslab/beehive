@@ -1,13 +1,21 @@
 SHELL=/bin/bash
 
-.DUMMY:
-.ONEHSELL:
 fix_templates:
 	for bdir in ./bokeh/*; do
 		tdir="$$bdir/templates"
 		echo $$bdir $$tdir
 		echo "Make templates symlink"
 		( cd $$bdir ; ln -sf ../../templates . )
+	done
+
+.ONESHELL:
+serve_cbd2: fix_templates
+	while true; do 
+		echo "(re)starting)"
+		bokeh serve --use-xheaders \
+			--allow-websocket-origin=data.bdslab.org \
+			 --port 5009 bokeh/gene_expression/	
+		sleep 0.5
 	done
 
 .ONEHSELL:
