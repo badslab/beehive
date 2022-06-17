@@ -63,6 +63,7 @@ def h5ad(h5ad_file: Path = typer.Argument(..., exists=True),
     dfx = adata.to_df()
 
     obs = adata.obs
+    print(obs)
     var = adata.var
     var.index = adata.var_names
     var.index.name = 'gene'

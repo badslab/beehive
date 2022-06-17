@@ -2,6 +2,7 @@
 
 from functools import partial
 import logging
+from pprint import pprint
 
 import pandas as pd
 
@@ -68,6 +69,7 @@ def get_genes():
 def get_facets():
     """Get available facets for a dataset."""
     dataset_id = w_dataset_id.value
+    pprint(datasets[dataset_id])
     facets = sorted(list(datasets[dataset_id]['meta'].keys()))
     return facets
 
