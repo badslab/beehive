@@ -1,8 +1,15 @@
 SHELL=/bin/bash
 
+fix_templates:
+	for bdir in ./bokeh/*; do
+		tdir="$$bdir/templates"
+		echo $$bdir $$tdir
+		echo "Make templates symlink"
+		( cd $$bdir ; ln -sf ../../templates . )
+	done
 
 .ONESHELL:
-serve_cbd2:
+serve_cbd2: fix_templates
 	while true; do 
 		echo "(re)starting)"
 		bokeh serve --use-xheaders \
@@ -12,9 +19,16 @@ serve_cbd2:
 	done
 
 .ONEHSELL:
-serve_moam:
-	pipenv run bokeh serve --port 5009 bokeh/gene_expression/
+serve_moam: fix_templates
+	pipenv run bokeh serve --port 5009 bokeh/gene_expression/  bokeh/diffexp/
 
+.ONEHSELL:
+serve_sjo: fix_templates
+	bokeh serve --port 5009 bokeh/gene_expression/  bokeh/diffexp/
+
+.ONEHSELL:
+serve_sjo_dev: fix_templates
+	bokeh serve --dev --port 5009 bokeh/gene_expression/
 
 .SILENT:
 .ONESHELL:

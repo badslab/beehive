@@ -13,6 +13,7 @@ from pathlib import Path
 
 from beehive import util, expset
 
+
 app = typer.Typer()
 lg = logging.getLogger(__name__)
 
@@ -51,6 +52,9 @@ def h5ad(h5ad_file: Path = typer.Argument(..., exists=True),
     if title is not None:
         study_md['title'] = title
 
+    assert 'author' in study_md
+    assert 'title' in study_md
+
     # try:
     #     adata = adata.raw.to_adata()
     # except:
@@ -59,6 +63,7 @@ def h5ad(h5ad_file: Path = typer.Argument(..., exists=True),
     dfx = adata.to_df()
 
     obs = adata.obs
+    print(obs)
     var = adata.var
     var.index = adata.var_names
     var.index.name = 'gene'
