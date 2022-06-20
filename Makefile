@@ -17,16 +17,16 @@ fix_bokeh_static_js:
 	echo $$JSPATH
 	mkdir -p static/bokeh/
 	rsync  -arv $$JSPATH/ static/bokeh/
-	chmod -R a+rX static/bokeh 
+	chmod -R a+rX static/bokeh
 
 
 .ONESHELL:
 serve_cbd2: fix_template fix_bokeh_static_js
-	while true; do 
+	while true; do
 		echo "(re)starting)"
 		bokeh serve --use-xheaders \
 			--allow-websocket-origin=data.bdslab.org \
-			 --port 5009 bokeh/gene_expression/	
+			 --port 5009 bokeh/gene_expression/
 		sleep 0.5
 	done
 
@@ -41,6 +41,15 @@ serve_sjo: fix_templates
 .ONEHSELL:
 serve_sjo_dev: fix_templates
 	bokeh serve --dev --port 5011 bokeh/gene_expression/
+
+.PHONY:
+.ONESHELL:
+static_website:
+	cd static
+	make html
+	git add content/*.md output/*.html  output/category/*.html output/author/*.html output/tag/*.html
+	git commit -m 'rebuild static website' content/*.md output/*.html  output/category/*.html output/author/*.html output/tag/*.html
+
 
 .SILENT:
 .ONESHELL:
