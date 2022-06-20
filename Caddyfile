@@ -1,0 +1,27 @@
+:5556
+
+# Do some logging - should likely be in a better location
+log {
+	level info
+	output file /tmp/caddy.log
+}
+
+# Bokeh static stuff
+@bokehstatic {
+	path_regexp b1 (.*)/static/js/bok(.*)$
+}
+
+rewrite @bokehstatic /static/js/bok{re.b1.2}
+reverse_proxy @bokehstatic localhost:5009
+
+# Rest of the bokeh requests..
+handle_path /gene_expression/* {
+	reverse_proxy localhost:5009
+}
+
+#rest from static files
+root * ./static/output
+file_server
+
+# Everything else goes to Flask
+#reverse_proxy 127.0.0.1:5009
