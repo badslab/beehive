@@ -46,6 +46,7 @@ w_dataset_id = create_widget("dataset_id", Select, title="Dataset",
 w_gene = create_widget("gene", AutocompleteInput, completions=[], default='APOE')
 w_facet = create_widget("facet", Select, options=[], title="Group by")
 w_plottype = create_widget("plottype", Select, title="Show",
+                           default="boxplot",
                            options=["boxplot", "mean/std"])
 
 w_download = Button(label='Download', align='end')
@@ -54,7 +55,6 @@ w_download_filename = Div(text="", visible=False,
 
 # To display text if the gene is not found
 w_gene_not_found = Div(text="")
-
 
 #
 # Data handling & updating interface
@@ -69,7 +69,6 @@ def get_genes():
 def get_facets():
     """Get available facets for a dataset."""
     dataset_id = w_dataset_id.value
-    pprint(datasets[dataset_id])
     facets = sorted(list(datasets[dataset_id]['meta'].keys()))
     return facets
 
@@ -87,6 +86,7 @@ def update_facets():
             [f for f in facets
              if not f.startswith('_')][0]
 
+
 def update_genes():
     """Update genes widget for a dataset."""
     genes = get_genes()
@@ -101,14 +101,17 @@ def update_genes():
 update_facets()
 update_genes()
 
-
 def get_data() -> pd.DataFrame:
     """Retrieve data from a dataset, gene & facet."""
     dataset_id = w_dataset_id.value
+    gene = w_gene.value
+    facet = w_facet.value
+    lg.warning(f"!! Getting data for {dataset_id} {facet} {gene}")
+
     data = expset.get_gene_meta_agg(
         dsid=dataset_id,
-        gene=w_gene.value,
-        meta=w_facet.value)
+        gene=gene,
+        meta=facet)
 
     data['perc'] = 100 * data['count'] / data['count'].sum()
 
@@ -220,7 +223,6 @@ def update_plot():
     title = dataset['title'][:60]
     plot.title.text = (f"{pttext} {gene} vs {facet} - "
                        f"({dataset_id}) {title}...")
-    print("setting ymax to", str(ymax)[:50])
     plot.y_range.update(end = ymax, start=-0.1)
 
 

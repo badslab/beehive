@@ -47,14 +47,26 @@ def create_widget(name: str,
     Note - the js callback relies on a function called insertUrlParam
            being available.
     """
-    assert curdoc is not None
-    title = name.capitalize() if title is None else title
     from bokeh.models.callbacks import CustomJS
+    from bokeh.models.widgets.inputs import AutocompleteInput
+    import random
+
+    assert curdoc is not None
+
+    param_name = name # to get & retrieve from the URL
+    if title is None:
+        title = name.capitalize()
+        
+    if widget == AutocompleteInput:
+        # unique name - prevents browser based autocomplete
+        # which messes up different datasets
+        name = f"{name}.{random.randint(100000, 999999)}"
+
     js_onchange = CustomJS(
-        code="insertUrlParam(cb_obj.name, cb_obj.value);")
+        code=f'insertUrlParam("{param_name}", cb_obj.value);')
     args = curdoc.session_context.request.arguments
     new_widget = widget(name=name, title=title, **kwargs)
-    new_widget.value = getarg(args, name, default)
+    new_widget.value = getarg(args, param_name, default)
     new_widget.js_on_change("value", js_onchange)
     return new_widget
 

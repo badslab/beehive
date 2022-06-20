@@ -61,11 +61,17 @@ def get_gene_meta_agg(dsid:str,
     genedata = get_gene(dsid, gene)
     metadata = get_meta(dsid, meta, nobins=nobins)
 
+    # def chksum(p: pl.DataFrame):
+    #     import hashlib
+    #     md5 = hashlib.md5()
+    #     md5.update(p.to_csv().encode())
+    #     return md5.hexdigest()
+  
     if genedata is None:
         return None
     if metadata is None:
         return None
-
+    
     rv = (pl.concat([genedata, metadata],
                     how='horizontal')
           .groupby(meta)
@@ -83,8 +89,13 @@ def get_gene_meta_agg(dsid:str,
           ])
           )
 
+    # print(dsid, gene, meta, nobins, 
+    #       chksum(genedata), chksum(metadata),
+    #       chksum(rv))
+        
     rv = rv.to_pandas()
     rv = rv.rename(columns={meta: 'cat_value'})
+    rv = rv.sort_values(by=['cat_value', 'mean'])
     return rv
 
 
