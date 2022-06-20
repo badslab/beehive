@@ -1,27 +1,32 @@
-:5556
+:5565
 
-# Do some logging - should likely be in a better location
+# Do some logging 
 log {
-	level info
-	output file /tmp/caddy.log
+    output stdout
+    level debug
 }
+
+#@websockets {
+#	header Connection *Upgrade*#
+#	header Upgrade    websocket
+#}
+#reverse_proxy @websockets localhost:5010
 
 # Bokeh static stuff
-@bokehstatic {
-	path_regexp b1 (.*)/static/js/bok(.*)$
-}
+# @bokehstatic {
+#	path_regexp b1 (.*)/static/js/bok(.*)$
+# }
 
-rewrite @bokehstatic /static/js/bok{re.b1.2}
-reverse_proxy @bokehstatic localhost:5009
+# rewrite @bokehstatic /static/js/bok{re.b1.2}
+# reverse_proxy @bokehstatic localhost:5010
 
 # Rest of the bokeh requests..
-handle_path /gene_expression/* {
-	reverse_proxy localhost:5009
+
+handle /gene_expression {
+	respond "#########Ehat>> Not found" 400
+	# reverse_proxy localhost:5010
 }
 
 #rest from static files
 root * ./static/output
 file_server
-
-# Everything else goes to Flask
-#reverse_proxy 127.0.0.1:5009
