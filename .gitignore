@@ -8,3 +8,5 @@ __pycache__
 /Pipfile
 /Pipfile.lock
 /beehive/build/
+.vscode/
+bin/caddy
