@@ -1,5 +1,7 @@
 SHELL=/bin/bash
 
+.PHONY:
+.ONESHELL:
 fix_templates:
 	for bdir in ./bokeh/*; do
 		tdir="$$bdir/templates"
@@ -8,8 +10,18 @@ fix_templates:
 		( cd $$bdir ; ln -sf ../../templates . )
 	done
 
+.PHONY:
+.ONEHSELL:
+fix_bokeh_static_js:
+	JSPATH=$$(python -c 'import bokeh; print(bokeh.util.paths.bokehjsdir())')
+	echo $$JSPATH
+	mkdir -p static/bokeh/
+	rsync  -arv $$JSPATH/ static/bokeh/
+	chmod -R a+rX static/bokeh 
+
+
 .ONESHELL:
-serve_cbd2: fix_templates
+serve_cbd2: fix_template fix_bokeh_static_js
 	while true; do 
 		echo "(re)starting)"
 		bokeh serve --use-xheaders \
