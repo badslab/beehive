@@ -21,7 +21,7 @@ fix_bokeh_static_js:
 
 
 .ONESHELL:
-serve_cbd2: fix_template fix_bokeh_static_js
+serve_cbd2: fix_templates fix_bokeh_static_js
 	while true; do 
 		echo "(re)starting)"
 		bokeh serve --use-xheaders \
