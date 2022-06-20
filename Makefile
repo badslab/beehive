@@ -32,15 +32,15 @@ serve_cbd2: fix_template fix_bokeh_static_js
 
 .ONEHSELL:
 serve_moam: fix_templates
-	pipenv run bokeh serve --port 5009 bokeh/gene_expression/  bokeh/diffexp/
+	pipenv run bokeh serve --port 5010 bokeh/gene_expression/  bokeh/diffexp/
 
 .ONEHSELL:
 serve_sjo: fix_templates
-	bokeh serve --port 5009 bokeh/gene_expression/  bokeh/diffexp/
+	bokeh serve --port 5010 bokeh/gene_expression/  bokeh/diffexp/
 
 .ONEHSELL:
 serve_sjo_dev: fix_templates
-	bokeh serve --dev --port 5009 bokeh/gene_expression/
+	bokeh serve --dev --port 5011 bokeh/gene_expression/
 
 .SILENT:
 .ONESHELL:
