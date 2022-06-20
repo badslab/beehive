@@ -10,3 +10,4 @@ __pycache__
 /beehive/build/
 .vscode/
 bin/caddy
+.*
