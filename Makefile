@@ -35,7 +35,7 @@ serve_moam: fix_templates
 	pipenv run bokeh serve --port 5010 bokeh/gene_expression/  bokeh/diffexp/
 
 .ONEHSELL:
-serve_sjo: fix_templates
+serve_dev: fix_templates
 	bokeh serve --port 5010 bokeh/gene_expression/  bokeh/diffexp/
 
 .ONEHSELL:

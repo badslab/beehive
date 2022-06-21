@@ -2,7 +2,8 @@ AUTHOR = 'BdSlab'
 SITENAME = 'BdSlab data'
 SITEURL = ''
 
-THEME = './themes/notmyidea'
+THEME = './themes/pelican-simplegrey'
+
 
 PATH = 'content'
 
@@ -29,9 +30,10 @@ LINKS = ()
 # Social widget
 #SOCIAL = (('You can add links in your config file', '#'),
 #          ('Another social link', '#'),)
+
 SOCIAL = ()
 PAGINATED_TEMPLATES = {'index': None, 'tag': None, 'category': None, 'author': False}
-DEFAULT_PAGINATION = False
+DEFAULT_PAGINATION = True
 
 # DIRECT_TEMPLATES = ['index']
 # CATEGORY_SAVE_AS = ''
