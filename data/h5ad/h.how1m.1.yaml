@@ -1,7 +1,8 @@
 author: Amy F Lloyd, Anna Martinez Muriana, Pengfei Hou, Emma Davis, Renzo Mancuso,
   Alejandro J Brenes, Ivana Geric, An Snellinx, Katleen Craessaerts, Tom Theys, Mark
   Fiers, Bart De Strooper, Andrew JM Howden
-dataset: Human Protein Copy Numbers
+organism: Human
+datatype: Protein Copy Numbers
 description: Deep proteomic analysis of human microglia via in-vitro hESC, ex-vivo
   primary and xenografted models. Study also performs deep proteomic analysis of mouse
   microglia via in-vitro BV2 and ex-vivo primary. Copy number and concentration proteomics
@@ -25,7 +26,9 @@ dimred: []
 meta:
   models:
     dtype: categorical
-short_title: Deep Proteomics of In-Vitro and Ex-Vivo Human Microglia - Copy Numbers
+short_title: Deep Proteomics of Human Microglia
 slug: h.how1m.1
 title: Deep proteomic analysis of human microglia and model systems reveal fundamental
   biological differences of in vitro and ex vivo cells
+year: 2022
+study: how1m

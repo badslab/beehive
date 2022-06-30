@@ -1,4 +1,5 @@
 author: Mancuso, Renzo; De Strooper, Bart et al.
+year: 2022
 dimred:
 - X_scVI
 - X_tsne
@@ -310,3 +311,5 @@ meta:
     dtype: numerical
 title: Stem-cell-derived human microglia transplanted in mouse brain to study human
   disease
+title: iPSC human microglia transplanted in mouse brain
+study: mnico
