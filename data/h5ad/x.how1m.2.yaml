@@ -1,0 +1,58 @@
+author: Amy F Lloyd, Anna Martinez Muriana, Pengfei Hou, Emma Davis, Renzo Mancuso,
+  Alejandro J Brenes, Ivana Geric, An Snellinx, Katleen Craessaerts, Tom Theys, Mark
+  Fiers, Bart De Strooper, Andrew JM Howden
+organism: Human + Mouse
+datatype: Protein Concentration
+description: Deep proteomic analysis of human microglia via in-vitro hESC, ex-vivo
+  primary and xenografted models. Study also performs deep proteomic analysis of mouse
+  microglia via in-vitro BV2 and ex-vivo primary. Copy number and concentration proteomics
+  data produced from study.
+diffexp:
+  human_models:
+    keys:
+    - hESCvsXplant
+    - hMGvsXplant
+    - hMGvshESC
+    topgenes:
+    - TFRC
+    - H1F0
+    - HP1BP3
+    - SLC37A2
+    - MECP2
+    - TRPV2
+    - LMNB2
+    - BRD3
+  mouse_models:
+    keys:
+    - BV2
+    topgenes:
+    - LMNB2
+    - CST3
+    - H2AFY
+    - DPYSL2
+    - H1F0
+    - LPCAT2
+    - MECP2
+    - CKB
+  organism:
+    keys:
+    - HvsM
+    topgenes:
+    - ACTB
+    - NAGK
+    - PCBP2
+    - STAT5A
+    - GSR
+    - ITPRIP
+    - ANXA5
+    - SLC25A5
+dimred: []
+meta:
+  models:
+    dtype: categorical
+short_title: Deep Proteomics of Human Microglia
+slug: x.how1m.2
+title: Deep proteomic analysis of human microglia and model systems reveal fundamental
+  biological differences of in vitro and ex vivo cells
+year: 2022
+study: how1m

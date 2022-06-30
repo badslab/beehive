@@ -10,7 +10,8 @@ from bokeh.layouts import column, row
 from bokeh.models import ColumnDataSource
 from bokeh.models import DataTable, TableColumn, ScientificFormatter
 from bokeh.models.callbacks import CustomJS
-from bokeh.models.widgets import Select, TextInput, Div, Button, AutocompleteInput
+from bokeh.models.widgets import (Select, TextInput, Div,
+                                  Button, AutocompleteInput)
 from bokeh.plotting import figure, curdoc
 
 from beehive import config, util, expset
@@ -18,8 +19,6 @@ from beehive import config, util, expset
 lg = logging.getLogger('GeneExp')
 lg.setLevel(logging.DEBUG)
 lg.info("startup")
-
-
 
 curdoc().template_variables['config'] = config
 curdoc().template_variables['view_name'] = 'Gene Expression'
@@ -31,19 +30,36 @@ datasets = expset.get_datasets()
 args = curdoc().session_context.request.arguments
 
 # WIDGETS
+w_div_title_author = Div(text="")
+
 def_dataset_id = util.getarg(args, 'dataset_id',
                              list(datasets.keys())[0])
 
-w_div_title_author = Div(text="")
-
-dataset_options = [(k, "{title}, {author}".format(**v))
+dataset_options = [(k, "{short_title}, {short_author}".format(**v))
                    for k, v in datasets.items()]
 
 w_dataset_id = create_widget("dataset_id", Select, title="Dataset",
                              options=dataset_options,
-                             default=def_dataset_id)
+                             default=def_dataset_id,
+                             visible=False,)
 
-w_gene = create_widget("gene", AutocompleteInput, completions=[], default='APOE')
+siblings = expset.get_dataset_siblings(w_dataset_id.value)
+
+sibling_options = []
+for k, v in siblings.items():
+    sname = f"{v['organism']} / {v['datatype']}"
+    sibling_options.append((k, sname))
+    print(k, sname, def_dataset_id)
+
+
+w_sibling = create_widget("view", Select,
+                          options=sibling_options,
+                          default=def_dataset_id,
+                          update_url=False)
+
+# w_views = create_widget
+w_gene = create_widget("gene", AutocompleteInput,
+                       completions=[], default='APOE')
 w_facet = create_widget("facet", Select, options=[], title="Group by")
 w_plottype = create_widget("plottype", Select, title="Show",
                            default="boxplot",
@@ -59,6 +75,8 @@ w_gene_not_found = Div(text="")
 #
 # Data handling & updating interface
 #
+
+
 def get_genes():
     """Get available genes for a dataset."""
     dataset_id = w_dataset_id.value
@@ -81,7 +99,7 @@ def update_facets():
     facets = get_facets()
     w_facet.options = facets
     if w_facet.value not in facets:
-        #set
+        # set
         w_facet.value = \
             [f for f in facets
              if not f.startswith('_')][0]
@@ -100,6 +118,7 @@ def update_genes():
 
 update_facets()
 update_genes()
+
 
 def get_data() -> pd.DataFrame:
     """Retrieve data from a dataset, gene & facet."""
@@ -127,8 +146,8 @@ def get_data() -> pd.DataFrame:
     return data
 
 
-def get_dataset() -> dict:
-    """Return the current dataset record."""
+def get_dataset():
+    """Return the current dataset id and record."""
     dataset_id = w_dataset_id.value
     return dataset_id, datasets[dataset_id]
 
@@ -164,14 +183,15 @@ table = DataTable(source=source,
                   ])
 
 
-# create segments
+# create plot elements - these are the same for boxplots as mean/std type plots
 elements = dict(
     vbar=plot.vbar(source=source, x='cat_value', top='_bar_top',
                    bottom='_bar_bottom', width=0.85, name="barplot",
                    fill_color=config.colors.color6,
                    line_color="black"),
     seg_v_up=plot.segment(source=source, x0='cat_value', x1='cat_value',
-                          y0='_bar_top', y1='_segment_top', line_color='black'),
+                          y0='_bar_top', y1='_segment_top',
+                          line_color='black'),
     seg_h_up=plot.rect(source=source, x='cat_value', height=0.001,
                        y='_segment_top', width=0.4, line_color='black'),
     seg_v_dw=plot.segment(source=source, x0='cat_value', x1='cat_value',
@@ -185,9 +205,9 @@ elements = dict(
 )
 
 
-def update_plot():
-    """Update the plot."""
-
+def cb_update_plot(attr, old, new):
+    """Populate and update the plot."""
+    curdoc().hold()
     global plot, source
     data = get_data()
     dataset_id, dataset = get_dataset()
@@ -199,6 +219,8 @@ def update_plot():
         <ul>
           <li><b>Title:</b> {dataset['title']}</li>
           <li><b>Author:</b> {dataset['author']}</li>
+          <li><b>Organism / Datatype:</b>
+              {dataset['organism']} / {dataset['datatype']}</li>
         </ul>
         """
 
@@ -216,47 +238,53 @@ def update_plot():
         data['_bar_median'] = data['mean']
         pttext = 'Mean/std'
 
-
-    ymax = max(1, 1.01 * data['_segment_top'].max())
     source.data = data
+
+    ymax = max(1, 1.08 * data['_segment_top'].max())
+    lg.warning(f"## YMAX {ymax} ")
 
     title = dataset['title'][:60]
     plot.title.text = (f"{pttext} {gene} vs {facet} - "
                        f"({dataset_id}) {title}...")
-    plot.y_range.update(end = ymax, start=-0.1)
+    plot.y_range.end = ymax
+    plot.y_range.start = -0.1
+    curdoc().unhold()
 
 
+# convenience shortcut
+update_plot = partial(cb_update_plot, attr=None, old=None, new=None)
+
+# run it directly to ensure there are initial values
 update_plot()
 
 
-#
-# widget callbacks
-#
-def _dataset_change(attr, old, new):
-    """Dataaset change."""
+def cb_dataset_change(attr, old, new):
+    """Dataset change."""
+    lg.info("Dataset Change to:" + new)
     curdoc().hold()
     update_facets()
     update_genes()
     update_plot()
-    curdoc().unhold()
 
 
-def _update_plot(attr, old, new):
-    update_plot()
+def cb_sibling_change(attr, old, new):
+    lg.debug("Sibling change: " + new)
+    w_dataset_id.value = new
 
 
-download_callback = CustomJS(
+cb_download = CustomJS(
     args=dict(data=source.data,
               columns=[x for x in source.data.keys() if not x.startswith('_')],
               filename_div=w_download_filename),
     code="exportToTsv(data, columns, filename_div.text);")
 
 
-w_gene.on_change("value", _update_plot)
-w_dataset_id.on_change("value", _dataset_change)
-w_facet.on_change("value", _update_plot)
-w_plottype.on_change("value", _update_plot)
-w_download.js_on_click(download_callback)
+w_gene.on_change("value", cb_update_plot)
+w_sibling.on_change("value", cb_sibling_change)
+w_dataset_id.on_change("value", cb_dataset_change)
+w_facet.on_change("value", cb_update_plot)
+w_plottype.on_change("value", cb_update_plot)
+w_download.js_on_click(cb_download)
 
 
 #
@@ -264,9 +292,7 @@ w_download.js_on_click(download_callback)
 #
 curdoc().add_root(
     column([
-        row([w_dataset_id, w_download_filename],
-            sizing_mode='stretch_width'),
-        row([w_gene, w_facet, w_plottype, w_download],
+        row([w_gene, w_facet, w_plottype, w_sibling, w_download],
             sizing_mode='stretch_width'),
         row([w_div_title_author],
             sizing_mode='stretch_width'),
@@ -276,5 +302,6 @@ curdoc().add_root(
             sizing_mode='stretch_width'),
         row([table],
             sizing_mode='stretch_width'),
+        row([w_dataset_id, w_download_filename],),
     ], sizing_mode='stretch_width')
 )

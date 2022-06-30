@@ -16,16 +16,19 @@
 
 {% block contents %}
 
-<div class="header">
+<div class="container">
+  <header role="banner">
 
-  <span id="title">{{ config.title }}</span>
-    -
+    <span id="title">{{ config.title }}</span>
+      -
     <span id="view-name">{{ view_name }}</span>
-  </div>
-
+  </header>
+<div class="wrapper">
   <div class="content">
 
     {{ super() }}
 
   </div>
+</div>
 {% endblock %}
+</div>

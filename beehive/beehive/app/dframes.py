@@ -1,18 +1,16 @@
 """helpers for the gene expression app."""
 
 import logging
+import os
 import time
-
+from pathlib import Path
+from pprint import pprint
 
 import typer
 from typer import echo
 from typing import List, Optional
 
-
-from pathlib import Path
-
 from beehive import util, expset
-
 
 app = typer.Typer()
 lg = logging.getLogger(__name__)
@@ -27,7 +25,7 @@ def test():
 def h5ad(h5ad_file: Path = typer.Argument(..., exists=True),
          author: str = None,
          title: str = None,
-          ):
+         ):
     """Convert to polars/parquet dataframes."""
 
     import scanpy as sc
@@ -37,7 +35,7 @@ def h5ad(h5ad_file: Path = typer.Argument(..., exists=True),
 
     outbase = h5ad_file
     if str(outbase).endswith('.h5ad'):
-        outbase = str(h5ad_file).replace('.h5ad', '')
+        outbase = Path(str(h5ad_file)[:-5])
 
     adata = sc.read_h5ad(h5ad_file)
 
@@ -95,11 +93,10 @@ def h5ad(h5ad_file: Path = typer.Argument(..., exists=True),
         topgenes = list(vv.index)
         study_md['diffexp'][kgroup]['topgenes'] = topgenes
 
-
     for k, v in obs.iteritems():
         dtype = 'numerical'
 
-        #polars/parquest does not like categories
+        # polars/parquest does not like categories
         if str(v.dtype) == 'category':
             obs[k] = v.astype('str')
             dtype = 'categorical'
@@ -125,9 +122,9 @@ def h5ad(h5ad_file: Path = typer.Argument(..., exists=True),
     var.index.name = 'field'
     var = var.reset_index()
 
-    pl.DataFrame(obs).write_parquet(outbase + '.obs.prq')
-    pl.DataFrame(var).write_parquet(outbase + '.var.prq')
-    pl.DataFrame(dfx).write_parquet(outbase + '.X.prq')
+    pl.DataFrame(obs).write_parquet(outbase.with_suffix('.obs.prq'))
+    pl.DataFrame(var).write_parquet(outbase.with_suffix('.var.prq'))
+    pl.DataFrame(dfx).write_parquet(outbase.with_suffix('.X.prq'))
 
-    with open(outbase + '.yaml','w') as F:
+    with open(outbase.with_suffix('.yaml'), 'w') as F:
         yaml.dump(study_md, F, Dumper=yaml.SafeDumper)

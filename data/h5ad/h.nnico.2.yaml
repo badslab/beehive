@@ -1,0 +1,315 @@
+author: Mancuso, Renzo; De Strooper, Bart et al.
+year: 2022
+dimred:
+- X_scVI
+- X_tsne
+- X_umap
+meta:
+  10_CTX_PyrL4_Rorb:
+    dtype: numerical
+  11_CTX_PyrL4__L5:
+    dtype: numerical
+  12_CTX_PyrL5_Itgb3:
+    dtype: numerical
+  13_CTX_PyrL5_Fezf2:
+    dtype: numerical
+  14_CTX_PyrL6a:
+    dtype: numerical
+  15_CTX_PyrL5__L6_Sulf1:
+    dtype: numerical
+  16_CTX_PyrL5__L6_Npr3:
+    dtype: numerical
+  17_CTX_PyrL6:
+    dtype: numerical
+  18_CLAU_Pyr:
+    dtype: numerical
+  19_MTt_Glut:
+    dtype: numerical
+  1_OB_Mitral__Tufted_Eomes:
+    dtype: numerical
+  20_THAL_Glut:
+    dtype: numerical
+  21_THAL_Int_Six3:
+    dtype: numerical
+  22_Purkinje_Early:
+    dtype: numerical
+  23_Purkinje_Late:
+    dtype: numerical
+  24_CB_Int_Progenitor:
+    dtype: numerical
+  25_CB_Granule_Precursor:
+    dtype: numerical
+  26_CB_Int_Stellate__Basket:
+    dtype: numerical
+  27_CB_Int_Golgi__Stellate__Basket:
+    dtype: numerical
+  28_CB_Granule:
+    dtype: numerical
+  29_CB_Int_Precursor:
+    dtype: numerical
+  2_OB_Mitral__Tufted_Ms4a15:
+    dtype: numerical
+  30_MD_Glyc_Int:
+    dtype: numerical
+  31_MD_Int_Rxfp2:
+    dtype: numerical
+  32_Nigral_Dopaminergic:
+    dtype: numerical
+  33_HIPP_Pyr_Cr2:
+    dtype: numerical
+  34_SUB_Pyr:
+    dtype: numerical
+  35_HIPP_Pyr_Crym:
+    dtype: numerical
+  36_HIPP_Granule_Mki67:
+    dtype: numerical
+  37_HIPP_Pyr_Precursor:
+    dtype: numerical
+  38_HIPP_Pyr_Grik4:
+    dtype: numerical
+  39_HIPP_Granule_Nrp2:
+    dtype: numerical
+  3_OB_Mitral__Tufted_Svil:
+    dtype: numerical
+  40_HIPP_Granule__PyrCA3:
+    dtype: numerical
+  41_HIPP_Pyr_Npy2r:
+    dtype: numerical
+  42_SC_Glut_Hmga2:
+    dtype: numerical
+  43_SC_Glut_Gna14:
+    dtype: numerical
+  44_Migrating_Int_Lhx6:
+    dtype: numerical
+  45_Migrating_Int_Trdn:
+    dtype: numerical
+  46_Migrating_Int_Cpa6:
+    dtype: numerical
+  47_Migrating_Int_Foxp2:
+    dtype: numerical
+  48_Migrating_Int_Pbx3:
+    dtype: numerical
+  49_Migrating_Int_Lgr6:
+    dtype: numerical
+  4_Medium_Spiny_Neurons:
+    dtype: numerical
+  50_Migrating_Int_Adarb2:
+    dtype: numerical
+  51_SVZ_Stem:
+    dtype: numerical
+  52_Cajal_Retzius:
+    dtype: numerical
+  53_Unresolved:
+    dtype: numerical
+  54_Unresolved_Kcng1:
+    dtype: numerical
+  55_Oligo_MFOL2:
+    dtype: numerical
+  56_Oligo_MFOL1:
+    dtype: numerical
+  57_Oligo_MOL:
+    dtype: numerical
+  58_Oligo_NFOL1:
+    dtype: numerical
+  59_Oligo_COP1:
+    dtype: numerical
+  5_CTX_PyrL2__L3_Pappa2:
+    dtype: numerical
+  60_Oligo_COP2:
+    dtype: numerical
+  61_OPC:
+    dtype: numerical
+  62_Macrophage:
+    dtype: numerical
+  63_Microglia:
+    dtype: numerical
+  64_Endothelia:
+    dtype: numerical
+  65_SMC:
+    dtype: numerical
+  66_VLMC_Slc6a13:
+    dtype: numerical
+  67_VLMC_Slc47a1:
+    dtype: numerical
+  68_Astro_Slc7a10:
+    dtype: numerical
+  69_Astro_Prdm16:
+    dtype: numerical
+  6_CTX_PyrL2__L3__L4_Ntf3:
+    dtype: numerical
+  70_Astro_Gfap:
+    dtype: numerical
+  71_Bergmann_Glia:
+    dtype: numerical
+  72_Ependyma:
+    dtype: numerical
+  73_OEC:
+    dtype: numerical
+  7_CTX_PyrL2__L3_Met:
+    dtype: numerical
+  8_CTX_PyrL4_Wnt5b:
+    dtype: numerical
+  9_CTX_PyrL2__L3__L4_Mef2c:
+    dtype: numerical
+  AD_genes_53:
+    dtype: numerical
+  APP_agInt_sig_BY:
+    dtype: numerical
+  Cytokine_response:
+    dtype: numerical
+  Friedman_Interferon:
+    dtype: numerical
+  Friedman_LPS:
+    dtype: numerical
+  Friedman_Macrophage:
+    dtype: numerical
+  Friedman_Microglia:
+    dtype: numerical
+  Friedman_Neurodegeneration:
+    dtype: numerical
+  Friedman_Neutrophil_Monocyte:
+    dtype: numerical
+  Friedman_Proliferation:
+    dtype: numerical
+  PC_1:
+    dtype: numerical
+  PC_10:
+    dtype: numerical
+  PC_11:
+    dtype: numerical
+  PC_12:
+    dtype: numerical
+  PC_13:
+    dtype: numerical
+  PC_14:
+    dtype: numerical
+  PC_15:
+    dtype: numerical
+  PC_16:
+    dtype: numerical
+  PC_17:
+    dtype: numerical
+  PC_18:
+    dtype: numerical
+  PC_19:
+    dtype: numerical
+  PC_2:
+    dtype: numerical
+  PC_20:
+    dtype: numerical
+  PC_21:
+    dtype: numerical
+  PC_22:
+    dtype: numerical
+  PC_23:
+    dtype: numerical
+  PC_24:
+    dtype: numerical
+  PC_25:
+    dtype: numerical
+  PC_26:
+    dtype: numerical
+  PC_27:
+    dtype: numerical
+  PC_28:
+    dtype: numerical
+  PC_29:
+    dtype: numerical
+  PC_3:
+    dtype: numerical
+  PC_30:
+    dtype: numerical
+  PC_4:
+    dtype: numerical
+  PC_5:
+    dtype: numerical
+  PC_6:
+    dtype: numerical
+  PC_7:
+    dtype: numerical
+  PC_8:
+    dtype: numerical
+  PC_9:
+    dtype: numerical
+  Prinz_CAM:
+    dtype: numerical
+  Prinz_Microglia:
+    dtype: numerical
+  SalaFrigerio_ARM:
+    dtype: numerical
+  SalaFrigerio_ARM_100:
+    dtype: numerical
+  SalaFrigerio_ARM_20:
+    dtype: numerical
+  SalaFrigerio_HM:
+    dtype: numerical
+  SalaFrigerio_HM_100:
+    dtype: numerical
+  SalaFrigerio_HM_20:
+    dtype: numerical
+  _scvi_batch:
+    dtype: numerical
+  _scvi_labels:
+    dtype: numerical
+  _scvi_local_l_mean:
+    dtype: numerical
+  _scvi_local_l_var:
+    dtype: numerical
+  amm_app_blue:
+    dtype: numerical
+  amm_tau_red:
+    dtype: numerical
+  cell_id:
+    dtype: numerical
+  cell_type:
+    dtype: categorical
+  cluster:
+    dtype: categorical
+  gwas_0.001:
+    dtype: numerical
+  integrated_snn_res.0.4:
+    dtype: numerical
+  integrated_snn_res.0.6:
+    dtype: numerical
+  integrated_snn_res.0.8:
+    dtype: numerical
+  integrated_snn_res.1:
+    dtype: numerical
+  leiden_scVI:
+    dtype: categorical
+  log_n_counts:
+    dtype: numerical
+  nCount_RNA:
+    dtype: numerical
+  nCount_integrated:
+    dtype: numerical
+  nFeature_RNA:
+    dtype: numerical
+  nFeature_integrated:
+    dtype: numerical
+  n_counts:
+    dtype: numerical
+  n_genes_by_counts:
+    dtype: numerical
+  orig.ident:
+    dtype: categorical
+  patient:
+    dtype: categorical
+  pct_counts_mt:
+    dtype: numerical
+  sample:
+    dtype: categorical
+  tSNE_1:
+    dtype: numerical
+  tSNE_2:
+    dtype: numerical
+  top_0.001_18:
+    dtype: numerical
+  total_counts:
+    dtype: numerical
+  total_counts_mt:
+    dtype: numerical
+title: Stem-cell-derived human microglia transplanted in mouse brain to study human
+  disease
+title: iPSC human microglia transplanted in mouse brain
+study: mnico

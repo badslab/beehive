@@ -1,0 +1,40 @@
+author: Olah, Marta; De Jager, Philip L. et al.
+dimred:
+- X_scVI
+- X_tsne
+- X_umap
+meta:
+  _scvi_batch:
+    dtype: numerical
+  _scvi_labels:
+    dtype: numerical
+  _scvi_local_l_mean:
+    dtype: numerical
+  _scvi_local_l_var:
+    dtype: numerical
+  batch:
+    dtype: numerical
+  cluster:
+    dtype: categorical
+  disease:
+    dtype: categorical
+  leiden_scVI:
+    dtype: categorical
+  log_n_counts:
+    dtype: numerical
+  n_counts:
+    dtype: numerical
+  n_genes_by_counts:
+    dtype: numerical
+  pct_counts_mt:
+    dtype: numerical
+  region:
+    dtype: categorical
+  total_counts:
+    dtype: numerical
+  total_counts_mt:
+    dtype: numerical
+year: 2019
+title: "Single cell RNA sequencing of human microglia uncovers a subset associated\
+  \ with Alzheimer\u2019s disease"
+study: olahj

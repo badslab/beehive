@@ -33,35 +33,27 @@ serve_cbd2: fix_templates fix_bokeh_static_js
 	done
 
 .ONEHSELL:
-serve_moam: fix_templates
-	pipenv run bokeh serve --port 5010 bokeh/gene_expression/  bokeh/diffexp/
-
-.ONEHSELL:
-serve_sjo: fix_templates
-	bokeh serve --port 5010 bokeh/gene_expression/  bokeh/diffexp/
-
-.ONEHSELL:
-serve_sjo_dev: fix_templates
-	bokeh serve --dev --port 5011 bokeh/gene_expression/
+serve_dev: fix_templates
+	bokeh serve --dev --port 5010 bokeh/gene_expression/ # bokeh/diffexp/
 
 .PHONY:
 .ONESHELL:
-static_website:
+rebuild_static_website:
 	cd static
 	make html
 	git add content/*.md output/*.html  output/category/*.html output/author/*.html output/tag/*.html
 	git commit -m 'rebuild static website' content/*.md output/*.html  output/category/*.html output/author/*.html output/tag/*.html
 
 
-.SILENT:
-.ONESHELL:
-dev:
-	export PATH=/opt/python/miniconda-sep-2021/envs/sparrowhawk/bin/:$$PATH;
-	LATEST=$$(ls -dt bokeh/*/main.py | head -1);
-	LATEST=$$(readlink -f $$LATEST);
-	LATEST=$$(dirname $$LATEST);
-	echo "Using bokeh app: $$LATEST"
-	while true; do
-		echo "(re-)starting $$LATEST"
-		pipenv run bokeh serve --dev --port 5008 $$LATEST;
-	done
+# .SILENT:
+# .ONESHELL:
+# dev:
+# 	export PATH=/opt/python/miniconda-sep-2021/envs/sparrowhawk/bin/:$$PATH;
+# 	LATEST=$$(ls -dt bokeh/*/main.py | head -1);
+# 	LATEST=$$(readlink -f $$LATEST);
+# 	LATEST=$$(dirname $$LATEST);
+# 	echo "Using bokeh app: $$LATEST"
+# 	while true; do
+# 		echo "(re-)starting $$LATEST"
+# 		pipenv run bokeh serve --dev --port 5008 $$LATEST;
+# 	done

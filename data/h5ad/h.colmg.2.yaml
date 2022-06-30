@@ -1,0 +1,51 @@
+author: Zhou, Yingyue; Colonna, Marco et al.
+dimred:
+- X_scVI
+- X_tsne
+- X_umap
+meta:
+  _scvi_batch:
+    dtype: numerical
+  _scvi_labels:
+    dtype: numerical
+  _scvi_local_l_mean:
+    dtype: numerical
+  _scvi_local_l_var:
+    dtype: numerical
+  age:
+    dtype: numerical
+  apoe:
+    dtype: categorical
+  batch:
+    dtype: numerical
+  braak:
+    dtype: categorical
+  cerad:
+    dtype: categorical
+  cluster:
+    dtype: categorical
+  cognition:
+    dtype: categorical
+  group:
+    dtype: categorical
+  leiden_scVI:
+    dtype: categorical
+  log_n_counts:
+    dtype: numerical
+  n_counts:
+    dtype: numerical
+  n_genes_by_counts:
+    dtype: numerical
+  pct_counts_mt:
+    dtype: numerical
+  sex:
+    dtype: categorical
+  total_counts:
+    dtype: numerical
+  total_counts_mt:
+    dtype: numerical
+title: "Human and mouse single-nucleus transcriptomics reveal TREM2-dependent and\
+  \ TREM2-independent cellular responses in Alzheimer\u2019s disease"
+short_title: "scRNAseq reveals TREM2 dependent and independent responses to AD"
+year: 2020
+study: colmg
