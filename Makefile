@@ -42,6 +42,9 @@ rebuild_static_website:
 	git add content/*.md output/*.html  output/category/*.html output/author/*.html output/tag/*.html
 	git commit -m 'rebuild static website' content/*.md output/*.html  output/category/*.html output/author/*.html output/tag/*.html
 
+sync_data_to_moamx:
+	rsync -arv data/h5ad/*prq moamx:/data/project/mark/beehive/data/h5ad/
+
 
 # .SILENT:
 # .ONESHELL:
