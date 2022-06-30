@@ -6,6 +6,15 @@ slug: Lloyd2022
 
 *Lloyd et al., Anna Martinez Muriana, Pengfei Hou, Emma Davis, Renzo Mancuso, Alejandro J Brenes, Ivana Geric, An Snellinx, Katleen Craessaerts, Tom Theys, Mark Fiers, Bart De Strooper, Andrew JM Howden*
 
-*DRAFT - FINAL VERSION WILL BE RELEASED SOON*
+*MANUSCRIPT IS IN PREPARATION*
 
 This microglia proteomic resource has been generated in collaboration with the School of Life Sciences at the University of Dundee and the UK Dementia Research Institute. Using high resolution quantitative mass spectrometry, we have generated in-depth proteome maps of over 9000 proteins from human and mouse ex vivo and in vitro microglia. Our findings indicate drastic differences in protein content of ex vivo and in vitro cells and fundamental differences in protein expression related to protein synthesis, metabolism, microglia markers and environmental sensors. This open access public resource allows everyone to interrogate proteomic data from human microglia and commonly used in vitro and ex vivo microglia model systems.
+
+## Protein Expression Data
+
+* [Copy Numbers  - Human+Mouse merged](./gene_expression?dataset_id=x.how1m.1&facet=models)
+* [Copy Numbers  - Human](./gene_expression?dataset_id=h.how1m.1&facet=models)
+* [Copy Numbers  - Mouse](./gene_expression?dataset_id=m.how1m.1&facet=models)
+* [Concentrations  - Human+Mouse merged](./gene_expression?dataset_id=x.how1m.2&facet=models)
+* [Concentrations  - Human](./gene_expression?dataset_id=h.how1m.2&facet=models)
+* [Concentrations  - Mouse](./gene_expression?dataset_id=m.how1m.2&facet=models)
