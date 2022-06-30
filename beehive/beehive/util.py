@@ -1,9 +1,9 @@
 """Helper functions for beehive."""
 import subprocess as sp
 import hashlib
+import time
 
 import beehive
-
 
 
 def timer(func):
@@ -36,6 +36,7 @@ def create_widget(name: str,
                   default: str = None,
                   title: str = None,
                   curdoc=None,
+                  update_url: bool = True,
                   **kwargs):
     """Widget helper.
 
@@ -53,10 +54,10 @@ def create_widget(name: str,
 
     assert curdoc is not None
 
-    param_name = name # to get & retrieve from the URL
+    param_name = name  # to get & retrieve from the URL
     if title is None:
         title = name.capitalize()
-        
+
     if widget == AutocompleteInput:
         # unique name - prevents browser based autocomplete
         # which messes up different datasets
@@ -67,7 +68,8 @@ def create_widget(name: str,
     args = curdoc.session_context.request.arguments
     new_widget = widget(name=name, title=title, **kwargs)
     new_widget.value = getarg(args, param_name, default)
-    new_widget.js_on_change("value", js_onchange)
+    if update_url:
+        new_widget.js_on_change("value", js_onchange)
     return new_widget
 
 
@@ -159,7 +161,7 @@ def profiler(title, runs):
                 rv = func(*args, **kwargs)
 
             end = time.time()
-            runtime = end-start
+            runtime = end - start
             rtitle = title[:30]
             print(f'$$$ {rtitle:40s}'
                   f' tt: {runtime:8.3g}'

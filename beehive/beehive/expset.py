@@ -2,6 +2,7 @@
 
 from functools import partial, lru_cache
 import logging
+from typing import Dict
 
 import pandas as pd
 import polars as pl
@@ -14,14 +15,14 @@ lg = logging.getLogger(__name__)
 lg.setLevel(logging.DEBUG)
 
 
-DATASETS = {}
+DATASETS: Dict[str, Dict] = {}
 
 diskcache = partial(util.diskcache, where=util.get_datadir('cache'),
                     refresh=True)
 
 
 def get_datasets(
-        has_de:bool = False):
+        has_de: bool = False):
     """Return a dict with all dataset."""
     datadir = util.get_datadir('h5ad')
     global DATASETS
@@ -32,18 +33,43 @@ def get_datasets(
             basename = basename.replace('.yaml', '')
             with open(yamlfile, 'r') as F:
                 y = yaml.load(F, Loader=yaml.SafeLoader)
+                authors = y['author'].split(',')
+                authors = [x.strip() for x in authors]
+                if len(authors) < 3:
+                    y['short_author'] = y['author']
+                else:
+                    y['short_author'] = authors[0] + ".." + authors[-1]
+
+                if 'short_title' not in y:
+                    if len(y['title']) >= 65:
+                        y['short_title'] = y['title'][:57] + '...'
+                    else:
+                        y['short_title'] = y['title'][:80]
+
             DATASETS[basename] = y
 
     if has_de:
         # return only datasets with diffexp data
-        DSDE = {a:b for (a,b) in DATASETS.items()
-                if len(b.get('diffexp', {}))>0 }
+        DSDE = {a: b for (a, b) in DATASETS.items()
+                if len(b.get('diffexp', {})) > 0}
         lg.info(f"expset datadir is {datadir}, found {len(DSDE)} "
                 f"(out of {len(DATASETS)}) sets with DE data")
         return DSDE
     else:
         lg.info(f"expset datadir is {datadir}, found {len(DATASETS)} sets")
         return DATASETS
+
+
+def get_dataset_siblings(dsid: str) -> dict:
+    """Return datasets with the same study_id."""
+    dsets = get_datasets()
+    dset = dsets[dsid]
+    study_id = dset['study']
+    siblings = {}
+    for d, dd in dsets.items():
+        if dd['study'] == study_id:
+            siblings[d] = dd
+    return siblings
 
 
 def get_dataset(dsid):
@@ -53,10 +79,10 @@ def get_dataset(dsid):
     return rv
 
 
-def get_gene_meta_agg(dsid:str,
-                      gene:str,
-                      meta:str,
-                      nobins:int = 8):
+def get_gene_meta_agg(dsid: str,
+                      gene: str,
+                      meta: str,
+                      nobins: int = 8):
     """Return gene and observation."""
     genedata = get_gene(dsid, gene)
     metadata = get_meta(dsid, meta, nobins=nobins)
@@ -66,12 +92,12 @@ def get_gene_meta_agg(dsid:str,
     #     md5 = hashlib.md5()
     #     md5.update(p.to_csv().encode())
     #     return md5.hexdigest()
-  
+
     if genedata is None:
         return None
     if metadata is None:
         return None
-    
+
     rv = (pl.concat([genedata, metadata],
                     how='horizontal')
           .groupby(meta)
@@ -89,10 +115,10 @@ def get_gene_meta_agg(dsid:str,
           ])
           )
 
-    # print(dsid, gene, meta, nobins, 
+    # print(dsid, gene, meta, nobins,
     #       chksum(genedata), chksum(metadata),
     #       chksum(rv))
-        
+
     rv = rv.to_pandas()
     rv = rv.rename(columns={meta: 'cat_value'})
     rv = rv.sort_values(by=['cat_value', 'mean'])
@@ -153,8 +179,8 @@ def get_meta(dsid, col, nobins=8):
                       duplicates='drop', precision=2)
 
         rvcat = pd.DataFrame(dict(
-           no=range(1, len(rvq.cat.categories)+1),
-           q=rvq.cat.categories)).set_index('q')
+            no=range(1, len(rvq.cat.categories) + 1),
+            q=rvq.cat.categories)).set_index('q')
 
         rvcat['cic'] = rvq.value_counts()
         rvcat['cic'] = (100 * rvcat['cic']) / rvcat['cic'].sum()
