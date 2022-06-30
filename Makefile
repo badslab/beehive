@@ -26,7 +26,9 @@ serve_cbd2: fix_templates fix_bokeh_static_js
 		echo "(re)starting)"
 		bokeh serve --use-xheaders \
 			--allow-websocket-origin=data.bdslab.org \
-			 --port 5009 bokeh/gene_expression/
+			 --port 5009 \
+			bokeh/gene_expression/ \
+			bokeh/diffexp/
 		sleep 0.5
 	done
 
