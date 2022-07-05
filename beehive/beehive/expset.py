@@ -1,5 +1,3 @@
-
-
 from functools import partial, lru_cache
 import logging
 from typing import Dict
@@ -10,50 +8,48 @@ import yaml
 
 from beehive import util
 
-
 lg = logging.getLogger(__name__)
 lg.setLevel(logging.DEBUG)
 
 
 DATASETS: Dict[str, Dict] = {}
 
-diskcache = partial(util.diskcache, where=util.get_datadir('cache'),
-                    refresh=True)
+diskcache = partial(util.diskcache, where=util.get_datadir("cache"), refresh=True)
 
 
-def get_datasets(
-        has_de: bool = False):
+def get_datasets(has_de: bool = False):
     """Return a dict with all dataset."""
-    datadir = util.get_datadir('h5ad')
+    datadir = util.get_datadir("h5ad")
     global DATASETS
 
     if len(DATASETS) == 0:
-        for yamlfile in datadir.glob('*.yaml'):
+        for yamlfile in datadir.glob("*.yaml"):
             basename = yamlfile.name
-            basename = basename.replace('.yaml', '')
-            with open(yamlfile, 'r') as F:
+            basename = basename.replace(".yaml", "")
+            with open(yamlfile, "r") as F:
                 y = yaml.load(F, Loader=yaml.SafeLoader)
-                authors = y['author'].split(',')
+                authors = y["author"].split(",")
                 authors = [x.strip() for x in authors]
                 if len(authors) < 3:
-                    y['short_author'] = y['author']
+                    y["short_author"] = y["author"]
                 else:
-                    y['short_author'] = authors[0] + ".." + authors[-1]
+                    y["short_author"] = authors[0] + ".." + authors[-1]
 
-                if 'short_title' not in y:
-                    if len(y['title']) >= 65:
-                        y['short_title'] = y['title'][:57] + '...'
+                if "short_title" not in y:
+                    if len(y["title"]) >= 65:
+                        y["short_title"] = y["title"][:57] + "..."
                     else:
-                        y['short_title'] = y['title'][:80]
+                        y["short_title"] = y["title"][:80]
 
             DATASETS[basename] = y
 
     if has_de:
         # return only datasets with diffexp data
-        DSDE = {a: b for (a, b) in DATASETS.items()
-                if len(b.get('diffexp', {})) > 0}
-        lg.info(f"expset datadir is {datadir}, found {len(DSDE)} "
-                f"(out of {len(DATASETS)}) sets with DE data")
+        DSDE = {a: b for (a, b) in DATASETS.items() if len(b.get("diffexp", {})) > 0}
+        lg.info(
+            f"expset datadir is {datadir}, found {len(DSDE)} "
+            f"(out of {len(DATASETS)}) sets with DE data"
+        )
         return DSDE
     else:
         lg.info(f"expset datadir is {datadir}, found {len(DATASETS)} sets")
@@ -64,10 +60,10 @@ def get_dataset_siblings(dsid: str) -> dict:
     """Return datasets with the same study_id."""
     dsets = get_datasets()
     dset = dsets[dsid]
-    study_id = dset['study']
+    study_id = dset["study"]
     siblings = {}
     for d, dd in dsets.items():
-        if dd['study'] == study_id:
+        if dd["study"] == study_id:
             siblings[d] = dd
     return siblings
 
@@ -79,10 +75,7 @@ def get_dataset(dsid):
     return rv
 
 
-def get_gene_meta_agg(dsid: str,
-                      gene: str,
-                      meta: str,
-                      nobins: int = 8):
+def get_gene_meta_agg(dsid: str, gene: str, meta: str, nobins: int = 8):
     """Return gene and observation."""
     genedata = get_gene(dsid, gene)
     metadata = get_meta(dsid, meta, nobins=nobins)
@@ -98,36 +91,38 @@ def get_gene_meta_agg(dsid: str,
     if metadata is None:
         return None
 
-    rv = (pl.concat([genedata, metadata],
-                    how='horizontal')
-          .groupby(meta)
-          .agg([
-              pl.count(),
-              pl.mean(gene).alias('mean'),
-              pl.std(gene).alias('std'),
-              pl.median(gene).alias('median'),
-              pl.quantile(gene, 0.25).alias('q25'),
-              pl.quantile(gene, 0.75).alias('q75'),
-              pl.quantile(gene, 0.01).alias('q01'),
-              pl.quantile(gene, 0.99).alias('q99'),
-              pl.min(gene).alias('min'),
-              pl.max(gene).alias('max'),
-          ])
-          )
+    rv = (
+        pl.concat([genedata, metadata], how="horizontal")
+        .groupby(meta)
+        .agg(
+            [
+                pl.count(),
+                pl.mean(gene).alias("mean"),
+                pl.std(gene).alias("std"),
+                pl.median(gene).alias("median"),
+                pl.quantile(gene, 0.25).alias("q25"),
+                pl.quantile(gene, 0.75).alias("q75"),
+                pl.quantile(gene, 0.01).alias("q01"),
+                pl.quantile(gene, 0.99).alias("q99"),
+                pl.min(gene).alias("min"),
+                pl.max(gene).alias("max"),
+            ]
+        )
+    )
 
     # print(dsid, gene, meta, nobins,
     #       chksum(genedata), chksum(metadata),
     #       chksum(rv))
 
     rv = rv.to_pandas()
-    rv = rv.rename(columns={meta: 'cat_value'})
-    rv = rv.sort_values(by=['cat_value', 'mean'])
+    rv = rv.rename(columns={meta: "cat_value"})
+    rv = rv.sort_values(by=["cat_value", "mean"])
     return rv
 
 
 def get_gene(dsid, gene):
     """Return expression values for this dataset."""
-    datadir = util.get_datadir('h5ad')
+    datadir = util.get_datadir("h5ad")
     try:
         rv = pl.read_parquet(datadir / f"{dsid}.X.prq", [gene])
     except pl.exceptions.SchemaError:
@@ -137,61 +132,60 @@ def get_gene(dsid, gene):
 
 def get_defields(dsid):
     ds = get_dataset(dsid)
-    dex = ds.get('diffexp')
+    dex = ds.get("diffexp")
     return list(dex.keys())
 
 
 def get_dedata(dsid, categ, genes):
     """Return diffexp data."""
     ds = get_dataset(dsid)
-    dex = ds.get('diffexp')
+    dex = ds.get("diffexp")
     assert categ in dex
 
     if isinstance(genes, str):
         genes = [genes]
 
-    datadir = util.get_datadir('h5ad')
-    rv = pl.read_parquet(datadir / f"{dsid}.var.prq", ['field'] + genes)
+    datadir = util.get_datadir("h5ad")
+    rv = pl.read_parquet(datadir / f"{dsid}.var.prq", ["field"] + genes)
     rv = rv.to_pandas()
-    rvx = rv['field'].str.split('__', expand=True)
-    rvx.columns = ['categ', 'cat_value', 'measurement']
+    rvx = rv["field"].str.split("__", expand=True)
+    rvx.columns = ["categ", "cat_value", "measurement"]
     rv = pd.concat([rv, rvx], axis=1)
-    rv = rv[rv['categ'] == categ].copy()
-    del rv['categ']
-    del rv['field']
+    rv = rv[rv["categ"] == categ].copy()
+    del rv["categ"]
+    del rv["field"]
 
-    rv = rv.pivot(index='cat_value', columns='measurement', values=genes)
+    rv = rv.pivot(index="cat_value", columns="measurement", values=genes)
     return rv
 
 
 def get_meta(dsid, col, nobins=8):
     """Return one obs column."""
     ds = get_dataset(dsid)
-    dscol = ds['meta'][col]
-    datadir = util.get_datadir('h5ad')
+    dscol = ds["meta"][col]
+    datadir = util.get_datadir("h5ad")
     rv = pl.read_parquet(datadir / f"{dsid}.obs.prq", [col])
 
-    if dscol['dtype'] == 'categorical':
+    if dscol["dtype"] == "categorical":
         rv[col] = rv[col].cast(str)
 
-    elif dscol['dtype'] == 'numerical':
-        rvq = pd.qcut(rv.to_pandas()[col], nobins,
-                      duplicates='drop', precision=2)
+    elif dscol["dtype"] == "numerical":
+        rvq = pd.qcut(rv.to_pandas()[col], nobins, duplicates="drop", precision=2)
 
-        rvcat = pd.DataFrame(dict(
-            no=range(1, len(rvq.cat.categories) + 1),
-            q=rvq.cat.categories)).set_index('q')
+        rvcat = pd.DataFrame(
+            dict(no=range(1, len(rvq.cat.categories) + 1), q=rvq.cat.categories)
+        ).set_index("q")
 
-        rvcat['cic'] = rvq.value_counts()
-        rvcat['cic'] = (100 * rvcat['cic']) / rvcat['cic'].sum()
+        rvcat["cic"] = rvq.value_counts()
+        rvcat["cic"] = (100 * rvcat["cic"]) / rvcat["cic"].sum()
 
         rvcat = rvcat.reset_index()
 
-        rvcat['name'] = rvcat.apply(
-            lambda r: f"{r['no']:02d} {r['q']} - {r['cic']:.1f}%"
-            .format(**r), axis=1)
+        rvcat["name"] = rvcat.apply(
+            lambda r: f"{r['no']:02d} {r['q']} - {r['cic']:.1f}%".format(**r), axis=1
+        )
 
-        rvq = rvq.cat.rename_categories(list(rvcat['name']))
+        rvq = rvq.cat.rename_categories(list(rvcat["name"]))
 
         rv[col] = rvq.astype(str)
 
@@ -201,7 +195,7 @@ def get_meta(dsid, col, nobins=8):
 @diskcache()
 def get_genes(dsid):
     """Return a list fo genes for this datset."""
-    datadir = util.get_datadir('h5ad')
+    datadir = util.get_datadir("h5ad")
     lg.info("getting genes from " + str(datadir / f"{dsid}.X.prq"))
     X = pl.scan_parquet(datadir / f"{dsid}.X.prq")
     return X.columns
@@ -210,6 +204,6 @@ def get_genes(dsid):
 @diskcache()
 def obslist(dsid):
     """Return a list fo obs columns for this datset."""
-    datadir = util.get_datadir('h5ad')
+    datadir = util.get_datadir("h5ad")
     X = pl.scan_parquet(datadir / f"{dsid}.obs.prq")
     return X.columns
