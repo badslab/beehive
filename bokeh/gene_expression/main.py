@@ -1,5 +1,12 @@
 """Simple expression visualization."""
 
+# Notes:
+#
+# I removed the plottype for the time being - mean/std plots are strange when the min value is not zero -
+# some sets have negative (log) values - discuss if we can fix this - or simply do not show
+# mean/std plots?
+#
+
 from functools import partial
 import logging
 from pprint import pprint
@@ -62,7 +69,7 @@ w_gene = create_widget("gene", AutocompleteInput,
                        completions=[], default='APOE')
 w_facet = create_widget("facet", Select, options=[], title="Group by")
 w_plottype = create_widget("plottype", Select, title="Show",
-                           default="boxplot",
+                           default="boxplot", visible=False,
                            options=["boxplot", "mean/std"])
 
 w_download = Button(label='Download', align='end')
@@ -240,15 +247,21 @@ def cb_update_plot(attr, old, new):
 
     source.data = data
 
-    ymax = max(1, 1.08 * data['_segment_top'].max())
-    lg.warning(f"## YMAX {ymax} ")
+    # plan for 5% space above & below
+    yspacer = (data['_segment_top'].max() - data['_segment_bottom'].min()) / 20
+
+    ymax = data['_segment_top'].max() + yspacer
+    ymin = data['_segment_bottom'].min() - yspacer
+
+    lg.warning(f"## Y MIN/MAX {ymin:.2g} / {ymax:.2g} ")
 
     title = dataset['title'][:60]
     plot.title.text = (f"{pttext} {gene} vs {facet} - "
                        f"({dataset_id}) {title}...")
     plot.y_range.end = ymax
-    plot.y_range.start = -0.1
+    plot.y_range.start = ymin
     curdoc().unhold()
+
 
 
 # convenience shortcut
