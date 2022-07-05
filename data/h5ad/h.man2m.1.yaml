@@ -1,0 +1,92 @@
+author: Renzo Mancuso, Nicola Fattorelli, Anna Martinez-Muriana, Emma Davis, Leen
+  Wolfs, Johanna Van Den Daele, Ivana Geric, Pranav Preman, Lutgarde Serneels, Suresh
+  Poovathingal, Sriram Balusu, Catherine Verfaille, Mark Fiers, Bart De Strooper
+datatype: lognorm_SCT
+description: "Human microglia xenografted in APP-WT/APP-NLGF/APP-NLGFApoeKO mice display\
+  \ a multi-pronged response to A\u03B2 pathology. APOE22/33/44/KO and TREM2-R47H/KO/WT\
+  \ xenografted microglia allow study of microglial reponse under different genetic\
+  \ constraints."
+diffexp:
+  APOE:
+    keys:
+    - 44vs33
+    topgenes:
+    - CPNE8
+    - CIR1
+    - MTIF3
+    - LILRA4
+    - FOSL2
+    - PAQR6
+    - FAM129A
+    - IPO9-AS1
+  TREM2:
+    keys:
+    - KOvsWT
+    - R47HvsWT
+    topgenes:
+    - CPNE8
+    - IPO9-AS1
+    - CIR1
+    - MTIF3
+    - LILRA4
+    - FOSL2
+    - PAQR6
+    - MAST4
+  models:
+    keys:
+    - NLGFvsWT
+    - oAbvsScr
+    topgenes:
+    - CPNE8
+    - GLB1L
+    - UBAC2
+    - MAST4
+    - IPO9-AS1
+    - CIR1
+    - MTIF3
+    - CD63
+  subtypes:
+    keys:
+    - HM
+    - tCRM
+    - CRM1
+    - CRM2
+    - RM
+    - DAM
+    - HLA
+    - IRM
+    topgenes:
+    - CPNE8
+    - RASSF8
+    - WDR78
+    - PIM1
+    - ATP6V1F
+    - NFKBID
+    - SERPING1
+    - MRVI1-AS1
+dimred: []
+meta:
+  age:
+    dtype: categorical
+  cell.state_v2:
+    dtype: categorical
+  cell.state_v2.1:
+    dtype: categorical
+  gender:
+    dtype: categorical
+  mouse.genotype:
+    dtype: categorical
+  mouse.genotype_xMG.genotype:
+    dtype: numerical
+  subtype_v2:
+    dtype: categorical
+  subtype_v2.1:
+    dtype: categorical
+  xMG.genotype:
+    dtype: categorical
+organism: human
+short_title: "Microglia response to AD A\u03B2 pathology"
+slug: h.man2m.1
+study: man2m
+title: "A multi-pronged microglia response to Alzheimer\u2019s disease A\u03B2 pathology"
+year: 2022
