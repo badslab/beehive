@@ -12,5 +12,7 @@ scikit-learn
 scipy 
 statsmodels
 typer
+pelican 
+markdown
 
 -e ./beehive
