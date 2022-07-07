@@ -2,9 +2,10 @@
 
 # Notes:
 #
-# I removed the plottype for the time being - mean/std plots are strange when the min value is not zero -
-# some sets have negative (log) values - discuss if we can fix this - or simply do not show
-# mean/std plots?
+# I removed the plottype for the time being - mean/std plots
+# are strange when the min value is not zero - some sets
+# have negative (log) values - discuss if we can fix this
+# - or simply do not show mean/std plots? - solution for now.
 #
 
 from functools import partial

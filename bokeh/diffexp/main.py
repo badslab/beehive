@@ -34,23 +34,25 @@ create_widget = partial(util.create_widget, curdoc=curdoc())
 datasets = expset.get_datasets(has_de=True)
 
 lg.info(f"Discovered {len(datasets)} datasets")
+
 args = curdoc().session_context.request.arguments
 
 # WIDGETS
-def_dataset_id = util.getarg(args, 'dataset_id',
-                             list(datasets.keys())[0])
-lg.info(f"Default dataset is {def_dataset_id}")
-
 w_div_title_author = Div(text="")
 
-dataset_options = [(k, "{title}, {author}".format(**v))
+
+def_dataset_id = util.getarg(args, 'dataset_id',
+                             list(datasets.keys())[0])
+print(def_dataset_id)
+
+
+dataset_options = [(k, "{short_title}, {short_author}".format(**v))
                    for k, v in datasets.items()]
 
 w_dataset_id = create_widget("dataset_id", Select, title="Dataset",
                              options=dataset_options,
-                             value=def_dataset_id)
-
-print('xxxx' * 20 + w_dataset_id.value + '<<<')
+                             default=def_dataset_id,
+                             visible=False,)
 
 w_gene = create_widget("gene", TextInput, title="Genes (space separated)",
                        default='APOE TREM2 PLP1 GFAP RBFOX3')
@@ -58,11 +60,22 @@ w_gene = create_widget("gene", TextInput, title="Genes (space separated)",
 w_facet = create_widget("facet", Select, options=[],
                         title="Differential expression across:")
 
-#w_download = Button(label='Download', align='end')
-w_problem = Div(text="", visible=True)
+siblings = expset.get_dataset_siblings(w_dataset_id.value)
 
-# To display text if the gene is not found
-# w_gene_not_found = Div(text="")
+sibling_options = []
+for k, v in siblings.items():
+    sname = f"{v['organism']} / {v['datatype']}"
+    sibling_options.append((k, sname))
+    print(k, sname, def_dataset_id)
+
+w_sibling = create_widget("view", Select,
+                          options=sibling_options,
+                          default=def_dataset_id,
+                          update_url=False)
+
+
+# w_download = Button(label='Download', align='end')
+w_problem = Div(text="", visible=True)
 
 
 #
@@ -161,7 +174,7 @@ def get_data():
         # see if the index is numerical -
         # if so sort along that order
         data.sort_index(level=0, key=lambda x: x.astype(float))
-    except:
+    except:  # NOQA: E722
         data = data.sort_index()
 
     vmax = (lfc * notsig).abs().max().max()
@@ -224,9 +237,11 @@ def update_table():
             p_col_txt = config.colors.lightgrey
 
         return f"""
-           <span class="lfc" style="color:{lfc_col_txt};background-color:{lfc_col};">
+           <span class="lfc"
+                 style="color:{lfc_col_txt};background-color:{lfc_col};">
                {lfc:.1f}</span>
-           <span class="pval" style="color:{p_col_txt};background-color:{p_col};">
+           <span class="pval"
+                 style="color:{p_col_txt};background-color:{p_col};">
                {lp}</span>
         """.strip()
 
@@ -283,11 +298,9 @@ w_facet.on_change("value", cb_facet_change)
 #
 curdoc().add_root(
     column([
-        row([w_dataset_id],
+        row([w_dataset_id, w_sibling, w_facet],
             sizing_mode='stretch_width'),
         row([w_gene],
-            sizing_mode='stretch_width'),
-        row([w_facet],
             sizing_mode='stretch_width'),
         row([w_div_title_author],
             sizing_mode='stretch_width'),

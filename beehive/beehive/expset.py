@@ -14,7 +14,8 @@ lg.setLevel(logging.DEBUG)
 
 DATASETS: Dict[str, Dict] = {}
 
-diskcache = partial(util.diskcache, where=util.get_datadir("cache"), refresh=True)
+diskcache = partial(
+    util.diskcache, where=util.get_datadir("cache"), refresh=True)
 
 
 def get_datasets(has_de: bool = False):
@@ -45,7 +46,8 @@ def get_datasets(has_de: bool = False):
 
     if has_de:
         # return only datasets with diffexp data
-        DSDE = {a: b for (a, b) in DATASETS.items() if len(b.get("diffexp", {})) > 0}
+        DSDE = {a: b for (a, b) in DATASETS.items()
+                if len(b.get("diffexp", {})) > 0}
         lg.info(
             f"expset datadir is {datadir}, found {len(DSDE)} "
             f"(out of {len(DATASETS)}) sets with DE data"
@@ -170,10 +172,12 @@ def get_meta(dsid, col, nobins=8):
         rv[col] = rv[col].cast(str)
 
     elif dscol["dtype"] == "numerical":
-        rvq = pd.qcut(rv.to_pandas()[col], nobins, duplicates="drop", precision=2)
+        rvq = pd.qcut(rv.to_pandas()[col], nobins,
+                      duplicates="drop", precision=2)
 
         rvcat = pd.DataFrame(
-            dict(no=range(1, len(rvq.cat.categories) + 1), q=rvq.cat.categories)
+            dict(no=range(1, len(rvq.cat.categories) + 1),
+                 q=rvq.cat.categories)
         ).set_index("q")
 
         rvcat["cic"] = rvq.value_counts()
@@ -182,7 +186,8 @@ def get_meta(dsid, col, nobins=8):
         rvcat = rvcat.reset_index()
 
         rvcat["name"] = rvcat.apply(
-            lambda r: f"{r['no']:02d} {r['q']} - {r['cic']:.1f}%".format(**r), axis=1
+            lambda r: f"{r['no']:02d} {r['q']} - {r['cic']:.1f}%".format(**r),
+            axis=1
         )
 
         rvq = rvq.cat.rename_categories(list(rvcat["name"]))
