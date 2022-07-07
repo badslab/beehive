@@ -2,9 +2,9 @@
 
 # Notes:
 #
-# I removed the plottype for the time being - mean/std plots are strange when the min value is not zero -
-# some sets have negative (log) values - discuss if we can fix this - or simply do not show
-# mean/std plots?
+# I removed the plottype for the time being - mean/std plots are strange
+# when the min value is not zero some sets have negative (log) values -
+# discuss if we can fix this - or simply do not show mean/std plots?
 #
 
 from functools import partial
@@ -28,7 +28,7 @@ lg.setLevel(logging.DEBUG)
 lg.info("startup")
 
 curdoc().template_variables['config'] = config
-curdoc().template_variables['view_name'] = 'Gene Expression'
+curdoc().template_variables['view_name'] = 'Expression'
 
 create_widget = partial(util.create_widget, curdoc=curdoc())
 
@@ -261,7 +261,6 @@ def cb_update_plot(attr, old, new):
     plot.y_range.end = ymax
     plot.y_range.start = ymin
     curdoc().unhold()
-
 
 
 # convenience shortcut

@@ -7,7 +7,6 @@ from pprint import pprint
 
 import pandas as pd
 
-
 from bokeh.layouts import column, row
 from bokeh.models import ColumnDataSource
 from bokeh.models import DataTable, TableColumn, ScientificFormatter
@@ -34,23 +33,25 @@ create_widget = partial(util.create_widget, curdoc=curdoc())
 datasets = expset.get_datasets(has_de=True)
 
 lg.info(f"Discovered {len(datasets)} datasets")
+
 args = curdoc().session_context.request.arguments
 
 # WIDGETS
-def_dataset_id = util.getarg(args, 'dataset_id',
-                             list(datasets.keys())[0])
-lg.info(f"Default dataset is {def_dataset_id}")
-
 w_div_title_author = Div(text="")
 
-dataset_options = [(k, "{title}, {author}".format(**v))
+
+def_dataset_id = util.getarg(args, 'dataset_id',
+                             list(datasets.keys())[0])
+print(def_dataset_id)
+
+
+dataset_options = [(k, "{short_title}, {short_author}".format(**v))
                    for k, v in datasets.items()]
 
 w_dataset_id = create_widget("dataset_id", Select, title="Dataset",
                              options=dataset_options,
-                             value=def_dataset_id)
-
-print('xxxx'* 20 + w_dataset_id.value + '<<<')
+                             default=def_dataset_id,
+                             visible=False,)
 
 w_gene = create_widget("gene", TextInput, title="Genes (space separated)",
                        default='APOE TREM2 PLP1 GFAP RBFOX3')
@@ -58,11 +59,22 @@ w_gene = create_widget("gene", TextInput, title="Genes (space separated)",
 w_facet = create_widget("facet", Select, options=[],
                         title="Differential expression across:")
 
+siblings = expset.get_dataset_siblings(w_dataset_id.value)
+
+sibling_options = []
+for k, v in siblings.items():
+    sname = f"{v['organism']} / {v['datatype']}"
+    sibling_options.append((k, sname))
+    print(k, sname, def_dataset_id)
+
+w_sibling = create_widget("view", Select,
+                          options=sibling_options,
+                          default=def_dataset_id,
+                          update_url=False)
+
+
 #w_download = Button(label='Download', align='end')
 w_problem = Div(text="", visible=True)
-
-# To display text if the gene is not found
-# w_gene_not_found = Div(text="")
 
 
 #
@@ -99,11 +111,11 @@ def get_facets():
 # Change & Initialize interface
 #
 
+
 def update_facets():
     """Update interface for a specific dataset."""
 
     facets = get_facets()
-
 
     w_facet.options = facets
     if w_facet.value not in facets:
@@ -176,9 +188,9 @@ source = ColumnDataSource(dict(cat_value=[]))
 table = DataTable(source=source,
                   margin=10,
                   index_position=None,
-                   columns=[
-                       TableColumn(field='cat_value', title='Category'),
-                       ])
+                  columns=[
+                      TableColumn(field='cat_value', title='Category'),
+                  ])
 
 
 def get_html_formatter(col):
@@ -218,10 +230,10 @@ def update_table():
             p_col_txt = '#FFF'
 
         if padj > 0.05:
-            lfc_col=config.colors.lightgrey
-            lfc_col_txt=config.colors.darkgrey
-            p_col=config.colors.lightgrey
-            p_col_txt=config.colors.lightgrey
+            lfc_col = config.colors.lightgrey
+            lfc_col_txt = config.colors.darkgrey
+            p_col = config.colors.lightgrey
+            p_col_txt = config.colors.lightgrey
 
         return f"""
            <span class="lfc" style="color:{lfc_col_txt};background-color:{lfc_col};">
@@ -240,17 +252,20 @@ def update_table():
             TableColumn(field=gene, title=gene,
                         formatter=get_html_formatter(gene)))
 
-    #update the doc in one go...
+    # update the doc in one go...
     curdoc().hold()
     table.columns = newcols
     source.data = data
     curdoc().unhold()
+
 
 update_table()
 
 #
 # widget callbacks
 #
+
+
 def cb_dataset_change(attr, old, new):
     """Dataaset change."""
     lg.info("CB dataset change")
@@ -280,11 +295,9 @@ w_facet.on_change("value", cb_facet_change)
 #
 curdoc().add_root(
     column([
-        row([w_dataset_id],
+        row([w_dataset_id, w_sibling, w_facet],
             sizing_mode='stretch_width'),
         row([w_gene],
-            sizing_mode='stretch_width'),
-        row([w_facet],
             sizing_mode='stretch_width'),
         row([w_div_title_author],
             sizing_mode='stretch_width'),

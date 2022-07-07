@@ -33,8 +33,14 @@ serve_cbd2: fix_templates fix_bokeh_static_js
 	done
 
 .ONEHSELL:
+.SILENT:
 serve_dev: fix_templates
-	bokeh serve --dev --port 5010 bokeh/gene_expression/ # bokeh/diffexp/
+	LAST=$$(ls -t bokeh/*/main.py | head -1)
+	LAST=$$(dirname $$LAST)
+	echo "DEV SERVE: $$LAST"
+	echo bokeh serve --dev --port 5010 $$LAST
+	bokeh serve --dev --port 5010 $$LAST
+	#bokeh serve --dev --port 5010 bokeh/gene_expression/ # bokeh/diffexp/
 
 .PHONY:
 .ONESHELL:

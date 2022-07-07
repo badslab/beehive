@@ -81,7 +81,7 @@ def h5ad_convert(h5ad_file: Path = typer.Argument(..., exists=True),
         adata.raw.to_adata()
         lg.warning("Adata has a `.raw`! Are you sure you have the correct")
         lg.warning("data in .X?")
-    except:
+    except:  # NOQA: E722
         pass
 
     dfx = adata.to_df()
@@ -146,7 +146,7 @@ def h5ad_convert(h5ad_file: Path = typer.Argument(..., exists=True),
     var.index.name = 'field'
     var = var.reset_index()
 
-    lg.info(f"Writing output files to:")
+    lg.info("Writing output files to:")
     lg.info(" - " + str(outbase.with_suffix('.obs.prq')))
     pl.DataFrame(obs).write_parquet(outbase.with_suffix('.obs.prq'))
     lg.info(" - " + str(outbase.with_suffix('.var.prq')))
