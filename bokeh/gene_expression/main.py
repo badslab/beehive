@@ -172,10 +172,10 @@ table = DataTable(source=source,
                   index_position=None,
                   columns=[
                       TableColumn(field='cat_value', title='Category'),
-                      TableColumn(field='count', title='Count',
+                      TableColumn(field='count', title='No Samples/Cells',
                                   formatter=ScientificFormatter(precision=0)),
-                      TableColumn(field='perc', title='Percentage',
-                                  formatter=ScientificFormatter(precision=2)),
+                      TableColumn(field='perc', title='% Samples/Cells',
+                                  formatter=ScientificFormatter(precision=1)),
                       TableColumn(field='mean', title='Mean',
                                   formatter=ScientificFormatter(precision=2)),
                       TableColumn(field='median', title='Median',
@@ -237,14 +237,14 @@ def cb_update_plot(attr, old, new):
     w_download_filename.text = f"exp_{dataset_id}_{facet}_{gene}.tsv"
 
     if w_plottype.value == "boxplot":
-        pttext = 'Boxplot'
+        pttext = 'Boxplot of'
     else:
         data['_segment_top'] = data['mean'] + data['std']
         data['_bar_top'] = data['mean']
         data['_bar_bottom'] = 0
         data['_segment_bottom'] = 0
         data['_bar_median'] = data['mean']
-        pttext = 'Mean/std'
+        pttext = 'Mean/std of'
 
     source.data = data
 
@@ -255,13 +255,19 @@ def cb_update_plot(attr, old, new):
     ymin = data['_segment_bottom'].min() - yspacer
 
     lg.warning(f"## Y MIN/MAX {ymin:.2g} / {ymax:.2g} ")
-
-    title = dataset['title'][:60]
-    plot.title.text = (f"{pttext} {gene} vs {facet} - "
-                       f"({dataset_id}) {title}...")
-    plot.y_range.end = ymax
     plot.y_range.start = ymin
+    plot.y_range.end = ymax
+
+    title = dataset['short_title']
+    if len(title) > 80:
+        title = title[:77] + '...'
+    plot.title.text = (f"{pttext} {gene} vs {facet} - {dataset['organism']} - "
+                       f"{dataset['first_author']} - {title}")
+    plot.yaxis.axis_label = f"{dataset['datatype']}"
+
     curdoc().unhold()
+    plot.y_range.start = ymin
+    plot.y_range.end = ymax
 
 
 # convenience shortcut

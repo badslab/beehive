@@ -12,7 +12,7 @@ app = typer.Typer()
 
 @app.command()
 def obs(h5ad_file: Path = typer.Argument(..., exists=True),
-        skip: Optional[List[str]] = typer.Option(None),
+        skip: List[str] = typer.Option([]),
         ):
     """Show obs fields."""
     import scanpy as sc
@@ -36,7 +36,7 @@ def obs(h5ad_file: Path = typer.Argument(..., exists=True),
         print(name, dtype, dtype.kind)
 
 
-@app.command()
+@ app.command()
 def load(h5ad_file: Path = typer.Argument(..., exists=True),
          sqlite_db: Path = typer.Argument(...),
          dsid: str = None,
@@ -44,7 +44,7 @@ def load(h5ad_file: Path = typer.Argument(..., exists=True),
          title: str = None,
          skip: Optional[List[str]] = None,
          field: Optional[List[str]] = typer.Option(None),
-         categ: Optional[List[str]] = typer.Option(None),
+         categ: Optional[List[str]] = typer.Option([None]),
          ):
     """Load h5ad into a sqlite database."""
     import re
@@ -63,6 +63,7 @@ def load(h5ad_file: Path = typer.Argument(..., exists=True),
 
     echo(f"loading   : {h5ad_file}")
     echo(f"basename  : {dataset_id}")
+    categ = [] if categ is None else categ
     echo("Force cat : " + " ".join(categ))
 
     skipres = []
@@ -137,7 +138,6 @@ def load(h5ad_file: Path = typer.Argument(..., exists=True),
         except sqlite3.OperationalError as e:
             if str(e) != "no such table: data":
                 raise
-
 
         bins = None
 

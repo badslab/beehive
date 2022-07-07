@@ -9,6 +9,7 @@ from pprint import pprint
 import typer
 from typer import echo
 from typing import List, Optional
+import yaml
 
 from beehive import util, expset
 
@@ -30,6 +31,18 @@ def h5ad_uns(h5ad_file: Path = typer.Argument(..., exists=True)):
 def h5ad_set(h5ad_file: Path = typer.Argument(..., exists=True),
              key: str = typer.Argument(...),
              val: str = typer.Argument(...)):
+
+    if key == 'year':
+        val = int(val)
+
+    # check if the output yaml is there as well
+    yamlfile = h5ad_file.with_suffix('.yaml')
+    if yamlfile.exists():
+        with open(yamlfile) as F:
+            yml = yaml.load(F, Loader=yaml.SafeLoader)
+        yml[key] = val
+        with open(yamlfile, 'w') as F:
+            yaml.dump(yml, F, Dumper=yaml.SafeDumper)
 
     import scanpy as sc
     lg.warning(f"Setting on {h5ad_file}")
@@ -61,7 +74,6 @@ def h5ad_convert(h5ad_file: Path = typer.Argument(..., exists=True),
     import scanpy as sc
     import polars as pl
     import pandas as pd
-    import yaml
 
     outbase = h5ad_file
     lg.info(f"Filename for IO: {outbase}")

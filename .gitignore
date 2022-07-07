@@ -10,3 +10,4 @@ __pycache__
 .vscode/
 bin/caddy
 .*
+data/gene_expression/gene_expression.db

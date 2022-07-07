@@ -31,6 +31,7 @@ def get_datasets(has_de: bool = False):
                 y = yaml.load(F, Loader=yaml.SafeLoader)
                 authors = y["author"].split(",")
                 authors = [x.strip() for x in authors]
+                y["first_author"] = authors[0]
                 if len(authors) < 3:
                     y["short_author"] = y["author"]
                 else:
@@ -40,7 +41,7 @@ def get_datasets(has_de: bool = False):
                     if len(y["title"]) >= 65:
                         y["short_title"] = y["title"][:57] + "..."
                     else:
-                        y["short_title"] = y["title"][:80]
+                        y["short_title"] = y["title"]
 
             DATASETS[basename] = y
 

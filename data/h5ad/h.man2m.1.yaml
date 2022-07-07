@@ -1,7 +1,7 @@
 author: Renzo Mancuso, Nicola Fattorelli, Anna Martinez-Muriana, Emma Davis, Leen
   Wolfs, Johanna Van Den Daele, Ivana Geric, Pranav Preman, Lutgarde Serneels, Suresh
   Poovathingal, Sriram Balusu, Catherine Verfaille, Mark Fiers, Bart De Strooper
-datatype: lognorm_SCT
+datatype: log normalized SCT transformed counts
 description: "Human microglia xenografted in APP-WT/APP-NLGF/APP-NLGFApoeKO mice display\
   \ a multi-pronged response to A\u03B2 pathology. APOE22/33/44/KO and TREM2-R47H/KO/WT\
   \ xenografted microglia allow study of microglial reponse under different genetic\
