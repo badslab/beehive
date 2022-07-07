@@ -28,7 +28,7 @@ lg.setLevel(logging.DEBUG)
 lg.info("startup")
 
 curdoc().template_variables['config'] = config
-curdoc().template_variables['view_name'] = 'Gene Expression'
+curdoc().template_variables['view_name'] = 'Gene/Protein Expression'
 
 create_widget = partial(util.create_widget, curdoc=curdoc())
 
@@ -261,7 +261,6 @@ def cb_update_plot(attr, old, new):
     plot.y_range.end = ymax
     plot.y_range.start = ymin
     curdoc().unhold()
-
 
 
 # convenience shortcut

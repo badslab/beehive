@@ -22,7 +22,7 @@ fix_bokeh_static_js:
 
 .ONESHELL:
 serve_cbd2: fix_templates fix_bokeh_static_js
-	while true; do 
+	while true; do
 		echo "(re)starting)"
 		bokeh serve --use-xheaders \
 			--allow-websocket-origin=data.bdslab.org \
@@ -46,6 +46,9 @@ rebuild_static_website:
 
 sync_data_to_moamx:
 	rsync -arv data/h5ad/*prq moamx:/data/project/mark/beehive/data/h5ad/
+
+sync_data_to_cbd2:
+	rsync -arv data/h5ad/*prq cbd2:/media/gbw_cbdbads_alzmap/bdslab_visualization_internal/beehive/data/h5ad/
 
 
 # .SILENT:

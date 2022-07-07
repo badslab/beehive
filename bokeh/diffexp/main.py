@@ -7,7 +7,6 @@ from pprint import pprint
 
 import pandas as pd
 
-
 from bokeh.layouts import column, row
 from bokeh.models import ColumnDataSource
 from bokeh.models import DataTable, TableColumn, ScientificFormatter
@@ -26,6 +25,7 @@ lg.setLevel(logging.DEBUG)
 lg.info("startup")
 
 
+# for template rendering
 curdoc().template_variables['config'] = config
 curdoc().template_variables['view_name'] = 'Differential Expression'
 
@@ -50,7 +50,7 @@ w_dataset_id = create_widget("dataset_id", Select, title="Dataset",
                              options=dataset_options,
                              value=def_dataset_id)
 
-print('xxxx'* 20 + w_dataset_id.value + '<<<')
+print('xxxx' * 20 + w_dataset_id.value + '<<<')
 
 w_gene = create_widget("gene", TextInput, title="Genes (space separated)",
                        default='APOE TREM2 PLP1 GFAP RBFOX3')
@@ -99,11 +99,11 @@ def get_facets():
 # Change & Initialize interface
 #
 
+
 def update_facets():
     """Update interface for a specific dataset."""
 
     facets = get_facets()
-
 
     w_facet.options = facets
     if w_facet.value not in facets:
@@ -176,9 +176,9 @@ source = ColumnDataSource(dict(cat_value=[]))
 table = DataTable(source=source,
                   margin=10,
                   index_position=None,
-                   columns=[
-                       TableColumn(field='cat_value', title='Category'),
-                       ])
+                  columns=[
+                      TableColumn(field='cat_value', title='Category'),
+                  ])
 
 
 def get_html_formatter(col):
@@ -218,10 +218,10 @@ def update_table():
             p_col_txt = '#FFF'
 
         if padj > 0.05:
-            lfc_col=config.colors.lightgrey
-            lfc_col_txt=config.colors.darkgrey
-            p_col=config.colors.lightgrey
-            p_col_txt=config.colors.lightgrey
+            lfc_col = config.colors.lightgrey
+            lfc_col_txt = config.colors.darkgrey
+            p_col = config.colors.lightgrey
+            p_col_txt = config.colors.lightgrey
 
         return f"""
            <span class="lfc" style="color:{lfc_col_txt};background-color:{lfc_col};">
@@ -240,17 +240,20 @@ def update_table():
             TableColumn(field=gene, title=gene,
                         formatter=get_html_formatter(gene)))
 
-    #update the doc in one go...
+    # update the doc in one go...
     curdoc().hold()
     table.columns = newcols
     source.data = data
     curdoc().unhold()
+
 
 update_table()
 
 #
 # widget callbacks
 #
+
+
 def cb_dataset_change(attr, old, new):
     """Dataaset change."""
     lg.info("CB dataset change")
