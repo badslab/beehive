@@ -217,3 +217,9 @@ def get_obsfields(dsid):
     datadir = util.get_datadir("h5ad")
     X = pl.scan_parquet(datadir / f"{dsid}.obs.prq")
     return X.columns
+
+def get_varfields(dsid):
+    """Return a list of var columns for this datset."""
+    datadir = util.get_datadir("h5ad")
+    X = pl.scan_parquet(datadir / f"{dsid}.var.prq")
+    return X.columns
