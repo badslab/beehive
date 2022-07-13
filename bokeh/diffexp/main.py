@@ -219,7 +219,11 @@ def update_table():
 
         lp = 99 if padj == 0 else int(min(99, -math.log10(padj)))
 
+        if vmax == 0:
+            lfc_col_no = 0
+        else:
         lfc_col_no = int(255 * (lfc + vmax) / (2 * vmax))
+
         lfc_col = cc.CET_D3[lfc_col_no]
         lfc_col_txt = "#000"
 
