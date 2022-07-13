@@ -27,20 +27,24 @@ def h5ad_uns(h5ad_file: Path = typer.Argument(..., exists=True)):
     pprint(adata.uns['study_md'])
 
 
+def value_typer(key, val):
+    """Convert values to the correct datatype - if necessary"""
+    if key in ['year']:
+        return int(val)
+    return val
+
+
 @app.command("set")
 def h5ad_set(h5ad_file: Path = typer.Argument(..., exists=True),
              key: str = typer.Argument(...),
              val: str = typer.Argument(...)):
-
-    if key == 'year':
-        val = int(val)
 
     # check if the output yaml is there as well
     yamlfile = h5ad_file.with_suffix('.yaml')
     if yamlfile.exists():
         with open(yamlfile) as F:
             yml = yaml.load(F, Loader=yaml.SafeLoader)
-        yml[key] = val
+        yml[key] = value_typer(key, val)
         with open(yamlfile, 'w') as F:
             yaml.dump(yml, F, Dumper=yaml.SafeDumper)
 
@@ -48,7 +52,7 @@ def h5ad_set(h5ad_file: Path = typer.Argument(..., exists=True),
     lg.warning(f"Setting on {h5ad_file}")
     lg.warning(f'Changing "{key}" to "{val}" in `.uns["study_md"]`')
     adata = sc.read_h5ad(h5ad_file, backed='r+')
-    adata.uns['study_md'][key] = val
+    adata.uns['study_md'][key] = value_typer(key, val)
     adata.write()
 
 
