@@ -198,7 +198,7 @@ def get_meta(dsid, col, nobins=8):
     return rv
 
 
-@diskcache()
+# @diskcache()
 def get_genes(dsid):
     """Return a list fo genes for this datset."""
     datadir = util.get_datadir("h5ad")
@@ -207,9 +207,10 @@ def get_genes(dsid):
     return X.columns
 
 
-@diskcache()
+# @diskcache()
 def obslist(dsid):
-    """Return a list fo obs columns for this datset."""
+    lg.warning("`obslist` is deprecated function, use get_obsfields")
+    return get_obsfields(dsid)
     datadir = util.get_datadir("h5ad")
     X = pl.scan_parquet(datadir / f"{dsid}.obs.prq")
     return X.columns
