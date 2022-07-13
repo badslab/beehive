@@ -25,6 +25,41 @@ meta:
     dtype: categorical
   vivo_vitro:
     dtype: categorical
+obs_meta:
+  _cell:
+    dtype: categorical
+    name: _cell
+    values:
+      BV2_1:
+        name: BV2_1
+      BV2_2:
+        name: BV2_2
+      BV2_3:
+        name: BV2_3
+      mMG_1:
+        name: mMG_1
+      mMG_2:
+        name: mMG_2
+      mMG_3:
+        name: mMG_3
+      mMG_4:
+        name: mMG_4
+  model:
+    dtype: categorical
+    name: model
+    values:
+      BV2:
+        name: BV2
+      mMG:
+        name: mMG
+  vivo_vitro:
+    dtype: categorical
+    name: vivo_vitro
+    values:
+      vitro:
+        name: vitro
+      vivo:
+        name: vivo
 organism: mouse
 short_title: Deep Proteomics of Human Microglia
 slug: m.how1m.1

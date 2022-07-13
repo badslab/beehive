@@ -1,6 +1,7 @@
 from functools import partial, lru_cache
 import logging
-from typing import Dict
+from typing import Dict, List, Tuple
+
 
 import pandas as pd
 import polars as pl
@@ -18,6 +19,7 @@ diskcache = partial(
     util.diskcache, where=util.get_datadir("cache"), refresh=True)
 
 
+@lru_cache(1)
 def get_datasets(has_de: bool = False):
     """Return a dict with all dataset."""
     datadir = util.get_datadir("h5ad")
@@ -71,11 +73,28 @@ def get_dataset_siblings(dsid: str) -> dict:
     return siblings
 
 
+@lru_cache(32)
 def get_dataset(dsid):
     """Return metadata on a single dataset."""
     rv = get_datasets()[dsid]
     lg.info(f"Returning dataset {dsid}")
     return rv
+
+
+def get_facet_options(dsid: str) -> List[Tuple[str, str]]:
+    """
+    Return obs columns that a dataset can be facetted on.
+    These have to be categorical
+
+    param dataset - dictionary as loaded from the .yaml files
+    """
+    dataset = get_dataset(dsid)
+    rv = []
+    for key, data in dataset.get('obs_meta', {}).items():
+        if data.get('dtype') == 'categorical':
+            name = data.get('name', key)
+            rv.append((key, name))
+    return list(sorted(rv))
 
 
 def get_gene_meta_agg(dsid: str, gene: str, meta: str, nobins: int = 8):
@@ -162,12 +181,17 @@ def get_dedata(dsid, categ, genes):
     return rv
 
 
-def get_meta(dsid, col, nobins=8):
+def get_meta(dsid, col, raw=False, nobins=8):
     """Return one obs column."""
-    ds = get_dataset(dsid)
-    dscol = ds["meta"][col]
     datadir = util.get_datadir("h5ad")
     rv = pl.read_parquet(datadir / f"{dsid}.obs.prq", [col])
+
+    if raw:
+        # just return whatever is in the db.
+        return rv
+
+    ds = get_dataset(dsid)
+    dscol = ds["obs_meta"][col]
 
     if dscol["dtype"] == "categorical":
         rv[col] = rv[col].cast(str)
@@ -198,7 +222,7 @@ def get_meta(dsid, col, nobins=8):
     return rv
 
 
-@diskcache()
+# @diskcache()
 def get_genes(dsid):
     """Return a list fo genes for this datset."""
     datadir = util.get_datadir("h5ad")
@@ -207,9 +231,21 @@ def get_genes(dsid):
     return X.columns
 
 
-@diskcache()
+# @diskcache()
 def obslist(dsid):
-    """Return a list fo obs columns for this datset."""
+    lg.warning("`obslist` is deprecated function, use get_obsfields")
+    return get_obsfields(dsid)
+
+
+def get_obsfields(dsid):
+    """Return a list of obs columns for this datset."""
     datadir = util.get_datadir("h5ad")
     X = pl.scan_parquet(datadir / f"{dsid}.obs.prq")
+    return X.columns
+
+
+def get_varfields(dsid):
+    """Return a list of var columns for this datset."""
+    datadir = util.get_datadir("h5ad")
+    X = pl.scan_parquet(datadir / f"{dsid}.var.prq")
     return X.columns

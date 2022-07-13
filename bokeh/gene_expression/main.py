@@ -1,4 +1,4 @@
-"""Simple expression visualization."""
+"""Simple boxplot gene expression visualization."""
 
 # Notes:
 #
@@ -7,6 +7,7 @@
 # have negative (log) values - discuss if we can fix this
 # - or simply do not show mean/std plots? - solution for now.
 #
+
 
 from functools import partial
 import logging
@@ -40,39 +41,27 @@ args = curdoc().session_context.request.arguments
 # WIDGETS
 w_div_title_author = Div(text="")
 
-def_dataset_id = util.getarg(args, 'dataset_id',
-                             list(datasets.keys())[0])
-
+# Dataset
 dataset_options = [(k, "{short_title}, {short_author}".format(**v))
                    for k, v in datasets.items()]
-
 w_dataset_id = create_widget("dataset_id", Select, title="Dataset",
                              options=dataset_options,
-                             default=def_dataset_id,
                              visible=False,)
 
+# Possible siblings of this dataset
 siblings = expset.get_dataset_siblings(w_dataset_id.value)
-
 sibling_options = []
 for k, v in siblings.items():
     sname = f"{v['organism']} / {v['datatype']}"
     sibling_options.append((k, sname))
-    print(k, sname, def_dataset_id)
-
-
 w_sibling = create_widget("view", Select,
                           options=sibling_options,
-                          default=def_dataset_id,
+                          default=w_dataset_id.value,
                           update_url=False)
 
-# w_views = create_widget
 w_gene = create_widget("gene", AutocompleteInput,
                        completions=[], default='APOE')
 w_facet = create_widget("facet", Select, options=[], title="Group by")
-w_plottype = create_widget("plottype", Select, title="Show",
-                           default="boxplot", visible=False,
-                           options=["boxplot", "mean/std"])
-
 w_download = Button(label='Download', align='end')
 w_download_filename = Div(text="", visible=False,
                           name="download_filename")
@@ -92,25 +81,13 @@ def get_genes():
     return genes
 
 
-def get_facets():
-    """Get available facets for a dataset."""
-    dataset_id = w_dataset_id.value
-    facets = sorted(list(datasets[dataset_id]['meta'].keys()))
-    return facets
-
-
-#
-# Change & Initialize interface
-#
 def update_facets():
     """Update interface for a specific dataset."""
-    facets = get_facets()
-    w_facet.options = facets
-    if w_facet.value not in facets:
-        # set
-        w_facet.value = \
-            [f for f in facets
-             if not f.startswith('_')][0]
+    options = expset.get_facet_options(w_dataset_id.value)
+    w_facet.options = options
+    if w_facet.value not in [x[0] for x in options]:
+        # set a default
+        w_facet.value = options[0][0]
 
 
 def update_genes():
@@ -236,16 +213,6 @@ def cb_update_plot(attr, old, new):
     plot.x_range.factors = list(sorted(data['cat_value']))
     w_download_filename.text = f"exp_{dataset_id}_{facet}_{gene}.tsv"
 
-    if w_plottype.value == "boxplot":
-        pttext = 'Boxplot of'
-    else:
-        data['_segment_top'] = data['mean'] + data['std']
-        data['_bar_top'] = data['mean']
-        data['_bar_bottom'] = 0
-        data['_segment_bottom'] = 0
-        data['_bar_median'] = data['mean']
-        pttext = 'Mean/std of'
-
     source.data = data
 
     # plan for 5% space above & below
@@ -261,8 +228,9 @@ def cb_update_plot(attr, old, new):
     title = dataset['short_title']
     if len(title) > 80:
         title = title[:77] + '...'
-    plot.title.text = (f"{pttext} {gene} vs {facet} - {dataset['organism']} - "
-                       f"{dataset['first_author']} - {title}")
+    plot.title.text = (f"Boxplot of {gene} vs {facet}"
+                       f" - {dataset['organism']}"
+                       f" - {dataset['first_author']} - {title}")
     plot.yaxis.axis_label = f"{dataset['datatype']}"
 
     curdoc().unhold()
@@ -302,7 +270,6 @@ w_gene.on_change("value", cb_update_plot)
 w_sibling.on_change("value", cb_sibling_change)
 w_dataset_id.on_change("value", cb_dataset_change)
 w_facet.on_change("value", cb_update_plot)
-w_plottype.on_change("value", cb_update_plot)
 w_download.js_on_click(cb_download)
 
 
@@ -311,7 +278,7 @@ w_download.js_on_click(cb_download)
 #
 curdoc().add_root(
     column([
-        row([w_gene, w_facet, w_plottype, w_sibling, w_download],
+        row([w_gene, w_facet, w_sibling, w_download],
             sizing_mode='stretch_width'),
         row([w_div_title_author],
             sizing_mode='stretch_width'),
