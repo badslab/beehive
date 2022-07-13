@@ -39,6 +39,8 @@ w_div_title_author = Div(text="")
 #default dataset... ex: m.how1m.2
 def_dataset_id = util.getarg(args, 'dataset_id',
                              list(datasets.keys())[5])
+######SETTING IT MANUALLY FOR NOW############
+def_dataset_id = "h.man2m.1"
 
 #datasets with titles
 dataset_options = [(k, "{short_title}, {short_author}".format(**v))
@@ -199,9 +201,9 @@ if pd.DataFrame(source.data)['obs'].dtype == int:
 else:
     pass
 
-index_cmap = factor_cmap('obs', Category10[len(list(pd.DataFrame(source.data)['obs'].unique()))], list(pd.DataFrame(source.data)['obs'].unique()))
+index_cmap = factor_cmap('obs', Category10[len(list(pd.DataFrame(source.data)["obs"].unique()))], list(pd.DataFrame(source.data)["obs"].unique()))
 glyph = plot.scatter(x='gene1', y='gene2', source=source,  legend_field="obs",
-        fill_alpha=1, size=5, fill_color = index_cmap,width=0)
+        fill_alpha=0.7, size=5, fill_color = index_cmap,width=0)
 
 def cb_update_plot(attr, old, new):
     """Populate and update the plot."""
