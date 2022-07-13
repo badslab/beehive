@@ -162,12 +162,17 @@ def get_dedata(dsid, categ, genes):
     return rv
 
 
-def get_meta(dsid, col, nobins=8):
+def get_meta(dsid, col, raw=False, nobins=8):
     """Return one obs column."""
-    ds = get_dataset(dsid)
-    dscol = ds["meta"][col]
     datadir = util.get_datadir("h5ad")
     rv = pl.read_parquet(datadir / f"{dsid}.obs.prq", [col])
+    
+    if raw:
+        # just return whatever is in the db.
+        return rv
+
+    ds = get_dataset(dsid)
+    dscol = ds["meta"][col]
 
     if dscol["dtype"] == "categorical":
         rv[col] = rv[col].cast(str)
