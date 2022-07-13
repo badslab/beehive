@@ -27,6 +27,51 @@ meta:
     dtype: categorical
   vivo_vitro:
     dtype: categorical
+obs_meta:
+  _cell:
+    dtype: categorical
+    name: _cell
+    values:
+      Xplant_1:
+        name: Xplant_1
+      Xplant_2:
+        name: Xplant_2
+      Xplant_3:
+        name: Xplant_3
+      hESC_1:
+        name: hESC_1
+      hESC_2:
+        name: hESC_2
+      hESC_3:
+        name: hESC_3
+      hMG_1:
+        name: hMG_1
+      hMG_2:
+        name: hMG_2
+      hMG_3:
+        name: hMG_3
+      hMG_4:
+        name: hMG_4
+      hMG_5:
+        name: hMG_5
+  models:
+    dtype: categorical
+    name: models
+    values:
+      Xplant:
+        name: Xplant
+      hESC:
+        name: hESC
+      hMG:
+        name: hMG
+  vivo_vitro:
+    dtype: categorical
+    name: vivo_vitro
+    values:
+      vitro:
+        name: vitro
+      vivo:
+        name: vivo
 organism: human
 short_title: Deep Proteomics of Human Microglia
 slug: h.how1m.2
