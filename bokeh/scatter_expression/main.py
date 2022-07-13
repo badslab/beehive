@@ -269,21 +269,23 @@ def cb_sibling_change(attr, old, new):
     lg.debug("Sibling change: " + new)
     w_dataset_id.value = new
 
-
-cb_download = CustomJS(
+##TODO: fix download button. only downloads old data
+def cb_download():
+    data = get_data()
+    source.data = data
+    print(source.data)
+    return CustomJS(
     args=dict(data=source.data,
               columns=[x for x in source.data.keys() if not x.startswith('_')],
               filename_div=w_download_filename),
     code="exportToTsv(data, columns, filename_div.text);")
-
-
 
 w_gene1.on_change("value", cb_update_plot)
 w_gene2.on_change("value", cb_update_plot)
 w_sibling.on_change("value", cb_sibling_change)
 w_dataset_id.on_change("value", cb_dataset_change)
 w_facet.on_change("value", cb_update_plot)
-w_download.js_on_click(cb_download)
+w_download.js_on_click(cb_download())
 
 
 #

@@ -1,14 +1,13 @@
 SHELL=/bin/bash
 
 .PHONY:
-.ONESHELL:
 fix_templates:
-	for bdir in ./bokeh/*; do
-		tdir="$$bdir/templates"
-		echo $$bdir $$tdir
-		echo "Make templates symlink"
-		( cd $$bdir ; ln -sf ../../templates . )
-	done
+	for bdir in ./bokeh/*; do \
+		tdir="$$bdir/templates"; \
+		echo $$bdir $$tdir; \
+		echo "Make templates symlink"; \
+		( cd $$bdir ; ln -sf ../../templates . ); \
+	done 
 
 .PHONY:
 .ONEHSELL:
@@ -22,7 +21,7 @@ fix_bokeh_static_js:
 
 .ONESHELL:
 serve_cbd2: fix_templates fix_bokeh_static_js
-	while true; do
+	while true; do 
 		echo "(re)starting)"
 		bokeh serve --use-xheaders \
 			--allow-websocket-origin=data.bdslab.org \
@@ -33,14 +32,15 @@ serve_cbd2: fix_templates fix_bokeh_static_js
 	done
 
 .ONEHSELL:
-.SILENT:
 serve_dev: fix_templates
-	LAST=$$(ls -t bokeh/*/main.py | head -1)
-	LAST=$$(dirname $$LAST)
-	echo "DEV SERVE: $$LAST"
-	echo bokeh serve --dev --port 5010 $$LAST
-	bokeh serve --dev --port 5010 $$LAST
-	#bokeh serve --dev --port 5010 bokeh/gene_expression/ # bokeh/diffexp/
+	bokeh serve --dev --port 5010 bokeh/gene_expression/ # bokeh/diffexp/ 
+
+
+serve_dev_raghid: fix_templates
+	pipenv run bokeh serve --dev --port 5009 bokeh/gene_expression/ --allow-websocket-origin=* # bokeh/diffexp/  
+
+serve_dev_raghid2: fix_templates
+	pipenv run bokeh serve --dev --port 5009 bokeh/scatter_expression/
 
 .PHONY:
 .ONESHELL:
@@ -52,9 +52,6 @@ rebuild_static_website:
 
 sync_data_to_moamx:
 	rsync -arv data/h5ad/*prq moamx:/data/project/mark/beehive/data/h5ad/
-
-sync_data_to_cbd2:
-	rsync -arv data/h5ad/*prq cbd2:/media/gbw_cbdbads_alzmap/bdslab_visualization_internal/beehive/data/h5ad/
 
 
 # .SILENT:
