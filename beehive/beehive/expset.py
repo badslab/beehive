@@ -211,6 +211,9 @@ def get_genes(dsid):
 def obslist(dsid):
     lg.warning("`obslist` is deprecated function, use get_obsfields")
     return get_obsfields(dsid)
+
+def get_obsfields(dsid):
+    """Return a list of obs columns for this datset."""
     datadir = util.get_datadir("h5ad")
     X = pl.scan_parquet(datadir / f"{dsid}.obs.prq")
     return X.columns
