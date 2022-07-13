@@ -81,6 +81,23 @@ def getcolor(x, palette, vmax, vmin=None):
     v = max(min(v, 255), 0)
     return palette[v]
 
+def make_hash_sha256(o):
+    "Thanks: https://stackoverflow.com/a/42151923"
+    hasher = hashlib.sha256()
+    hasher.update(repr(make_hashable(o)).encode())
+    return hasher.hexdigest()
+
+def make_hashable(o):
+    "Thanks: https://stackoverflow.com/a/42151923"
+    if isinstance(o, (tuple, list)):
+        return tuple(sorted([make_hashable(e) for e in o]))
+
+    if isinstance(o, dict):
+        return tuple(sorted((k,make_hashable(v)) for k, v in o.items()))
+
+    if isinstance(o, (set, frozenset)):
+        return tuple(sorted(make_hashable(e) for e in o))
+    return o
 
 def UID(*args, length=7):
     chs = hashlib.sha512()
