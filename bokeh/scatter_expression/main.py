@@ -2,13 +2,14 @@ import logging
 from functools import partial
 import logging
 from pprint import pprint
+from xmlrpc.client import Boolean
 import numpy as np
 import pandas as pd
 import polars as pl
 
 from bokeh.layouts import column, row
-from bokeh.models import ColumnDataSource
-from bokeh.models import DataTable, TableColumn, ScientificFormatter
+from bokeh.models import ColumnDataSource, GroupFilter, CDSView, BooleanFilter, Legend, LegendItem
+from bokeh.models import DataTable, TableColumn, ScientificFormatter, CheckboxGroup
 from bokeh.models.callbacks import CustomJS
 from bokeh.models.widgets import (Select, TextInput, Div,
                                   Button, AutocompleteInput)
@@ -193,7 +194,9 @@ def get_unique_obs(data):
 #
 
 plot = figure()
-source = ColumnDataSource(get_data())
+data = get_data()
+source = ColumnDataSource(data)
+unique_obs = get_unique_obs(data)
 
 if pd.DataFrame(source.data)['obs'].dtype == int:
     new_obs_column = expset.get_meta(w_dataset_id.value,w_facet.value,nobins=8)
@@ -201,14 +204,50 @@ if pd.DataFrame(source.data)['obs'].dtype == int:
 else:
     pass
 
+
 index_cmap = factor_cmap('obs', Category10[len(list(pd.DataFrame(source.data)["obs"].unique()))], list(pd.DataFrame(source.data)["obs"].unique()))
-glyph = plot.scatter(x='gene1', y='gene2', source=source,  legend_field="obs",
-        fill_alpha=0.7, size=5, fill_color = index_cmap,width=0)
+glyphs = []
+##need to have multiple glyphs not a single multi glyph:
+unique_obs.index(unique_obs[0])
+legend_label = CheckboxGroup(labels = unique_obs, active = [x for x in range(0, len(unique_obs))])
+
+# for obs in unique_obs:
+
+#     index = unique_obs.index(obs)
+#     sourcedf = pd.DataFrame(source.data)
+#     booleans = [True if x != obs else False for x in source.data["obs"]]
+#f = BooleanFilter(booleans = [obs == unique_obs[0] for obs in source.data["obs"]])
+f = BooleanFilter(booleans = [True for obs in source.data["obs"]])
+
+view = CDSView(source = source, filters = [f])
+# # plot.scatter(x='gene1', y='gene2', source=source,  legend_field="obs",
+# # fill_alpha=0.7, size=5,width=0, view = view,fill_color = index_cmap)
+#     new_source = ColumnDataSource(sourcedf.loc[(sourcedf.obs == obs)])
+#     glyph = plot.scatter(x='gene1', y='gene2', source=new_source,  legend_field="obs",
+#     fill_alpha=0.7, size=5,width=0, fill_color = index_cmap["transform"].palette[index])
+#     #glyph.glyph.legend.click_policy = "hide"
+#     #glyph.js_on_change("change:visible",CustomJS("""console.log("test")"""))
+#     glyphs = glyphs + [glyph]
+
+# glyph = plot.scatter(x='gene1', y='gene2', source=source,  legend_field="obs",
+#         fill_alpha=0.7, size=5, fill_color = index_cmap,width=0,view=view)
+
+glyph = plot.scatter(x='gene1', y='gene2', source=source, legend_field= "obs",
+        fill_alpha=0.7, size=5, fill_color = index_cmap,width=0,view=view)
+legend_items_initial = []
+for obs in unique_obs:
+    legend_items_initial.append(LegendItem(label = obs, renderers = [glyph]))
+
+# legend_items = legend_items_initial
+# legend = Legend(items = legend_items, location = 'top')
+# plot.add_layout(legend, "right")
+
+#plot.legend.click_policy = 'hide'
 
 def cb_update_plot(attr, old, new):
     """Populate and update the plot."""
     curdoc().hold()
-    global plot, source, index_cmap,glyph
+    global plot, source, index_cmap,glyph,legend_items,legend
     data = get_data()
     dataset_id, dataset = get_dataset()
     facet = w_facet.value
@@ -226,8 +265,12 @@ def cb_update_plot(attr, old, new):
     index_cmap = factor_cmap('obs', Category10[len(unique_obs)], unique_obs)
     glyph.glyph.fill_color = index_cmap
 
-   
-
+    # legend_items = [legend_items_initial[i] for i in legend_label.active]
+    # plot.legend.visible = False
+    # legend = Legend(items = legend_items, location = 'top')
+    # plot.add_layout(legend, "right")
+    # plot.legend.visible = True
+    
     w_div_title_author.text = \
         f"""
         <ul>
@@ -245,7 +288,6 @@ def cb_update_plot(attr, old, new):
 
     plot.xaxis.axis_label = f"{gene1}"
     plot.yaxis.axis_label = f"{gene2}"
-
     curdoc().unhold()
 
 
@@ -273,7 +315,7 @@ def cb_sibling_change(attr, old, new):
 def cb_download():
     data = get_data()
     source.data = data
-    print(source.data)
+
     return CustomJS(
     args=dict(data=source.data,
               columns=[x for x in source.data.keys() if not x.startswith('_')],
@@ -286,8 +328,15 @@ w_sibling.on_change("value", cb_sibling_change)
 w_dataset_id.on_change("value", cb_dataset_change)
 w_facet.on_change("value", cb_update_plot)
 w_download.js_on_click(cb_download())
+legend_label.js_on_change("active",CustomJS(args=dict(source=source, f=f,plot=plot),
+                         code="""\
+                             const obs_selected = cb_obj.active.map(idx => cb_obj.labels[idx]);
+                             f.booleans = source.data.obs.map(obsX => obs_selected.includes(obsX));
+                             //plot.legend.items = plot_legends.filter((el,i) => cb_obj.active.some(j => i === j))
 
-
+                             source.change.emit();
+                         """))
+legend_label.on_change("active",cb_update_plot)
 #
 # Build the document
 #
@@ -299,8 +348,11 @@ curdoc().add_root(
             sizing_mode='stretch_width'),
         row([w_gene_not_found],
             sizing_mode='stretch_width'),
-        row([plot],
+        # row([plot,legend_label],
+        row([
+            column([plot],
             sizing_mode='stretch_width'),
+            column([legend_label])]),
         row([w_dataset_id, w_download_filename],),
     ], sizing_mode='stretch_width')
 )
