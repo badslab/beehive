@@ -1,0 +1,103 @@
+author: Renzo Mancuso, Nicola Fattorelli, Anna Martinez-Muriana, Emma Davis, Leen
+  Wolfs, Johanna Van Den Daele, Ivana Geric, Pranav Preman, Lutgarde Serneels, Suresh
+  Poovathingal, Sriram Balusu, Catherine Verfaille, Mark Fiers, Bart De Strooper
+datatype: raw_counts
+description: "Human microglia xenografted in APP-WT/APP-NLGF/APP-NLGFApoeKO mice display\
+  \ a multi-pronged response to A\u03B2 pathology. APOE22/33/44 and TREM2-R47H/KO/WT\
+  \ xenografted microglia allow study of microglial reponse under different genetic\
+  \ constraints."
+obs_meta:
+  all:
+    dtype: skip
+    name: Mouse Info
+  cell.state:
+    dtype: categorical
+    name: Cell State
+    values:
+      Antigen-presenting response (HLA):
+        name: Antigen-presenting response (HLA)
+      Cytokines response 1 (CRM-1):
+        name: Cytokines response 1 (CRM-1)
+      Cytokines response 2 (CRM-2):
+        name: Cytokines response 2 (CRM-2)
+      Disease associated (DAM):
+        name: Disease associated (DAM)
+      Homeostatic (HM):
+        name: Homeostatic (HM)
+      Interferon response (IRM):
+        name: Interferon response (IRM)
+      Ribosomal response (RM):
+        name: Ribosomal response (RM)
+      Transitioning CRM:
+        name: Transitioning CRM
+  cell_id:
+    dtype: skip
+    name: Cell ID
+  injection:
+    dtype: categorical
+    name: Injection
+    values:
+      None:
+        name: None
+      Scr:
+        name: Scr
+      oAb:
+        name: oAb
+  mouse.genotype:
+    dtype: categorical
+    name: Mouse Genotype
+    values:
+      APP-NLGF:
+        name: APP-NLGF
+      APP-NLGF/ApoeKO:
+        name: APP-NLGF/ApoeKO
+      APP-WT:
+        name: APP-WT
+      WT:
+        name: WT
+  mouse.genotype_xMG.genotype_injection:
+    dtype: skip
+    name: Genotype-Injection
+  mouse.id:
+    dtype: skip
+    name: Mouse ID
+  pseudotime_12bins:
+    dtype: numerical
+    name: Pseudotime
+  umap_1:
+    dtype: numerical
+    name: UMAP_1
+  umap_2:
+    dtype: numerical
+    name: UMAP_2
+  xMG.background:
+    dtype: categorical
+    name: Microglia Background
+    values:
+      H9:
+        name: H9
+      iPSC-A:
+        name: iPSC-A
+      iPSC-C:
+        name: iPSC-C
+  xMG.genotype:
+    dtype: categorical
+    name: Microglia Genotype
+    values:
+      APOE22:
+        name: APOE22
+      APOE33:
+        name: APOE33
+      APOE44:
+        name: APOE44
+      TREM2-KO:
+        name: TREM2-KO
+      TREM2-R47H:
+        name: TREM2-R47H
+      WT:
+        name: WT
+organism: human
+short_title: "Microglia response to AD A\u03B2 pathology"
+study: h.man2m.1
+title: "A multi-pronged microglia response to Alzheimer\u2019s disease A\u03B2 pathology"
+year: 2022
