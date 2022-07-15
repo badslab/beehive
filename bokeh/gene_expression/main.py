@@ -130,7 +130,8 @@ def get_data() -> pd.DataFrame:
     data['_bar_median'] = data['median']
     data['_bar_bottom'] = data['q25']
     data['_segment_bottom'] = data['q01']
-
+    # print('x' * 80)
+    # print(data)
     return data
 
 
@@ -213,7 +214,7 @@ def cb_update_plot(attr, old, new):
         """
 
     gene = w_gene.value
-    plot.x_range.factors = list(sorted(data['cat_value']))
+    plot.x_range.factors = list(data['cat_value'])
     w_download_filename.text = f"exp_{dataset_id}_{facet}_{gene}.tsv"
 
     source.data = data
