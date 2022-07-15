@@ -1,0 +1,8 @@
+author: "Renzo Mancuso, Nicola Fattorelli, Anna Martinez-Muriana, Emma Davis, Leen Wolfs, Johanna Van Den Daele, Ivana Geric, Pranav Preman, Lutgarde Serneels, Suresh Poovathingal, Sriram Balusu, Catherine Verfaille, Mark Fiers, Bart De Strooper"
+title: "A multi-pronged microglia response to Alzheimer’s disease Aβ pathology"
+short_title: "Microglia response to AD Aβ pathology"
+study: "h.man2m.1"
+datatype: "integrated_features"
+year: 2022
+obs_meta: {'cell_id': 'Cell ID', 'umap_1': 'UMAP_1', 'umap_2': 'UMAP_2', 'cell.state': 'Cell State', 'mouse.id': 'Mouse ID', 'mouse.genotype': 'Mouse Genotype', 'xMG.genotype': 'Microglia Genotype', 'xMG.background': 'Microglia Background', 'injection': 'Injection', 'mouse.genotype_xMG.genotype_injection': 'Genotype-Injection', 'all': 'Mouse Info', 'pseudotime_12bins': 'Pseudotime'}
+description: "Human microglia xenografted in APP-WT/APP-NLGF/APP-NLGFApoeKO mice display a multi-pronged response to Aβ pathology. APOE22/33/44 and TREM2-R47H/KO/WT xenografted microglia allow study of microglial reponse under different genetic constraints."
