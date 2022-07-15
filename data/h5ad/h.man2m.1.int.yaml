@@ -62,13 +62,15 @@ obs_meta:
     dtype: skip
     name: Mouse ID
   pseudotime_12bins:
-    dtype: numerical
+    dtype: categorical
     name: Pseudotime
   umap_1:
     dtype: numerical
+    facet_on: false
     name: UMAP_1
   umap_2:
     dtype: numerical
+    facet_on: false
     name: UMAP_2
   xMG.background:
     dtype: categorical
