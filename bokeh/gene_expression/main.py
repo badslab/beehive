@@ -42,10 +42,13 @@ args = curdoc().session_context.request.arguments
 w_div_title_author = Div(text="")
 
 # Dataset
+
 dataset_options = [(k, "{short_title}, {short_author}".format(**v))
                    for k, v in datasets.items()]
+
 w_dataset_id = create_widget("dataset_id", Select, title="Dataset",
                              options=dataset_options,
+                             default=dataset_options[0][0],
                              visible=False,)
 
 # Possible siblings of this dataset
