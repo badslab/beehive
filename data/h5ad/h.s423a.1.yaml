@@ -1,0 +1,203 @@
+author: 101010 team
+datatype: log normalized ST counts
+description: spatial transcriptomics of the 101010 project
+obs_meta:
+  488_Mean:
+    dtype: numerical
+    name: 488_Mean
+  488_median:
+    dtype: numerical
+    name: 488_median
+  488_sd:
+    dtype: numerical
+    name: 488_sd
+  555_Mean:
+    dtype: numerical
+    name: 555_Mean
+  555_Median:
+    dtype: numerical
+    name: 555_Median
+  555_sd:
+    dtype: numerical
+    name: 555_sd
+  GFS:
+    dtype: categorical
+    name: GFS
+    values:
+      B100:
+        name: B100
+      gfs 1:
+        name: gfs 1
+      'gfs 2 ':
+        name: 'gfs 2 '
+      gfs 3:
+        name: gfs 3
+      gfs 4:
+        name: gfs 4
+      gfs 5:
+        name: gfs 5
+  Gender:
+    dtype: categorical
+    name: Gender
+    values:
+      F:
+        name: F
+      M:
+        name: M
+  Pia.overlapping:
+    dtype: numerical
+    name: Pia.overlapping
+  Plaque_overlapping:
+    dtype: numerical
+    name: Plaque_overlapping
+  Plaque_overlapping_discr:
+    dtype: categorical
+    name: Plaque_overlapping_discr
+    values:
+      'False':
+        name: 'False'
+      'True':
+        name: 'True'
+  RIN_NBB:
+    dtype: numerical
+    name: RIN_NBB
+  Vessel.overlapping:
+    dtype: numerical
+    name: Vessel.overlapping
+  WM.overlapping..:
+    dtype: numerical
+    name: WM.overlapping..
+  __index_level_0__:
+    dtype: skip
+    name: __index_level_0__
+  apoe:
+    dtype: numerical
+    name: apoe
+  batch:
+    dtype: categorical
+    name: batch
+    values:
+      batch_1:
+        name: batch_1
+      batch_2:
+        name: batch_2
+  braak:
+    dtype: numerical
+    name: braak
+  discrete.layers.wm:
+    dtype: categorical
+    name: discrete.layers.wm
+    values:
+      None:
+        name: None
+      WM:
+        name: WM
+      layer1:
+        name: layer1
+      layer2:
+        name: layer2
+      layer3:
+        name: layer3
+      layer4:
+        name: layer4
+      layer5:
+        name: layer5
+      layer6:
+        name: layer6
+  pH:
+    dtype: numerical
+    name: pH
+  pTau_overlapping:
+    dtype: numerical
+    name: pTau_overlapping
+  pTau_overlapping_discr:
+    dtype: categorical
+    name: pTau_overlapping_discr
+    values:
+      'False':
+        name: 'False'
+      'True':
+        name: 'True'
+  percent.mito:
+    dtype: numerical
+    name: percent.mito
+  percent.ribo:
+    dtype: numerical
+    name: percent.ribo
+  phenotype:
+    dtype: categorical
+    name: phenotype
+    values:
+      Alz:
+        name: Alz
+      ND:
+        name: ND
+      Res:
+        name: Res
+  plaque_type:
+    dtype: categorical
+    name: plaque_type
+    values:
+      Core_plaque:
+        name: Core_plaque
+      Diffuse_plaque:
+        name: Diffuse_plaque
+      Neuritic_core_plaque:
+        name: Neuritic_core_plaque
+      Neuritic_plaque:
+        name: Neuritic_plaque
+      Non_plaque:
+        name: Non_plaque
+      Plaque_unclass:
+        name: Plaque_unclass
+  plaque_type2:
+    dtype: categorical
+    name: plaque_type2
+    values:
+      Core_plaque:
+        name: Core_plaque
+      Diffuse_plaque:
+        name: Diffuse_plaque
+      Neuritic_plaque:
+        name: Neuritic_plaque
+      Non_plaque:
+        name: Non_plaque
+      Plaque_unclass:
+        name: Plaque_unclass
+  pmd:
+    dtype: numerical
+    name: pmd
+  slice_id:
+    dtype: skip
+    name: slice_id
+  sum.layer.overlapping:
+    dtype: numerical
+    name: sum.layer.overlapping
+  visium_slide:
+    dtype: categorical
+    name: visium_slide
+    values:
+      VS_A:
+        name: VS_A
+      VS_B:
+        name: VS_B
+      VS_C:
+        name: VS_C
+      VS_D:
+        name: VS_D
+      VS_E:
+        name: VS_E
+      VS_F:
+        name: VS_F
+      VS_G:
+        name: VS_G
+      VS_H:
+        name: VS_H
+      VS_I:
+        name: VS_I
+organism: human
+short_title: v3 of the 101010 Spatial Transcriptomics
+slug: h.how1m.2
+study: s423a
+title: v3 of the 101010 Spatial Transcriptomics
+year: 2022
