@@ -92,7 +92,18 @@ def get_facet_options(dsid: str,
     dataset = get_dataset(dsid)
     rv = []
     for key, data in dataset.get('obs_meta', {}).items():
-        if only_categorical and data.get('dtype') == 'categorical':
+        use = False
+        if only_categorical:
+            if data.get('dtype') == 'categorical':
+                use = True
+        else:
+            if data.get('dtype') == 'categorical':
+                use = True
+            elif data.get('dtype') == 'numerical' \
+                    and data.get('facet_on', True):
+                use = True
+
+        if use:
             name = data.get('name', key)
             rv.append((key, name))
     return list(sorted(rv))

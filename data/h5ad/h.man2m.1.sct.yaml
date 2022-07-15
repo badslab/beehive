@@ -66,9 +66,11 @@ obs_meta:
     name: Pseudotime
   umap_1:
     dtype: numerical
+    facet_on: false
     name: UMAP_1
   umap_2:
     dtype: numerical
+    facet_on: false
     name: UMAP_2
   xMG.background:
     dtype: categorical
