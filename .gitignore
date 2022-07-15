@@ -16,3 +16,5 @@ data/gene_expression/gene_expression.db
 data/incoming/h.man2m.1/h.man2m.1.int.obs.prq
 *.prq
 beehive/pyproject.toml
+data/incoming/101010_hq_visualization.h5ad
+*.h5ad
