@@ -81,7 +81,8 @@ def get_dataset(dsid):
     return rv
 
 
-def get_facet_options(dsid: str) -> List[Tuple[str, str]]:
+def get_facet_options(dsid: str,
+                      only_categorical: bool = False) -> List[Tuple[str, str]]:
     """
     Return obs columns that a dataset can be facetted on.
     These have to be categorical
@@ -91,7 +92,7 @@ def get_facet_options(dsid: str) -> List[Tuple[str, str]]:
     dataset = get_dataset(dsid)
     rv = []
     for key, data in dataset.get('obs_meta', {}).items():
-        if data.get('dtype') == 'categorical':
+        if only_categorical and data.get('dtype') == 'categorical':
             name = data.get('name', key)
             rv.append((key, name))
     return list(sorted(rv))
