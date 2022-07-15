@@ -13,3 +13,8 @@ bin/caddy
 data/gene_expression/gene_expression.db
 *.yaml-backup
 *.yaml-backup-???
+/data/h5ad/*.prq
+/data/h5ad/*.h5ad
+data/cache/
+data/h5ad/test_observations.ipynb
+

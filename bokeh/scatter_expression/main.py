@@ -52,35 +52,34 @@ w_dataset_id = create_widget("dataset_id", Select, title="Dataset",
                              default=def_dataset_id,
                              visible=False,)
 
-#keys are the dataset names, and values are
-#'author', 
-# 'organism',  mouse/human
-# 'datatype', ex: protein concentration
-# 'description', 
-# 'diffexp' : (mouse_models': {'keys': ['BV2'], 'topgenes': ['H2AFY', 'LMNB2', 'H1F0', 'CST3', 'DPYSL2', 'CKB', 'MECP2', 'LDHB'])
-#  'dimred' ??
-# 'meta', {'model': {'dtype': 'categorical'}} <= to be looked at
-#  'short_title', 
-# 'slug', 'title', 'year', 'study': how1m..how2m...
-#  'short_author'])
 
-## note: human/plant has meta as 'models' , mouse has meta as 'model'
+
+# Dataset
+
+dataset_options = [(k, "{short_title}, {short_author}".format(**v))
+                   for k, v in datasets.items()]
+
+##TODO setting manually
+w_dataset_id = create_widget("dataset_id", Select, title="Dataset",
+                             options=dataset_options,
+                             default=dataset_options[3][0],
+                             visible=False,)
+
+# Possible siblings of this dataset
 siblings = expset.get_dataset_siblings(w_dataset_id.value)
-
-
-#similar, create the options of the siblings datasets
 sibling_options = []
 for k, v in siblings.items():
     sname = f"{v['organism']} / {v['datatype']}"
     sibling_options.append((k, sname))
-    print(k, sname, def_dataset_id)
 
-
-#make a widget for the siblings
 w_sibling = create_widget("view", Select,
                           options=sibling_options,
-                          default=def_dataset_id,
+                          default=w_dataset_id.value,
                           update_url=False)
+
+
+## note: human/plant has meta as 'models' , mouse has meta as 'model'
+siblings = expset.get_dataset_siblings(w_dataset_id.value)
 
 #making widgets for the following:
 
@@ -112,6 +111,7 @@ w_gene_not_found = Div(text="")
 def get_genes():
     """Get available genes for a dataset."""
     dataset_id = w_dataset_id.value
+    print(dataset_id)
     genes = sorted(list(expset.get_genes(dataset_id)))
     return genes
 
@@ -144,18 +144,26 @@ def update_genes():
             w_gene2.value = genes[0]
 
 
+# def update_facets():
+#     """Update interface for a specific dataset."""
+#     facets = get_facets()
+#     w_facet.options = facets
+#     if w_facet.value not in facets:
+#         # set
+#         w_facet.value = \
+#             [f for f in facets
+#              if not f.startswith('_')][0]
+
 def update_facets():
     """Update interface for a specific dataset."""
-    facets = get_facets()
-    w_facet.options = facets
-    if w_facet.value not in facets:
-        # set
-        w_facet.value = \
-            [f for f in facets
-             if not f.startswith('_')][0]
-
+    options = expset.get_facet_options(w_dataset_id.value)
+    w_facet.options = options
+    if w_facet.value not in [x[0] for x in options]:
+        # set a default
+        w_facet.value = options[0][0]
 
 update_facets()
+##TODO
 update_genes()
 
 
@@ -205,72 +213,76 @@ else:
     pass
 
 
+
 index_cmap = factor_cmap('obs', Category10[len(list(pd.DataFrame(source.data)["obs"].unique()))], list(pd.DataFrame(source.data)["obs"].unique()))
+
 glyphs = []
+sources = []
 ##need to have multiple glyphs not a single multi glyph:
 unique_obs.index(unique_obs[0])
-legend_label = CheckboxGroup(labels = unique_obs, active = [x for x in range(0, len(unique_obs))])
+# legend_label = CheckboxGroup(labels = unique_obs, active = [x for x in range(0, len(unique_obs))])
 
-# for obs in unique_obs:
+for index,obs in enumerate(unique_obs):
 
-#     index = unique_obs.index(obs)
-#     sourcedf = pd.DataFrame(source.data)
-#     booleans = [True if x != obs else False for x in source.data["obs"]]
-#f = BooleanFilter(booleans = [obs == unique_obs[0] for obs in source.data["obs"]])
-f = BooleanFilter(booleans = [True for obs in source.data["obs"]])
+    sourcedf = pd.DataFrame(source.data)
+    new_source = ColumnDataSource(sourcedf.loc[(sourcedf.obs == obs)])
+    sources = sources + [new_source]
+    glyph = plot.scatter(x='gene1', y='gene2', source=new_source,  legend_label=obs,
+    fill_alpha=0.7, size=5,width=0, fill_color = index_cmap["transform"].palette[index])
 
-view = CDSView(source = source, filters = [f])
-# # plot.scatter(x='gene1', y='gene2', source=source,  legend_field="obs",
-# # fill_alpha=0.7, size=5,width=0, view = view,fill_color = index_cmap)
-#     new_source = ColumnDataSource(sourcedf.loc[(sourcedf.obs == obs)])
-#     glyph = plot.scatter(x='gene1', y='gene2', source=new_source,  legend_field="obs",
-#     fill_alpha=0.7, size=5,width=0, fill_color = index_cmap["transform"].palette[index])
-#     #glyph.glyph.legend.click_policy = "hide"
-#     #glyph.js_on_change("change:visible",CustomJS("""console.log("test")"""))
-#     glyphs = glyphs + [glyph]
+    glyphs = glyphs + [glyph]
 
-# glyph = plot.scatter(x='gene1', y='gene2', source=source,  legend_field="obs",
-#         fill_alpha=0.7, size=5, fill_color = index_cmap,width=0,view=view)
+plot.legend.location = "top_right"
+plot.legend.click_policy = "hide"
 
-glyph = plot.scatter(x='gene1', y='gene2', source=source, legend_field= "obs",
-        fill_alpha=0.7, size=5, fill_color = index_cmap,width=0,view=view)
-legend_items_initial = []
-for obs in unique_obs:
-    legend_items_initial.append(LegendItem(label = obs, renderers = [glyph]))
-
-# legend_items = legend_items_initial
-# legend = Legend(items = legend_items, location = 'top')
-# plot.add_layout(legend, "right")
-
-#plot.legend.click_policy = 'hide'
 
 def cb_update_plot(attr, old, new):
     """Populate and update the plot."""
     curdoc().hold()
-    global plot, source, index_cmap,glyph,legend_items,legend
+    global plot, sources, index_cmap,glyphs,source
     data = get_data()
+
     dataset_id, dataset = get_dataset()
     facet = w_facet.value
     gene1 = w_gene1.value
     gene2 = w_gene2.value
-    source.data = data
 
-    if pd.DataFrame(source.data)['obs'].dtype == int:
-        new_obs_column = expset.get_meta(w_dataset_id.value,w_facet.value,nobins=8)
-        source.data['obs'] = new_obs_column[w_facet.value].to_numpy()
-    else:
-        pass
+
+    source = ColumnDataSource(data)
+
+    # if pd.DataFrame(source.data)['obs'].dtype == int:
+    #     new_obs_column = expset.get_meta(w_dataset_id.value,w_facet.value,nobins=8)
+    #     source.data['obs'] = new_obs_column[w_facet.value].to_numpy()
+    # else:
+    #     pass
 
     unique_obs = get_unique_obs(data)
     index_cmap = factor_cmap('obs', Category10[len(unique_obs)], unique_obs)
-    glyph.glyph.fill_color = index_cmap
+    # for glyph in glyphs:
+    #     glyph.visible = False
+    plot.renderers = []
+    plot.legend.items = []
 
-    # legend_items = [legend_items_initial[i] for i in legend_label.active]
-    # plot.legend.visible = False
-    # legend = Legend(items = legend_items, location = 'top')
-    # plot.add_layout(legend, "right")
-    # plot.legend.visible = True
-    
+    glyphs = []
+    sources = []
+    for index,obs in enumerate(unique_obs):
+
+        sourcedf = pd.DataFrame(source.data)
+        new_source = ColumnDataSource(sourcedf.loc[(sourcedf.obs == obs)])
+        sources = sources + [new_source]
+        glyph = plot.scatter(x='gene1', y='gene2', source=new_source,  legend_label=obs,
+        fill_alpha=0.7, size=5,width=0, fill_color = index_cmap["transform"].palette[index])
+
+        glyphs = glyphs + [glyph]
+
+    plot.legend.location = "top_right"
+    plot.legend.click_policy = "hide"
+    # for index,glyph in enumerate(glyphs):
+    #     glyph.glyph.fill_color =  index_cmap["transform"].palette[index]
+
+
+
+
     w_div_title_author.text = \
         f"""
         <ul>
@@ -296,6 +308,25 @@ update_plot = partial(cb_update_plot, attr=None, old=None, new=None)
 
 # run it directly to ensure there are initial values
 update_plot()
+
+
+# def cb_update_plot2(attr, old, new):
+#     curdoc().hold()
+
+#     global plot, source, index_cmap,glyph,legend_items,legend
+#     plot.legend.items = []
+#     legend_items = [legend_items_initial[i] for i in legend_label.active]
+#     # plot.legend.visible = False
+#     legend = Legend(items = legend_items, location = 'top')
+#     #plot.add_layout(legend,"right")
+#     plot.legend.items = legend_items
+#     # plot.legend.visible = True
+
+
+#     curdoc().unhold()
+
+
+# update_plot2 = partial(cb_update_plot2, attr=None, old=None, new=None)
 
 
 def cb_dataset_change(attr, old, new):
@@ -328,15 +359,15 @@ w_sibling.on_change("value", cb_sibling_change)
 w_dataset_id.on_change("value", cb_dataset_change)
 w_facet.on_change("value", cb_update_plot)
 w_download.js_on_click(cb_download())
-legend_label.js_on_change("active",CustomJS(args=dict(source=source, f=f,plot=plot),
-                         code="""\
-                             const obs_selected = cb_obj.active.map(idx => cb_obj.labels[idx]);
-                             f.booleans = source.data.obs.map(obsX => obs_selected.includes(obsX));
-                             //plot.legend.items = plot_legends.filter((el,i) => cb_obj.active.some(j => i === j))
+# legend_label.js_on_change("active",CustomJS(args=dict(source=source, f=f,plot=plot),
+#                          code="""\
+#                              const obs_selected = cb_obj.active.map(idx => cb_obj.labels[idx]);
+#                              f.booleans = source.data.obs.map(obsX => obs_selected.includes(obsX));
+#                              //plot.legend.items = plot_legends.filter((el,i) => cb_obj.active.some(j => i === j))
 
-                             source.change.emit();
-                         """))
-legend_label.on_change("active",cb_update_plot)
+#                              source.change.emit();
+#                          """))
+# legend_label.on_change("active",cb_update_plot2)
 #
 # Build the document
 #
@@ -349,10 +380,13 @@ curdoc().add_root(
         row([w_gene_not_found],
             sizing_mode='stretch_width'),
         # row([plot,legend_label],
-        row([
-            column([plot],
+        # row([
+        #     column([plot],
+        #     sizing_mode='stretch_width'),
+        #     column([legend_label])]),
+        row([plot],
             sizing_mode='stretch_width'),
-            column([legend_label])]),
+
         row([w_dataset_id, w_download_filename],),
     ], sizing_mode='stretch_width')
 )
