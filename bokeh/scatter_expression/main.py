@@ -157,6 +157,7 @@ def update_genes():
 def update_facets():
     """Update interface for a specific dataset."""
     options = expset.get_facet_options(w_dataset_id.value)
+    print(options)
     w_facet.options = options
     if w_facet.value not in [x[0] for x in options]:
         # set a default
