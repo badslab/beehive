@@ -52,10 +52,10 @@ def check_yaml(dataset_id, data, **defaults):
         if of not in data:
             if of in defaults:
                 data[of] = defaults[of]
-                changed=True
+                changed = True
             else:
                 warnings.append(f"Missing optional field: {mf}")
-    
+
     if not isinstance(data['year'], int):
         problems.append("Year is not an integer: " + str(data['year']))
 
@@ -70,35 +70,37 @@ def check_yaml(dataset_id, data, **defaults):
 
     for k in obsfields:
         if not k in obm:
-            obm[k] = dict(name=k)     
+            obm[k] = dict(name=k)
         elif isinstance(obm[k], str):
             # fix emma's initial format
             obm[k] = dict(name=obm[k])
-        
+
         fields = pd.Series(expset.get_meta(dataset_id, k, raw=True)).iloc[0]
         varfields = expset.get_varfields(dataset_id)
         DE_fields = [x[:-5] for x in varfields if x.endswith('__lfc')]
-        no_unique = len(fields.unique()) 
+        no_unique = len(fields.unique())
 
         odtype = obm[k].get('dtype')
 
         if fields.is_numeric():
             if odtype is not None:
                 if odtype not in ['numerical', 'skip']:
-                    warnings.append(f"Field{k} seems numeric, yet is assigned as {odtype} ")
+                    warnings.append(
+                        f"Field{k} seems numeric, yet is assigned as {odtype} ")
             else:
                 messages.append(f"Assigned field {k} as numerical")
                 obm[k]['dtype'] = 'numerical'
                 if no_unique < 15:
                     warnings.append(
-                        f"Numerical field {k} has only {no_unique} unique values "  + 
+                        f"Numerical field {k} has only {no_unique} unique values " +
                         "- should this be categorical?")
         else:
             if odtype is not None:
                 if odtype not in ['categorical', 'skip']:
-                    warnings.append(f"Field{k} seems categorical, yet is assigned as {odtype} ")
+                    warnings.append(
+                        f"Field{k} seems categorical, yet is assigned as {odtype} ")
             else:
-                messages.append(f"Assigned field {k} as categorical")                
+                messages.append(f"Assigned field {k} as categorical")
                 if no_unique > 20:
                     ff = ",".join(map(str, list(fields.unique())[:4]))
                     warnings.append(f"Field `{k}` appears categorical but has {no_unique}" +
@@ -108,14 +110,14 @@ def check_yaml(dataset_id, data, **defaults):
                     obm[k]['dtype'] = 'categorical'
 
             if no_unique <= 20 and not 'values' in obm[k]:
-                # metadata per possible value type:                                    
-                values = {a: dict(name=str(a)) 
-                        for a in sorted(fields.unique()) }
+                # metadata per possible value type:
+                values = {str(a): dict(name=str(a))
+                          for a in sorted(fields.unique(), key=str)}
 
                 for vk, vv in values.items():
                     dekey = f"{k}__{vk}"
                     if dekey in DE_fields:
-                        vv['DE_prefix'] = dekey    
+                        vv['DE_prefix'] = dekey
                 obm[k]['values'] = values
 
     outgoing_uid = util.make_hash_sha256(data)
@@ -136,11 +138,11 @@ def data_check(yaml_file: Path = typer.Argument(..., exists=True),
             exit(-1)
 
         k, v = d.split('=', 1)
-        defaults_dict[k] = value_typer(k, v) 
+        defaults_dict[k] = value_typer(k, v)
 
     with open(yaml_file) as F:
         yml = yaml.load(F, Loader=yaml.SafeLoader)
-    
+
     changed, problems, warnings, messages \
         = check_yaml(dataset_id, yml, **defaults_dict)
 
@@ -162,13 +164,12 @@ def data_check(yaml_file: Path = typer.Argument(..., exists=True),
         while (backup_file := yaml_file.with_suffix(f".yaml-backup-{i:03d}")).exists():
             i += 1
         lg.warning(f"yaml changed - saving to {yaml_file}")
-        lg.warning(f"old yaml file backed up to {backup_file}")        
+        lg.warning(f"old yaml file backed up to {backup_file}")
         shutil.move(yaml_file, backup_file)
         with open(yaml_file, 'w') as F:
-             yaml.dump(yml, F, Dumper=yaml.SafeDumper)
+            yaml.dump(yml, F, Dumper=yaml.SafeDumper)
     else:
         lg.info("Yaml file did not change - not updating")
-
 
 
 # @app.command("del")
