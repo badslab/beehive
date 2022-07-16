@@ -63,7 +63,8 @@ dataset_options = [(k, "{short_title}, {short_author}".format(**v))
                    for k, v in datasets.items()]
 
 ##TODO setting manually
-DATASET_NUMBER = 3
+DATASET_NUMBER = 9
+print(dataset_options)
 w_dataset_id = create_widget("dataset_id", Select, title="Dataset",
                              options=dataset_options,
                              default=dataset_options[DATASET_NUMBER][0],
