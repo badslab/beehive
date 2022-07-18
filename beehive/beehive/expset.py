@@ -109,6 +109,26 @@ def get_facet_options(dsid: str,
     return list(sorted(rv))
 
 
+
+def get_facet_options_numerical(dsid: str) -> List[Tuple[str, str]]:
+    """
+    Return obs columns that a dataset can be facetted on.
+    These have to be categorical
+
+    param dataset - dictionary as loaded from the .yaml files
+    """
+    dataset = get_dataset(dsid)
+    rv = []
+    for key, data in dataset.get('obs_meta', {}).items():
+        use = False
+        if data.get('dtype') == 'numerical':
+            use = True
+        if use:
+            name = data.get('name', key)
+            rv.append((key, name))
+    return list(sorted(rv))
+
+
 def get_gene_meta_agg(dsid: str, gene: str, meta: str, nobins: int = 8):
     """Return gene and observation."""
     genedata = get_gene(dsid, gene)
@@ -243,6 +263,8 @@ def get_meta(dsid, col, raw=False, nobins=8):
         rv[col] = rvq.astype(str)
 
     return rv
+
+
 
 
 # @diskcache()
