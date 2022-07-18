@@ -1,8 +1,17 @@
 import tornado
 from tornado.web import RequestHandler
 import os
-USERNAME= os.environ.get('BOKEH_USERNAME')
-PASSWORD= os.environ.get('BOKEH_PASSWORD')
+import re
+
+prefix="BOKEH_USERNAME"
+myPattern = re.compile(r'{prefix}\w*'.format(prefix=prefix))
+usernames = {key.replace(prefix,''):val for key, val in os.environ.items() if myPattern.match(key)}
+
+
+prefix="BOKEH_PASSWORD"
+myPattern = re.compile(r'{prefix}\w*'.format(prefix=prefix))
+passwords = {key.replace(prefix,''):val for key, val in os.environ.items() if myPattern.match(key)}
+
 
 # could define get_user_async instead
 def get_user(request_handler):
@@ -22,9 +31,15 @@ class LoginHandler(RequestHandler):
         self.render("login.html", errormessage=errormessage)
 
     def check_permission(self, username, password):
-        if username == USERNAME and password == PASSWORD:
-            return True
-        return False
+        try:
+            #does the user and password exist?
+            usernamestr = [k for k, v in usernames.items() if v == username][0]
+            passwordstr = [k for k, v in passwords.items() if v == password][0]
+            #is password that for the user?
+            if usernamestr == passwordstr:
+                return True
+        except:
+            return False
 
     def post(self):
         username = self.get_argument("username", "")
