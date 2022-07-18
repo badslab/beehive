@@ -40,31 +40,17 @@ args = curdoc().session_context.request.arguments
 
 w_div_title_author = Div(text="")
 
-#default dataset... ex: m.how1m.2
-
-# def_dataset_id = util.getarg(args, 'dataset_id',
-#                              list(datasets.keys())[5])
-######SETTING IT MANUALLY FOR NOW############
-# def_dataset_id = "h.man2m.1"
-
 #datasets with titles
 dataset_options = [(k, "{short_title}, {short_author}".format(**v))
                    for k, v in datasets.items()]
-
-# w_dataset_id = create_widget("dataset_id", Select, title="Dataset",
-#                              options=dataset_options,
-#                              default=def_dataset_id,
-#                              visible=False,)
-
-
 
 # Dataset
 dataset_options = [(k, "{short_title}, {short_author}".format(**v))
                    for k, v in datasets.items()]
 
 ##TODO setting manually
-DATASET_NUMBER = 9
-print(dataset_options)
+DATASET_NUMBER = 3
+
 w_dataset_id = create_widget("dataset_id", Select, title="Dataset",
                              options=dataset_options,
                              default=dataset_options[DATASET_NUMBER][0],
@@ -89,14 +75,31 @@ siblings = expset.get_dataset_siblings(w_dataset_id.value)
 #making widgets for the following:
 
 #gene, has an autocomplete feature.. write in text
+#4 widgets, determine what to show?
+#gene vs gene
+#numerical facet vs numerical facet
+#numerical facet vs gene etc...
 w_gene1 = create_widget("gene1", AutocompleteInput,
                        completions=[], default='APOE')
-
 w_gene2 = create_widget("gene2", AutocompleteInput,
-                       completions=[], default='APOE')
+                       completions=[], default='TREM2')
+w_facet_numerical_1 = create_widget("facet_num_1",Select, 
+                    options=[], title="Select Numerical Facet 1")
+w_facet_numerical_2 = create_widget("facet_num_2",Select, 
+                        options=[], title="Select Numerical Facet 2")
 
-#drop down menu to group by items
+
+FIXED_OPTIONS = [("gene1","Gene 1"),("gene2","Gene 2"),("facet_num_1","Numerical Facet 1"),("facet_num_2","Numerical Facet 2")]
+
+w_x_axis = create_widget("x_axis",Select, 
+                        options=FIXED_OPTIONS, title="Select X-Axis",default = 'gene1')
+w_y_axis =  create_widget("y_axis",Select, 
+                        options=FIXED_OPTIONS, title="Select Y-Axis",default = 'gene2')
+
+
+#categorical facet grouping of data...
 w_facet = create_widget("facet", Select, options=[], title="Group by")
+
 
 #download button..
 w_download = Button(label='Download', align='end')
@@ -113,26 +116,11 @@ w_gene_not_found = Div(text="")
 # Data handling & updating interface
 #
 
-
-
-
 def get_genes():
     """Get available genes for a dataset."""
     dataset_id = w_dataset_id.value
     genes = sorted(list(expset.get_genes(dataset_id)))
     return genes
-
-##only model ??
-def get_facets():
-    """Get available facets for a dataset."""
-    dataset_id = w_dataset_id.value
-    facets = sorted(list(datasets[dataset_id]['meta'].keys()))
-    return facets
-
-#
-# Change & Initialize interface
-#
-
 
 def update_genes():
     """Update genes widget for a dataset."""
@@ -162,6 +150,18 @@ def update_facets():
 update_facets()
 update_genes()
 
+def update_numerical_facets():
+    options = expset.get_facet_options_numerical(w_dataset_id.value)
+    w_facet_numerical_1.options = options
+    w_facet_numerical_2.options = options
+    if w_facet_numerical_1.value not in [x[0] for x in options]:
+        # set a default
+        w_facet_numerical_1.value = options[0][0]
+    if w_facet_numerical_2.value not in [x[0] for x in options]:
+        # set a default
+        w_facet_numerical_2.value = options[0][0]
+
+update_numerical_facets()
 
 def get_data() -> pd.DataFrame:
     """Retrieve data from a dataset, gene & facet."""
@@ -169,6 +169,8 @@ def get_data() -> pd.DataFrame:
     gene1 = w_gene1.value
     gene2 = w_gene2.value
     facet = w_facet.value
+    num_facet1 = w_facet_numerical_1.value
+    num_facet2 = w_facet_numerical_2.value
     ##TODO maybe check for numerical/categorical here?
     lg.warning(f"!! Getting data for {dataset_id} {facet} {gene1}")
 
@@ -178,6 +180,8 @@ def get_data() -> pd.DataFrame:
         gene1 = expset.get_gene(dataset_id, gene1)[:,0],
         gene2 = expset.get_gene(dataset_id, gene2)[:,0],
         obs = expset.get_meta(dataset_id, facet)[:,0],
+        num_facet1 = expset.get_meta(dataset_id,num_facet1,raw=True)[:,0],
+        num_facet2 = expset.get_meta(dataset_id,num_facet2,raw=True)[:,0]
         ))
 
     return data
@@ -199,13 +203,11 @@ def get_unique_obs(data):
 
 plot = figure()
 data = get_data()
+
 source = ColumnDataSource(data)
 unique_obs = get_unique_obs(data)
 dataset_id, dataset = get_dataset()
 
-for key, val in dataset.get('obs_meta', {}).items():
-    if w_facet.value == key:
-        type_graph = val.get('dtype')
 
 index_cmap = factor_cmap('obs', Category20[len(unique_obs)], unique_obs)
 
@@ -213,11 +215,6 @@ index_cmap = factor_cmap('obs', Category20[len(unique_obs)], unique_obs)
 glyphs = []
 sources = []
 
-if type_graph == 'numerical':
-    #TODO
-    pass
-else:
-    pass
 
 
 ##need to have multiple glyphs not a single multi glyph:
@@ -235,10 +232,10 @@ plot.legend.location = "top_right"
 plot.legend.click_policy = "hide"
 
 
-def cb_update_plot(attr, old, new):
+def cb_update_plot(attr, old, new,type_change):
     """Populate and update the plot."""
     curdoc().hold()
-    global plot, sources, index_cmap,glyphs,source,type_graph
+    global plot, sources, index_cmap,glyphs,source
     data = get_data()
 
     dataset_id, dataset = get_dataset()
@@ -247,17 +244,8 @@ def cb_update_plot(attr, old, new):
     gene2 = w_gene2.value
 
 
+
     source = ColumnDataSource(data)
-    for key, val in dataset.get('obs_meta', {}).items():
-        if w_facet.value == key:
-            type_graph = val.get('dtype')
-            break
-        
-    if type_graph == 'numerical':
-        #TODO
-        pass
-    else:
-        pass
 
     unique_obs = get_unique_obs(data)
 
@@ -268,6 +256,10 @@ def cb_update_plot(attr, old, new):
 
     glyphs = []
     sources = []
+    print(old)
+    print(new)
+    print(type_change)
+
     for index,obs in enumerate(unique_obs):
 
         sourcedf = pd.DataFrame(source.data)
@@ -303,7 +295,7 @@ def cb_update_plot(attr, old, new):
 
 
 # convenience shortcut
-update_plot = partial(cb_update_plot, attr=None, old=None, new=None)
+update_plot = partial(cb_update_plot, attr=None, old=None, new=None,type_change=None)
 
 # run it directly to ensure there are initial values
 update_plot()
@@ -334,28 +326,40 @@ def cb_download():
               filename_div=w_download_filename),
     code="exportToTsv(data, columns, filename_div.text);")
 
-w_gene1.on_change("value", cb_update_plot)
-w_gene2.on_change("value", cb_update_plot)
+
+w_gene1.on_change("value",partial(cb_update_plot,type_change = "gene1"))
+w_gene2.on_change("value", partial(cb_update_plot,type_change="gene2"))
+w_facet.on_change("value", partial(cb_update_plot,type_change="obs"))
+w_facet_numerical_1.on_change("value", partial(cb_update_plot,type_change="num_facet1"))
+w_facet_numerical_2.on_change("value", partial(cb_update_plot,type_change="num_facet2"))
+
+
 w_sibling.on_change("value", cb_sibling_change)
 w_dataset_id.on_change("value", cb_dataset_change)
-w_facet.on_change("value", cb_update_plot)
 w_download.js_on_click(cb_download())
 
-#
-# Build the document
-#
+
 curdoc().add_root(
     column([
-        row([w_gene1,w_gene2, w_facet, w_sibling, w_download],
+        row([
+            column([
+                row([w_gene1,w_gene2,w_facet], 
+                    sizing_mode='stretch_width'),
+                row([w_facet_numerical_1,w_facet_numerical_2,w_sibling],
+                    sizing_mode='stretch_width'),
+                row([w_download],
+                    sizing_mode='stretch_width')],   
+                sizing_mode='stretch_width')],
             sizing_mode='stretch_width'),
+
         row([w_div_title_author],
             sizing_mode='stretch_width'),
         row([w_gene_not_found],
             sizing_mode='stretch_width'),
         row([plot],
             sizing_mode='stretch_width'),
-
         row([w_dataset_id, w_download_filename],),
     ], sizing_mode='stretch_width')
 )
+
 
