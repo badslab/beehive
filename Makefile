@@ -42,6 +42,11 @@ serve_dev_raghid: fix_templates
 serve_dev_raghid_auth: fix_templates
 	pipenv run bokeh serve --dev --port 5009 --allow-websocket-origin=* --auth-module=beehive/beehive/auth.py bokeh/gene_expression/ 
 
+serve_dev_raghid_scatter_local: fix_templates
+	pipenv run bokeh serve --dev --port 5009 --allow-websocket-origin=* --auth-module=beehive/beehive/auth.py --ssl-certfile beehive/cert.pem --ssl-keyfile beehive/key.pem bokeh/scatter_expression/ 
+
+serve_dev_raghid_scatter_server: fix_templates
+	pipenv run bokeh serve --dev --port 8009 --allow-websocket-origin=* --auth-module=beehive/beehive/auth.py --ssl-certfile beehive/cert.pem --ssl-keyfile beehive/key.pem bokeh/scatter_expression/ 
 
 serve_dev_raghid2: fix_templates
 	pipenv run bokeh serve --dev --port 5009 bokeh/scatter_expression/
