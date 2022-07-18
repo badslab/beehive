@@ -2,6 +2,7 @@ import logging
 from functools import partial
 import logging
 from pprint import pprint
+from pyexpat.errors import XML_ERROR_ATTRIBUTE_EXTERNAL_ENTITY_REF
 from xmlrpc.client import Boolean
 import numpy as np
 import pandas as pd
@@ -83,18 +84,19 @@ w_gene1 = create_widget("gene1", AutocompleteInput,
                        completions=[], default='APOE')
 w_gene2 = create_widget("gene2", AutocompleteInput,
                        completions=[], default='TREM2')
-w_facet_numerical_1 = create_widget("facet_num_1",Select, 
+w_facet_numerical_1 = create_widget("num_facet1",Select, 
                     options=[], title="Select Numerical Facet 1")
-w_facet_numerical_2 = create_widget("facet_num_2",Select, 
+w_facet_numerical_2 = create_widget("num_facet2",Select, 
                         options=[], title="Select Numerical Facet 2")
 
-FIXED_OPTIONS = [("gene1","Gene 1"),("gene2","Gene 2"),("facet_num_1","Numerical Facet 1"),("facet_num_2","Numerical Facet 2")]
+widget_axes = [w_gene1,w_gene2,w_facet_numerical_1,w_facet_numerical_2]
 
-w_x_axis = create_widget("x_axis",Select, 
-                        options=FIXED_OPTIONS, title="Select X-Axis",default = 'gene1')
-w_y_axis =  create_widget("y_axis",Select, 
-                        options=FIXED_OPTIONS, title="Select Y-Axis",default = 'gene2')
+# FIXED_OPTIONS = [("gene1","Gene 1"),("gene2","Gene 2"),("facet_num_1","Numerical Facet 1"),("facet_num_2","Numerical Facet 2")]
 
+# w_x_axis = create_widget("x_axis",Select, 
+#                         options=FIXED_OPTIONS, title="Select X-Axis",default = 'gene1')
+# w_y_axis =  create_widget("y_axis",Select, 
+#                         options=FIXED_OPTIONS, title="Select Y-Axis",default = 'gene2')
 
 #categorical facet grouping of data...
 w_facet = create_widget("facet", Select, options=[], title="Group by")
@@ -235,7 +237,7 @@ plot.legend.click_policy = "hide"
 def cb_update_plot(attr, old, new,type_change,axis):
     """Populate and update the plot."""
     curdoc().hold()
-    global plot, sources, index_cmap,glyphs,source, X_AXIS, Y_AXIS
+    global plot, sources, index_cmap,glyphs,source, X_AXIS, Y_AXIS, widget_axes
     data = get_data()
 
     dataset_id, dataset = get_dataset()
@@ -287,14 +289,27 @@ def cb_update_plot(attr, old, new,type_change,axis):
               {dataset['organism']} / {dataset['datatype']}</li>
         </ul>
         """
-    w_download_filename.text = f"exp_{dataset_id}_{facet}_{gene1}_{gene2}.tsv"
 
     title = dataset['title'][:60]
-    plot.title.text = (f"{X_AXIS} vs {Y_AXIS} - "
+
+    x_label = ""
+    y_label = ""
+
+    for ind,widget in enumerate(widget_axes):
+        if X_AXIS in widget.name:
+            x_label = widget_axes[ind].value
+        if Y_AXIS in widget.name:
+            y_label = widget_axes[ind].value
+
+    plot.title.text = (f"{x_label} vs {y_label} - "
                        f"({dataset_id}) {title}...")
 
-    plot.xaxis.axis_label = f"{X_AXIS}"
-    plot.yaxis.axis_label = f"{Y_AXIS}"
+    plot.xaxis.axis_label = f"{x_label}"
+    plot.yaxis.axis_label = f"{y_label}"
+    w_download_filename.text = f"exp_{dataset_id}_{facet}_{x_label}_{y_label}.tsv"
+    
+
+
     curdoc().unhold()
 
 
