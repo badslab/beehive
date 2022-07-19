@@ -2,21 +2,19 @@ import logging
 from functools import partial
 import logging
 from pprint import pprint
-from pyexpat.errors import XML_ERROR_ATTRIBUTE_EXTERNAL_ENTITY_REF
-from xmlrpc.client import Boolean
 import numpy as np
 import pandas as pd
 import polars as pl
+from scipy import stats
 
 from bokeh.layouts import column, row
-from bokeh.models import ColumnDataSource, GroupFilter, CDSView, BooleanFilter, Legend, LegendItem
-from bokeh.models import DataTable, TableColumn, ScientificFormatter, CheckboxGroup
+from bokeh.models import ColumnDataSource,CheckboxGroup,Band
 from bokeh.models.callbacks import CustomJS
 from bokeh.models.widgets import (Select, TextInput, Div,
                                   Button, AutocompleteInput)
-from bokeh.plotting import figure, curdoc, show
-from bokeh.transform import factor_cmap, factor_mark
-from bokeh.palettes import Category10, Category20
+from bokeh.plotting import figure, curdoc
+from bokeh.transform import factor_cmap
+from bokeh.palettes import Category20
 
 from beehive import config, util, expset
 
@@ -90,6 +88,8 @@ w_facet_numerical_2 = create_widget("num_facet2",Select,
                         options=[], title="Select Numerical Facet 2")
 
 widget_axes = [w_gene1,w_gene2,w_facet_numerical_1,w_facet_numerical_2]
+w_regression  = CheckboxGroup(labels=["Regression Lines"], active=[])
+# w_regression = create_widget(name="regression_check",widget=regression,title="Show Regression Line")
 
 # FIXED_OPTIONS = [("gene1","Gene 1"),("gene2","Gene 2"),("facet_num_1","Numerical Facet 1"),("facet_num_2","Numerical Facet 2")]
 
@@ -233,13 +233,15 @@ for index,obs in enumerate(unique_obs):
 plot.legend.location = "top_right"
 plot.legend.click_policy = "hide"
 
+x_label = ""
+y_label = ""
+
 
 def cb_update_plot(attr, old, new,type_change,axis):
     """Populate and update the plot."""
     curdoc().hold()
-    global plot, sources, index_cmap,glyphs,source, X_AXIS, Y_AXIS, widget_axes
+    global plot, sources, index_cmap,glyphs,source, X_AXIS, Y_AXIS, widget_axes,x_label,y_label
     data = get_data()
-
     dataset_id, dataset = get_dataset()
     facet = w_facet.value
     gene1 = w_gene1.value
@@ -251,6 +253,7 @@ def cb_update_plot(attr, old, new,type_change,axis):
 
     unique_obs = get_unique_obs(data)
 
+    #TODO fix None => strings
     index_cmap = factor_cmap('obs', Category20[len(unique_obs)], unique_obs)
 
     plot.renderers = []
@@ -265,15 +268,45 @@ def cb_update_plot(attr, old, new,type_change,axis):
         else:
             Y_AXIS = type_change
 
+
+
     for index,obs in enumerate(unique_obs):
 
         sourcedf = pd.DataFrame(source.data)
         new_source = ColumnDataSource(sourcedf.loc[(sourcedf.obs == obs)])
         sources = sources + [new_source]
 
-        glyph = plot.scatter(x=X_AXIS, y=Y_AXIS, source=new_source,  legend_label=obs,
-        fill_alpha=0.7, size=5,width=0, fill_color = index_cmap["transform"].palette[index])
- 
+        if len(w_regression.active) == 1:
+
+            slope, intercept, r_value, p_value, std_err = stats.linregress(new_source.data[X_AXIS],y = new_source.data[Y_AXIS])
+            y_predicted = [slope*i + intercept  for i in new_source.data[X_AXIS]]
+            glyph = plot.line(new_source.data[X_AXIS],y_predicted,color=index_cmap["transform"].palette[index],
+            legend_label=f"{obs}: y={str(round(slope,2))}x+{str(round(intercept,2))}, p-value={str(round(p_value,5))}, r-value={str(round(r_value,2))}")
+
+            ##TRYING CONF Intervals
+            # sem = lambda x: x.std() / np.sqrt(x.size)
+            # df2 = pd.DataFrame(new_source.data)[Y_AXIS].rolling(window=100).agg({"y_mean": np.mean, "y_std": np.std, "y_sem": sem})
+
+            # df2 = pd.concat([pd.DataFrame(new_source.data)[X_AXIS], df2], axis=1)
+            # df2 = df2.fillna(method='bfill')
+            # df2['lower'] = df2['y_mean'] - df2['y_std']
+            # df2['upper'] = df2['y_mean'] + df2['y_std']
+
+            # print(df2)
+            # band = Band(base = X_AXIS,lower="lower", 
+            # upper="upper", source= ColumnDataSource(df2), level='underlay',fill_alpha=1.0, line_width=1, 
+            # line_color=index_cmap["transform"].palette[index])
+            # if index == 1:
+            #     plot.add_layout(band)
+
+            # band = plot.line(x = X_AXIS, y = "lower" ,source= ColumnDataSource(df2), line_width=1, 
+            # line_color=index_cmap["transform"].palette[index])
+
+
+        else:
+            glyph = plot.scatter(x=X_AXIS, y=Y_AXIS, source=new_source,  legend_label=obs,
+            fill_alpha=0.7, size=5,width=0, fill_color = index_cmap["transform"].palette[index])
+
         glyphs = glyphs + [glyph]
 
     plot.legend.location = "top_right"
@@ -292,8 +325,6 @@ def cb_update_plot(attr, old, new,type_change,axis):
 
     title = dataset['title'][:60]
 
-    x_label = ""
-    y_label = ""
 
     for ind,widget in enumerate(widget_axes):
         if X_AXIS in widget.name:
@@ -338,10 +369,9 @@ def cb_sibling_change(attr, old, new):
 def cb_download():
     data = get_data()
     source.data = data
-
     return CustomJS(
     args=dict(data=source.data,
-              columns=[x for x in source.data.keys() if not x.startswith('_')],
+              columns=[x for x in [X_AXIS,Y_AXIS,"obs"] if not x.startswith('_')],
               filename_div=w_download_filename),
     code="exportToTsv(data, columns, filename_div.text);")
 
@@ -351,7 +381,7 @@ w_gene2.on_change("value", partial(cb_update_plot,type_change="gene2",axis="y"))
 w_facet.on_change("value", partial(cb_update_plot,type_change=None,axis=None))
 w_facet_numerical_1.on_change("value", partial(cb_update_plot,type_change="num_facet1",axis="x"))
 w_facet_numerical_2.on_change("value", partial(cb_update_plot,type_change="num_facet2",axis="y"))
-
+w_regression.on_change("active",partial(cb_update_plot,type_change=None,axis=None))
 
 w_sibling.on_change("value", cb_sibling_change)
 w_dataset_id.on_change("value", cb_dataset_change)
@@ -366,7 +396,7 @@ curdoc().add_root(
                     sizing_mode='stretch_width'),
                 row([w_facet_numerical_1,w_facet_numerical_2,w_sibling],
                     sizing_mode='stretch_width'),
-                row([w_download],
+                row([w_download,w_regression],
                     sizing_mode='stretch_width')],   
                 sizing_mode='stretch_width')],
             sizing_mode='stretch_width'),
