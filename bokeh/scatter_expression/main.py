@@ -232,7 +232,6 @@ for index,obs in enumerate(unique_obs):
 
 plot.legend.location = "top_right"
 plot.legend.click_policy = "hide"
-
 x_label = ""
 y_label = ""
 
@@ -255,7 +254,7 @@ def cb_update_plot(attr, old, new,type_change,axis):
 
     #TODO fix None => strings
     index_cmap = factor_cmap('obs', Category20[len(unique_obs)], unique_obs)
-
+    
     plot.renderers = []
     plot.legend.items = []
 
@@ -281,7 +280,7 @@ def cb_update_plot(attr, old, new,type_change,axis):
             slope, intercept, r_value, p_value, std_err = stats.linregress(new_source.data[X_AXIS],y = new_source.data[Y_AXIS])
             y_predicted = [slope*i + intercept  for i in new_source.data[X_AXIS]]
             glyph = plot.line(new_source.data[X_AXIS],y_predicted,color=index_cmap["transform"].palette[index],
-            legend_label=f"{obs}: y={str(round(slope,2))}x+{str(round(intercept,2))}, p-value={str(round(p_value,5))}, r-value={str(round(r_value,2))}")
+            legend_label=f"{obs}: y={str(round(slope,2))}x+{str(round(intercept,2))}, p-value={'{:e}'.format(p_value)}, r-value={str(round(r_value,2))}")
 
             ##TRYING CONF Intervals
             # sem = lambda x: x.std() / np.sqrt(x.size)
@@ -311,7 +310,6 @@ def cb_update_plot(attr, old, new,type_change,axis):
 
     plot.legend.location = "top_right"
     plot.legend.click_policy = "hide"
-
 
     w_div_title_author.text = \
         f"""
