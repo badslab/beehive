@@ -8,12 +8,12 @@ import polars as pl
 from scipy import stats
 
 from bokeh.layouts import column, row
-from bokeh.models import ColumnDataSource,MultiChoice
+from bokeh.models import ColumnDataSource,MultiChoice, HoverTool
 from bokeh.models.callbacks import CustomJS
 from bokeh.models.widgets import (Select, TextInput, Div,
                                   Button)
 from bokeh.plotting import figure, curdoc
-
+from bokeh.transform import factor_cmap
 
 from beehive import config, util, expset
 
@@ -92,8 +92,9 @@ def update_genes():
 def update_vars():
     """Update interface for a specific dataset."""
     vars = expset.get_varfields(w_dataset_id.value)
+    #drop last column,, the one for genes.
+    vars = vars[:-1]
     unique_vars = list(set([x.replace("__lfc","").replace("__padj","") for x in vars]))
-    #print(unique_vars)
     vars_options = [(x,x) for x in unique_vars]
     options = vars_options
     w_category.options = options
@@ -110,8 +111,7 @@ def get_data() -> pd.DataFrame:
     lg.warning(f"!! Getting data for {dataset_id} {categ}")
 
     data = expset.get_dedata_new(dataset_id,categ)
-    data.rename(columns = {categ+"__lfc":"lfc", categ+"__padj":"padj"},inplace = True)
-
+    data.columns = ["lfc","padj","gene"]
     return data
 
 def get_dataset():
@@ -121,14 +121,31 @@ def get_dataset():
 
 
 dataset_id, dataset = get_dataset()
+tooltips = [
+            ('Log Fold Change:', '@lfc'),
+            ('P-value adjsuted:', '@padj'),
+            ('Gene:', '@gene'),
+           ]
 
+
+def highlight_genes(x):
+    if x["gene"] in w_genes.value:
+        return "Yes"
+    else:
+        return "No"
+
+##Plot###
 plot = figure(height = 400)
-
+plot.add_tools(HoverTool(tooltips=tooltips))
 data = get_data()
 data["padj"] = np.log10(data["padj"])*-1
+data["highlight"] = data.apply(lambda x: highlight_genes(x),axis = 1)
+
 source = ColumnDataSource(data)
 
-plot.scatter(x = "lfc", y = "padj", source = source)
+plot.scatter(x = "lfc", y = "padj", source = source,color=factor_cmap('highlight', palette = ["red","blue"], factors = ["Yes","No"]))
+
+
 
 
 def cb_update_plot(attr, old, new):
@@ -138,6 +155,7 @@ def cb_update_plot(attr, old, new):
 
     data = get_data()
     data["padj"] = np.log10(data["padj"])*-1
+    data["highlight"] = data.apply(lambda x: highlight_genes(x),axis = 1)
     source.data = data
     curdoc().unhold()
 
