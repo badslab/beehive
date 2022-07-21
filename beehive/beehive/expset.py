@@ -228,8 +228,17 @@ def get_dedata(dsid, categ, genes):
 def get_dedata_new(dsid,categ):
     datadir = util.get_datadir("h5ad")
 
+    ##TODO should be a stable name "gene" in all datasets
+    #get last column,, no way to access it just by name
+    #sometimes it's called gene, sometimes it's index__0__
+    last_col =  len(pl.read_parquet(datadir / f"{dsid}.var.prq").columns)
+
+    rv1 = pl.read_parquet(datadir / f"{dsid}.var.prq",[last_col - 1])
+
     #get logfoldchange and padjusted for one category (example injection__None)
-    rv = pl.read_parquet(datadir / f"{dsid}.var.prq",[categ+ "__lfc"] + [categ + "__padj"])
+    rv2 = pl.read_parquet(datadir / f"{dsid}.var.prq",[categ+ "__lfc"] + [categ + "__padj"])
+
+    rv = pl.concat([rv2,rv1],how="horizontal")
 
     rv = rv.to_pandas()
     #in new format, padjusted and lfc are already on columns, genes on rows.
