@@ -224,6 +224,18 @@ def get_dedata(dsid, categ, genes):
     return rv
 
 
+
+def get_dedata_new(dsid,categ):
+    datadir = util.get_datadir("h5ad")
+
+    #get logfoldchange and padjusted for one category (example injection__None)
+    rv = pl.read_parquet(datadir / f"{dsid}.var.prq",[categ+ "__lfc"] + [categ + "__padj"])
+
+    rv = rv.to_pandas()
+    #in new format, padjusted and lfc are already on columns, genes on rows.
+    #get genes has same index as that for the rows.
+    return rv
+
 def get_meta(dsid, col, raw=False, nobins=8):
     """Return one obs column."""
     datadir = util.get_datadir("h5ad")
