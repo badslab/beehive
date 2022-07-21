@@ -16,6 +16,8 @@ from beehive import config, util, expset
 import holoviews as hv
 
 hv.extension("bokeh")
+renderer = hv.renderer('bokeh')
+renderer = renderer.instance(mode = 'server')
 
 lg = logging.getLogger('ScatterExpression')
 lg.setLevel(logging.DEBUG)
@@ -87,8 +89,6 @@ w_facet_numerical_2 = create_widget("num_facet2",Select,
                         options=[], title="Select Numerical Facet 2")
 
 widget_axes = [w_gene1,w_gene2,w_facet_numerical_1,w_facet_numerical_2]
-w_regression  = CheckboxGroup(labels=["Regression Lines"], active=[])
-# w_regression = create_widget(name="regression_check",widget=regression,title="Show Regression Line")
 
 # FIXED_OPTIONS = [("gene1","Gene 1"),("gene2","Gene 2"),("facet_num_1","Numerical Facet 1"),("facet_num_2","Numerical Facet 2")]
 
@@ -208,29 +208,18 @@ source = ColumnDataSource(data)
 unique_obs = get_unique_obs(data)
 dataset_id, dataset = get_dataset()
 
-
 index_cmap = factor_cmap('obs', Category20[len(unique_obs)], unique_obs)
 
-
-glyphs = []
-sources = []
 
 X_AXIS = "gene1"
 Y_AXIS = "gene2"
 
-##need to have multiple glyphs not a single multi glyph:
-# for index,obs in enumerate(unique_obs):
+data = data[[X_AXIS,Y_AXIS,"obs"]]
 
-#     sourcedf = pd.DataFrame(source.data)
-#     new_source = ColumnDataSource(sourcedf.loc[(sourcedf.obs == obs)])
-#     sources = sources + [new_source]
-#     glyph = plot.scatter(x=X_AXIS, y=Y_AXIS, source=new_source,  legend_label=obs,
-#     fill_alpha=0.7, size=5,width=0, fill_color = index_cmap["transform"].palette[index])
-
-#     glyphs = glyphs + [glyph]
-
-merged_image = hv.NdOverlay({index: hv.Bivariate(data.loc[(data.obs == obs)], name=obs).opts(muted_alpha=0)for index,obs in enumerate(unique_obs)})
+merged_image = hv.NdOverlay({index: hv.Bivariate(data.loc[(data.obs == obs)], name=obs).opts(muted_alpha=0,width = 1500, height = 600)for index,obs in enumerate(unique_obs)})
 plot = hv.render(merged_image)
+# plot.renderers = hv.render(merged_image).renderers
+# plot.center = hv.render(merged_image).center
 
 for index,obs in enumerate(unique_obs):
     plot.legend.items[index].label["value"] = obs
@@ -238,21 +227,17 @@ for index,rends in enumerate(plot.renderers):
     rends.glyph.line_color = index_cmap["transform"].palette[index]
 
 plot.legend.location = "top_right"
-#plot.legend.click_policy = "hide"
+# plot.legend.click_policy = "hide"
 x_label = ""
 y_label = ""
 
 def cb_update_plot(attr, old, new,type_change,axis):
     """Populate and update the plot."""
     curdoc().hold()
-    global plot, sources, index_cmap,glyphs,source, X_AXIS, Y_AXIS, widget_axes,x_label,y_label
+    global plot, index_cmap,source, X_AXIS, Y_AXIS, widget_axes,x_label,y_label,merged_image
     data = get_data()
     dataset_id, dataset = get_dataset()
     facet = w_facet.value
-    gene1 = w_gene1.value
-    gene2 = w_gene2.value
-    num_facet1 = w_facet_numerical_1.value
-    num_facet2 = w_facet_numerical_2.value
 
     source = ColumnDataSource(data)
 
@@ -260,21 +245,20 @@ def cb_update_plot(attr, old, new,type_change,axis):
 
     #TODO fix None => strings
     index_cmap = factor_cmap('obs', Category20[len(unique_obs)], unique_obs)
-    
-    plot.renderers = []
-    plot.legend.items = []
-
-    glyphs = []
-    sources = []
-
+    # plot.renderers = []
+    # plot.legend.items = []
+    plot = figure()
     if type_change:
         if axis == 'x':
             X_AXIS = type_change
         else:
             Y_AXIS = type_change
-
-
-    merged_image = hv.NdOverlay({index: hv.Bivariate(data.loc[(data.obs == obs)], name=obs).opts(muted_alpha=0,width = 1500, height = 900)for index,obs in enumerate(unique_obs)})
+    
+    data = data[[X_AXIS,Y_AXIS,"obs"]]
+    
+    merged_image = hv.NdOverlay({index: hv.Bivariate(data.loc[(data.obs == obs)], name=obs).opts(muted_alpha=0,width = 1500, height = 600) for index,obs in enumerate(unique_obs)})
+    # plot.renderers = hv.render(merged_image).renderers
+    # plot.legend.items = hv.render(merged_image).legend.items
     plot = hv.render(merged_image)
 
     for index,obs in enumerate(unique_obs):
@@ -311,8 +295,6 @@ def cb_update_plot(attr, old, new,type_change,axis):
     plot.yaxis.axis_label = f"{y_label}"
     w_download_filename.text = f"exp_{dataset_id}_{facet}_{x_label}_{y_label}.tsv"
     
-
-
     curdoc().unhold()
 
 
@@ -353,7 +335,6 @@ w_gene2.on_change("value", partial(cb_update_plot,type_change="gene2",axis="y"))
 w_facet.on_change("value", partial(cb_update_plot,type_change=None,axis=None))
 w_facet_numerical_1.on_change("value", partial(cb_update_plot,type_change="num_facet1",axis="x"))
 w_facet_numerical_2.on_change("value", partial(cb_update_plot,type_change="num_facet2",axis="y"))
-w_regression.on_change("active",partial(cb_update_plot,type_change=None,axis=None))
 
 w_sibling.on_change("value", cb_sibling_change)
 w_dataset_id.on_change("value", cb_dataset_change)
@@ -368,10 +349,8 @@ curdoc().add_root(
                     sizing_mode='stretch_width'),
                 row([w_facet_numerical_1,w_facet_numerical_2,w_sibling],
                     sizing_mode='stretch_width'),
-                row([w_download,w_regression],
+                row([w_download],
                     sizing_mode='stretch_width')],   
-                # row([w_download,w_x_axis,w_y_axis,w_regression],
-                #     sizing_mode='stretch_width')],   
                 sizing_mode='stretch_width')],
             sizing_mode='stretch_width'),
         row([w_div_title_author],
