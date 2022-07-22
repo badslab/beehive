@@ -27,6 +27,7 @@ def getarg(args, name, default=None, dtype=str):
     """Bokeh helper to get arguments from the URL."""
     if name in args:
         val = args[name][0].decode()
+        print(val)
         return dtype(val)
     else:
         return default
@@ -34,11 +35,11 @@ def getarg(args, name, default=None, dtype=str):
 
 def create_widget(name: str,
                   widget,
-                  default: str = None,
+                  default  = None,
                   title: str = None,
                   curdoc=None,
                   update_url: bool = True,
-                  value_is_list: bool = False,
+                  value_type = None,
                   **kwargs):
     """Widget helper.
 
@@ -71,8 +72,11 @@ def create_widget(name: str,
     args = curdoc.session_context.request.arguments
 
     new_widget = widget(name=name, title=title, **kwargs)
-    if value_is_list:
+
+    if (value_type == list) and not(type(getarg(args, param_name, default)) == list):
         new_widget.value = getarg(args, param_name, default).split(",")
+    elif (value_type == int) or (value_type == float):
+        new_widget.value = getarg(args, param_name, default,dtype = value_type)
     else:
         new_widget.value = getarg(args, param_name, default)
     if update_url:
