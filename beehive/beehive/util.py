@@ -2,6 +2,7 @@
 import subprocess as sp
 import hashlib
 import time
+from typing import List
 
 import beehive
 
@@ -37,6 +38,7 @@ def create_widget(name: str,
                   title: str = None,
                   curdoc=None,
                   update_url: bool = True,
+                  value_is_list: bool = False,
                   **kwargs):
     """Widget helper.
 
@@ -55,6 +57,7 @@ def create_widget(name: str,
     assert curdoc is not None
 
     param_name = name  # to get & retrieve from the URL
+
     if title is None:
         title = name.capitalize()
 
@@ -66,8 +69,12 @@ def create_widget(name: str,
     js_onchange = CustomJS(
         code=f'insertUrlParam("{param_name}", cb_obj.value);')
     args = curdoc.session_context.request.arguments
+
     new_widget = widget(name=name, title=title, **kwargs)
-    new_widget.value = getarg(args, param_name, default)
+    if value_is_list:
+        new_widget.value = getarg(args, param_name, default).split(",")
+    else:
+        new_widget.value = getarg(args, param_name, default)
     if update_url:
         new_widget.js_on_change("value", js_onchange)
     return new_widget
