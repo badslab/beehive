@@ -13,8 +13,8 @@ from bokeh.models.callbacks import CustomJS
 from bokeh.models.widgets import (Select, TextInput, Div,
                                   Button)
 from bokeh.plotting import figure, curdoc
-from bokeh.transform import factor_cmap
-
+from bokeh.transform import factor_cmap, transform
+from bokeh.models.transforms import CustomJSTransform
 from beehive import config, util, expset
 
 lg = logging.getLogger('ScatterExpression')
@@ -161,7 +161,35 @@ data = modify_data()
 
 source = ColumnDataSource(data)
 
-plot.scatter(x = "lfc", y = "padj", source = source,color=factor_cmap('highlight', palette = ["red","blue"], factors = ["Yes","No"]))
+v_func_alpha  = """
+var new_xs = new Array(xs.length)
+for(var i = 0; i < xs.length; i++) {
+    new_xs[i] = alpha_map[xs[i]]
+}
+return new_xs
+"""
+
+v_func_size  = """
+var new_xs = new Array(xs.length)
+for(var i = 0; i < xs.length; i++) {
+    new_xs[i] = size_map[xs[i]]
+}
+return new_xs
+"""
+
+
+alphas = [1,0.01]
+alpha_map = dict(zip(["Yes","No"], alphas))
+categorical_alpha_transformer = CustomJSTransform(args={"alpha_map": alpha_map}, v_func=v_func_alpha)
+
+sizes = [10,2]
+size_map = dict(zip(["Yes","No"],sizes))
+categorical_size_transformer =  CustomJSTransform(args={"size_map": size_map},v_func=v_func_size)
+
+plot.scatter(x = "lfc", y = "padj", source = source,
+color=factor_cmap('highlight', palette = ["red","blue"], factors = ["Yes","No"]),
+fill_alpha = transform('highlight',categorical_alpha_transformer),
+size = transform('highlight',categorical_size_transformer))
 
 plot.update(x_range = Range1d(w_x_range.value*-1, w_x_range.value), y_range = Range1d(0, w_y_range.value))
 def cb_update_plot(attr, old, new):
