@@ -132,8 +132,14 @@ def modify_data():
     data["highlight"] = data.apply(lambda x: highlight_genes(x),axis = 1)
 
     #take care of x y ranges
-    x_range = w_x_range.value
-    y_range = w_y_range.value
+    x_range_min = w_x_range.value*-1
+    x_range_max = w_x_range.value
+    y_range_max = w_y_range.value
+    
+    ##stick the outliers on the edges
+    data["lfc"] = np.where(data["lfc"] < x_range_min, x_range_min, data["lfc"])
+    data["lfc"] = np.where(data["lfc"] > x_range_max, x_range_max, data["lfc"])
+    data["padj"] = np.where(data["padj"] > y_range_max, y_range_max, data["padj"])
 
     return data
 
