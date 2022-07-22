@@ -8,7 +8,7 @@ import polars as pl
 from scipy import stats
 
 from bokeh.layouts import column, row
-from bokeh.models import ColumnDataSource,MultiChoice, HoverTool
+from bokeh.models import ColumnDataSource,MultiChoice, HoverTool, Spinner, Range1d
 from bokeh.models.callbacks import CustomJS
 from bokeh.models.widgets import (Select, TextInput, Div,
                                   Button)
@@ -66,8 +66,6 @@ siblings = expset.get_dataset_siblings(w_dataset_id.value)
 w_category = create_widget("category",Select, 
                     options=[], title="Select Category")
 
-#text input to highlight select genes
-w_text_input = TextInput(value= "", title="Gene names to be highlighted:")
 
 #download button..
 w_download = Button(label='Download', align='end')
@@ -75,7 +73,11 @@ w_download = Button(label='Download', align='end')
 w_download_filename = Div(text="", visible=False,
                           name="download_filename")
 
-w_genes = MultiChoice(value=["TREM2", "APOE"], options=[],title="Select genes to highlight")
+
+#w_genes = MultiChoice(value=["TREM2", "APOE"], options=[],title="Select genes to highlight")
+w_genes = create_widget("genes",MultiChoice,default = ["TREM2","APOE"],options = [], title="Select genes to highlight",value_type = list)
+w_x_range = create_widget("x_range",Spinner,title = "Select Min & Max Absolute X-range",low=0, high = 4,step=0.1,default=2,value_type = float)
+w_y_range = create_widget("y_range",Spinner,title = "Select Max Y-range",low=0, high = 300,step=1,default=100,value_type = float)
 
 
 def get_genes():
@@ -105,6 +107,7 @@ def update_vars():
 update_vars()
 update_genes()
 
+
 def get_data() -> pd.DataFrame:
     dataset_id = w_dataset_id.value
     categ = w_category.value
@@ -113,6 +116,27 @@ def get_data() -> pd.DataFrame:
     data = expset.get_dedata_new(dataset_id,categ)
     data.columns = ["lfc","padj","gene"]
     return data
+
+
+def highlight_genes(x):
+    if x["gene"] in w_genes.value:
+        return "Yes"
+    else:
+        return "No"
+
+
+def modify_data():
+    data = get_data()
+
+    data["padj"] = np.log10(data["padj"])*-1
+    data["highlight"] = data.apply(lambda x: highlight_genes(x),axis = 1)
+
+    #take care of x y ranges
+    x_range = w_x_range.value
+    y_range = w_y_range.value
+
+    return data
+
 
 def get_dataset():
     """Return the current dataset id and record."""
@@ -128,35 +152,30 @@ tooltips = [
            ]
 
 
-def highlight_genes(x):
-    if x["gene"] in w_genes.value:
-        return "Yes"
-    else:
-        return "No"
 
 ##Plot###
 plot = figure(height = 400)
 plot.add_tools(HoverTool(tooltips=tooltips))
-data = get_data()
-data["padj"] = np.log10(data["padj"])*-1
-data["highlight"] = data.apply(lambda x: highlight_genes(x),axis = 1)
+
+data = modify_data()
 
 source = ColumnDataSource(data)
 
 plot.scatter(x = "lfc", y = "padj", source = source,color=factor_cmap('highlight', palette = ["red","blue"], factors = ["Yes","No"]))
 
-
-
-
+plot.update(x_range = Range1d(w_x_range.value*-1, w_x_range.value), y_range = Range1d(0, w_y_range.value))
 def cb_update_plot(attr, old, new):
     """Populate and update the plot."""
     curdoc().hold()
     global plot, source
 
-    data = get_data()
-    data["padj"] = np.log10(data["padj"])*-1
-    data["highlight"] = data.apply(lambda x: highlight_genes(x),axis = 1)
+    data = modify_data()
+
     source.data = data
+
+    plot.x_range.update(start = w_x_range.value*-1, end = w_x_range.value)
+    plot.y_range.update(start = 0, end = w_y_range.value)
+
     curdoc().unhold()
 
 
@@ -168,7 +187,8 @@ update_plot()
 
 w_category.on_change("value", cb_update_plot)
 w_genes.on_change("value",cb_update_plot)
-
+w_x_range.on_change("value",cb_update_plot)
+w_y_range.on_change("value",cb_update_plot)
 
 def cb_dataset_change(attr, old, new):
     """Dataset change."""
@@ -196,11 +216,11 @@ curdoc().add_root(
     column([
         row([
             column([
-                row([w_category,w_genes], 
+                row([w_genes], 
                     sizing_mode='stretch_width'),
-                row([w_sibling],
+                row([w_category,w_sibling],
                     sizing_mode='stretch_width'),
-                row([w_download],
+                row([w_x_range,w_y_range,w_download],
                     sizing_mode='stretch_width')],   
                 # row([w_download,w_x_axis,w_y_axis,w_regression],
                 #     sizing_mode='stretch_width')],   
