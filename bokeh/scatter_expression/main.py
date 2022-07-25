@@ -40,8 +40,6 @@ args = curdoc().session_context.request.arguments
 w_div_title_author = Div(text="")
 
 #datasets with titles
-dataset_options = [(k, "{short_title}, {short_author}".format(**v))
-                   for k, v in datasets.items()]
 
 # Dataset
 dataset_options = [(k, "{short_title}, {short_author}".format(**v))
@@ -78,25 +76,25 @@ siblings = expset.get_dataset_siblings(w_dataset_id.value)
 #gene vs gene
 #numerical facet vs numerical facet
 #numerical facet vs gene etc...
-w_gene1 = create_widget("gene1", AutocompleteInput,
-                       completions=[], default='APOE')
-w_gene2 = create_widget("gene2", AutocompleteInput,
-                       completions=[], default='TREM2')
-w_facet_numerical_1 = create_widget("num_facet1",Select, 
-                    options=[], title="Select Numerical Facet 1")
-w_facet_numerical_2 = create_widget("num_facet2",Select, 
-                        options=[], title="Select Numerical Facet 2")
+w_gene1 = create_widget("geneX", AutocompleteInput,
+                       completions=[], default='APOE', title="Gene X")
+w_gene2 = create_widget("geneY", AutocompleteInput,
+                       completions=[], default='TREM2', title = "Gene Y")
+w_facet_numerical_1 = create_widget("num_facetX",Select, 
+                    options=[], title="Select Numerical Facet on X")
+w_facet_numerical_2 = create_widget("num_facetY",Select, 
+                        options=[], title="Select Numerical Facet on Y")
 
 widget_axes = [w_gene1,w_gene2,w_facet_numerical_1,w_facet_numerical_2]
+
 w_regression  = CheckboxGroup(labels=["Regression Lines"], active=[])
-# w_regression = create_widget(name="regression_check",widget=regression,title="Show Regression Line")
 
-# FIXED_OPTIONS = [("gene1","Gene 1"),("gene2","Gene 2"),("facet_num_1","Numerical Facet 1"),("facet_num_2","Numerical Facet 2")]
+FIXED_OPTIONS = [("geneX","Gene X"),("geneY","Gene Y"),("num_facetX","Numerical Facet on X"),("num_facetY","Numerical Facet on Y")]
 
-# w_x_axis = create_widget("x_axis",Select, 
-#                         options=FIXED_OPTIONS, title="Select X-Axis",default = 'gene1')
-# w_y_axis =  create_widget("y_axis",Select, 
-#                         options=FIXED_OPTIONS, title="Select Y-Axis",default = 'gene2')
+w_x_axis = create_widget("x_axis",Select, 
+                        options=FIXED_OPTIONS, title="Select X-Axis",default = 'geneX')
+w_y_axis =  create_widget("y_axis",Select, 
+                        options=FIXED_OPTIONS, title="Select Y-Axis",default = 'geneY')
 
 #categorical facet grouping of data...
 w_facet = create_widget("facet", Select, options=[], title="Group by")
@@ -178,11 +176,11 @@ def get_data() -> pd.DataFrame:
     lg.warning(f"!! Getting data for {dataset_id} {facet} {gene2}")
 
     data = pd.DataFrame(dict(
-        gene1 = expset.get_gene(dataset_id, gene1)[:,0],
-        gene2 = expset.get_gene(dataset_id, gene2)[:,0],
+        geneX = expset.get_gene(dataset_id, gene1)[:,0],
+        geneY = expset.get_gene(dataset_id, gene2)[:,0],
         obs = expset.get_meta(dataset_id, facet)[:,0],
-        num_facet1 = expset.get_meta(dataset_id,num_facet1,raw=True)[:,0],
-        num_facet2 = expset.get_meta(dataset_id,num_facet2,raw=True)[:,0]
+        num_facetX = expset.get_meta(dataset_id,num_facet1,raw=True)[:,0],
+        num_facetY = expset.get_meta(dataset_id,num_facet2,raw=True)[:,0]
         ))
 
     return data
@@ -216,8 +214,8 @@ index_cmap = factor_cmap('obs', Category20[len(unique_obs)], unique_obs)
 glyphs = []
 sources = []
 
-X_AXIS = "gene1"
-Y_AXIS = "gene2"
+X_AXIS = "geneX"
+Y_AXIS = "geneY"
 
 ##need to have multiple glyphs not a single multi glyph:
 for index,obs in enumerate(unique_obs):
@@ -236,19 +234,22 @@ x_label = ""
 y_label = ""
 
 
-def cb_update_plot(attr, old, new,type_change,axis):
+# def cb_update_plot(attr, old, new,type_change,axis):
+def cb_update_plot(attr, old, new, type_change):
     """Populate and update the plot."""
     curdoc().hold()
     global plot, sources, index_cmap,glyphs,source, X_AXIS, Y_AXIS, widget_axes,x_label,y_label
+    if type_change != w_x_axis.value and type_change != w_y_axis.value and type_change not in ["XYAXIS","regression","categorical"]:
+        curdoc().unhold()
+        return
+
     data = get_data()
     dataset_id, dataset = get_dataset()
+
     facet = w_facet.value
-    gene1 = w_gene1.value
-    gene2 = w_gene2.value
-    num_facet1 = w_facet_numerical_1.value
-    num_facet2 = w_facet_numerical_2.value
 
     source = ColumnDataSource(data)
+
 
     unique_obs = get_unique_obs(data)
 
@@ -261,14 +262,8 @@ def cb_update_plot(attr, old, new,type_change,axis):
     glyphs = []
     sources = []
 
-    if type_change:
-        if axis == 'x':
-            X_AXIS = type_change
-        else:
-            Y_AXIS = type_change
-
-
-
+    X_AXIS = w_x_axis.value
+    Y_AXIS = w_y_axis.value
     for index,obs in enumerate(unique_obs):
 
         sourcedf = pd.DataFrame(source.data)
@@ -343,7 +338,7 @@ def cb_update_plot(attr, old, new,type_change,axis):
 
 
 # convenience shortcut
-update_plot = partial(cb_update_plot, attr=None, old=None, new=None,type_change=None,axis=None)
+update_plot = partial(cb_update_plot, attr=None, old=None, new=None,type_change = "XYAXIS")
 
 # run it directly to ensure there are initial values
 update_plot()
@@ -374,12 +369,17 @@ def cb_download():
     code="exportToTsv(data, columns, filename_div.text);")
 
 
-w_gene1.on_change("value",partial(cb_update_plot,type_change = "gene1",axis="x"))
-w_gene2.on_change("value", partial(cb_update_plot,type_change="gene2",axis="y"))
-w_facet.on_change("value", partial(cb_update_plot,type_change=None,axis=None))
-w_facet_numerical_1.on_change("value", partial(cb_update_plot,type_change="num_facet1",axis="x"))
-w_facet_numerical_2.on_change("value", partial(cb_update_plot,type_change="num_facet2",axis="y"))
-w_regression.on_change("active",partial(cb_update_plot,type_change=None,axis=None))
+
+w_regression.on_change("active",partial(cb_update_plot,type_change = "regression"))
+w_x_axis.on_change("value",partial(cb_update_plot,type_change = "XYAXIS"))
+w_y_axis.on_change("value",partial(cb_update_plot,type_change = "XYAXIS"))
+w_facet.on_change("value", partial(cb_update_plot,type_change="categorical"))
+
+w_gene1.on_change("value",partial(cb_update_plot,type_change = "geneX"))
+w_gene2.on_change("value", partial(cb_update_plot,type_change="geneY"))
+w_facet_numerical_1.on_change("value", partial(cb_update_plot,type_change="num_facetX"))
+w_facet_numerical_2.on_change("value", partial(cb_update_plot,type_change="num_facetY"))
+
 
 w_sibling.on_change("value", cb_sibling_change)
 w_dataset_id.on_change("value", cb_dataset_change)
@@ -394,12 +394,13 @@ curdoc().add_root(
                     sizing_mode='stretch_width'),
                 row([w_facet_numerical_1,w_facet_numerical_2,w_sibling],
                     sizing_mode='stretch_width'),
-                row([w_download,w_regression],
+                row([w_x_axis,w_y_axis,w_download],
                     sizing_mode='stretch_width')],   
                 sizing_mode='stretch_width')],
             sizing_mode='stretch_width'),
         row([w_div_title_author],
             sizing_mode='stretch_width'),
+        row([w_regression]),
         row([w_gene_not_found],
             sizing_mode='stretch_width'),
         row([plot],
