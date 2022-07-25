@@ -27,7 +27,6 @@ def getarg(args, name, default=None, dtype=str):
     """Bokeh helper to get arguments from the URL."""
     if name in args:
         val = args[name][0].decode()
-        print(val)
         return dtype(val)
     else:
         return default
