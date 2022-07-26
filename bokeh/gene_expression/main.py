@@ -52,15 +52,53 @@ w_dataset_id = create_widget("dataset_id", Select, title="Dataset",
                              visible=True,)
 
 # Possible siblings of this dataset
-siblings = expset.get_dataset_siblings(w_dataset_id.value)
-sibling_options = []
-for k, v in siblings.items():
-    sname = f"{v['organism']} / {v['datatype']}"
-    sibling_options.append((k, sname))
+# siblings = expset.get_dataset_siblings(w_dataset_id.value)
+# sibling_options = []
+# #check all organisms
+# organisms = []
+# for k, v in siblings.items():
+#     organisms = organisms + [v['organism']]
+
+# if len(list(set(organisms))) == 1:
+#     for k, v in siblings.items():
+#         # sname = f"{v['organism']} / {v['datatype']}"
+#         sname = f"{v['datatype']}"
+#         sibling_options.append((k, sname))
+# else:
+#     for k, v in siblings.items():
+#         sname = f"{v['organism']} / {v['datatype']}"
+        # sibling_options.append((k, sname))
+
+
 w_sibling = create_widget("view", Select,
-                          options=sibling_options,
+                          options=[],
                           default=w_dataset_id.value,
                           update_url=False)
+
+def update_sibling_options():
+    siblings = expset.get_dataset_siblings(w_dataset_id.value)
+    sibling_options = []
+    #check all organisms
+    organisms = []
+    for k, v in siblings.items():
+        organisms = organisms + [v['organism']]
+
+    if len(list(set(organisms))) == 1:
+        for k, v in siblings.items():
+            # sname = f"{v['organism']} / {v['datatype']}"
+            sname = f"{v['datatype']}"
+            sibling_options.append((k, sname))
+    else:
+        for k, v in siblings.items():
+            sname = f"{v['organism']} / {v['datatype']}"
+            sibling_options.append((k, sname))
+
+    w_sibling.options = sibling_options
+
+
+update_sibling_options()
+
+
 
 w_gene = create_widget("gene", AutocompleteInput,
                        completions=[], default='APOE', case_sensitive = False)
@@ -255,6 +293,7 @@ def cb_dataset_change(attr, old, new):
     curdoc().hold()
     update_facets()
     update_genes()
+    update_sibling_options()
     update_plot()
 
 
