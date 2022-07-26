@@ -74,7 +74,8 @@ def check_yaml(dataset_id,
     var_columns = expset.get_varfields(dataset_id)
     if len(var_columns) > 200:
         warnings.append(
-            f"Var table might be transposed - {len(var_columns)} columns found")
+            f"Var table might be transposed - {len(var_columns)} "
+            "columns found")
         print(var_columns[:5])
 
     if 'obs_meta' not in data:
@@ -107,8 +108,9 @@ def check_yaml(dataset_id,
                 tds2('obs_field', obsfield)
                 # TODO: add obs_compare and obs_against!
             else:
-                warn_message = f'Cannot find DE field "{obsfield}" in obs table'
-                if not warn_message in warnings:
+                warn_message = (f'Cannot find DE field "{obsfield}" '
+                                'in obs table')
+                if warn_message not in warnings:
                     warnings.append(warn_message)
 
     for obs_col in obs_columns:
@@ -136,8 +138,8 @@ def check_yaml(dataset_id,
                 tds2('dtype', 'numerical')
                 if no_unique < 15:
                     warnings.append(
-                        f"Numerical field {obs_col} has only {no_unique} unique "
-                        "values - is this not a  categorical?")
+                        f"Numerical field {obs_col} has only {no_unique} "
+                        "unique values - is this not a categorical?")
         else:
             if odtype is not None:
                 if odtype not in ['categorical', 'skip']:
@@ -254,7 +256,7 @@ def transpose_var(
         backup_file = var_prq.with_suffix(f".prq-backup-{i:03d}")
         while backup_file.exists():
             i += 1
-            backup_file = yaml_file.with_suffix(f".prq-backup-{i:03d}")
+            backup_file = var_prq.with_suffix(f".prq-backup-{i:03d}")
 
         lg.warning(f"saving var.prq file to {var_prq}")
         lg.warning(f"old prq file backed up to {backup_file}")

@@ -8,12 +8,13 @@ import beehive
 
 
 def dict_set(data, *args, overwrite=False):
-    """Careful dict value setter  
+    """Careful dict value setter
         - create parents if required
-        - never overwrite a value if it is already there (unless overwrite is True)
+        - never overwrite a value if it is already there
+          (unless overwrite is True)
 
-    args should at least be of length 2 - all but the last are interpreted as keys, the
-    last value of *args is the value to set
+    args should at least be of length 2 - all but the last are interpreted as
+    keys, the last value of *args is the value to set
 
     so dict_set(yaml, key1, key2, val) sets yaml[key1][key2] = val
 
@@ -101,7 +102,8 @@ def create_widget(name: str,
 
     new_widget = widget(name=name, title=title, **kwargs)
 
-    if (value_type == list) and not(type(getarg(args, param_name, default)) == list):
+    if (value_type == list) \
+            and not(type(getarg(args, param_name, default)) == list):
         new_widget.value = getarg(args, param_name, default).split(",")
     elif (value_type == int) or (value_type == float):
         new_widget.value = getarg(args, param_name, default, dtype=value_type)
