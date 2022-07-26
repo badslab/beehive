@@ -24,7 +24,7 @@ lg.setLevel(logging.DEBUG)
 lg.info("startup")
 
 curdoc().template_variables['config'] = config
-curdoc().template_variables['view_name'] = 'Scatter Expression'
+curdoc().template_variables['view_name'] = 'Hexbin Expression'
 
 
 create_widget = partial(util.create_widget, curdoc=curdoc())
@@ -217,7 +217,9 @@ Y_AXIS = "gene2"
 data = data[[X_AXIS,Y_AXIS,"obs"]]
 
 merged_image = hv.NdOverlay({index: hv.Bivariate(data.loc[(data.obs == obs)], name=obs).opts(muted_alpha=0,width = 1500, height = 600)for index,obs in enumerate(unique_obs)})
-plot = hv.render(merged_image)
+# plot = hv.render(merged_image)
+plot = renderer.get_plot(merged_image).state
+
 # plot.renderers = hv.render(merged_image).renderers
 # plot.center = hv.render(merged_image).center
 
@@ -247,7 +249,7 @@ def cb_update_plot(attr, old, new,type_change,axis):
     index_cmap = factor_cmap('obs', Category20[len(unique_obs)], unique_obs)
     # plot.renderers = []
     # plot.legend.items = []
-    plot = figure()
+    #plot = figure()
     if type_change:
         if axis == 'x':
             X_AXIS = type_change
@@ -259,7 +261,8 @@ def cb_update_plot(attr, old, new,type_change,axis):
     merged_image = hv.NdOverlay({index: hv.Bivariate(data.loc[(data.obs == obs)], name=obs).opts(muted_alpha=0,width = 1500, height = 600) for index,obs in enumerate(unique_obs)})
     # plot.renderers = hv.render(merged_image).renderers
     # plot.legend.items = hv.render(merged_image).legend.items
-    plot = hv.render(merged_image)
+    # plot = hv.render(merged_image)
+    plot = renderer.get_plot(merged_image).state
 
     for index,obs in enumerate(unique_obs):
         plot.legend.items[index].label["value"] = obs

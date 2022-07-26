@@ -49,21 +49,59 @@ dataset_options = [(k, "{short_title}, {short_author}".format(**v))
 w_dataset_id = create_widget("dataset_id", Select, title="Dataset",
                              options=dataset_options,
                              default=dataset_options[0][0],
-                             visible=False,)
+                             visible=True,)
 
 # Possible siblings of this dataset
-siblings = expset.get_dataset_siblings(w_dataset_id.value)
-sibling_options = []
-for k, v in siblings.items():
-    sname = f"{v['organism']} / {v['datatype']}"
-    sibling_options.append((k, sname))
+# siblings = expset.get_dataset_siblings(w_dataset_id.value)
+# sibling_options = []
+# #check all organisms
+# organisms = []
+# for k, v in siblings.items():
+#     organisms = organisms + [v['organism']]
+
+# if len(list(set(organisms))) == 1:
+#     for k, v in siblings.items():
+#         # sname = f"{v['organism']} / {v['datatype']}"
+#         sname = f"{v['datatype']}"
+#         sibling_options.append((k, sname))
+# else:
+#     for k, v in siblings.items():
+#         sname = f"{v['organism']} / {v['datatype']}"
+        # sibling_options.append((k, sname))
+
+
 w_sibling = create_widget("view", Select,
-                          options=sibling_options,
+                          options=[],
                           default=w_dataset_id.value,
                           update_url=False)
 
+def update_sibling_options():
+    siblings = expset.get_dataset_siblings(w_dataset_id.value)
+    sibling_options = []
+    #check all organisms
+    organisms = []
+    for k, v in siblings.items():
+        organisms = organisms + [v['organism']]
+
+    if len(list(set(organisms))) == 1:
+        for k, v in siblings.items():
+            # sname = f"{v['organism']} / {v['datatype']}"
+            sname = f"{v['datatype']}"
+            sibling_options.append((k, sname))
+    else:
+        for k, v in siblings.items():
+            sname = f"{v['organism']} / {v['datatype']}"
+            sibling_options.append((k, sname))
+
+    w_sibling.options = sibling_options
+
+
+update_sibling_options()
+
+
+
 w_gene = create_widget("gene", AutocompleteInput,
-                       completions=[], default='APOE')
+                       completions=[], default='APOE', case_sensitive = False)
 w_facet = create_widget("facet", Select, options=[], title="Group by")
 w_download = Button(label='Download', align='end')
 w_download_filename = Div(text="", visible=False,
@@ -146,7 +184,12 @@ def get_dataset():
 #
 plot = figure(background_fill_color="#efefef", x_range=[],
               plot_height=400, title="Plot",
-              toolbar_location='right')
+              toolbar_location='right', tools = "save")
+#removed all tools but save
+
+# plot = figure(background_fill_color="#efefef", x_range=[],
+#               plot_height=400, title="Plot",
+#               toolbar_location='right')
 source = ColumnDataSource(get_data())
 table = DataTable(source=source,
                   margin=10,
@@ -255,6 +298,7 @@ def cb_dataset_change(attr, old, new):
     curdoc().hold()
     update_facets()
     update_genes()
+    update_sibling_options()
     update_plot()
 
 
@@ -275,6 +319,7 @@ w_sibling.on_change("value", cb_sibling_change)
 w_dataset_id.on_change("value", cb_dataset_change)
 w_facet.on_change("value", cb_update_plot)
 w_download.js_on_click(cb_download)
+w_dataset_id.on_change("value",cb_update_plot)
 
 
 #
@@ -284,14 +329,14 @@ curdoc().add_root(
     column([
         row([w_gene, w_facet, w_sibling, w_download],
             sizing_mode='stretch_width'),
-        row([w_div_title_author],
+        row([w_gene_not_found,w_dataset_id],
             sizing_mode='stretch_width'),
-        row([w_gene_not_found],
+        row([w_div_title_author],
             sizing_mode='stretch_width'),
         row([plot],
             sizing_mode='stretch_width'),
         row([table],
-            sizing_mode='stretch_width'),
-        row([w_dataset_id, w_download_filename],),
-    ], sizing_mode='stretch_width')
+            sizing_mode='stretch_width')])
+    #     row([w_dataset_id, w_download_filename],),
+    # ], sizing_mode='stretch_width')
 )

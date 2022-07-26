@@ -52,7 +52,7 @@ serve_dev_raghid2: fix_templates
 	pipenv run bokeh serve --dev --port 5009 bokeh/scatter_expression/
 
 serve_dev_raghid3: fix_templates
-	pipenv run bokeh serve --dev --port 5009 bokeh/kernel_density_expression/
+	pipenv run bokeh serve --dev --port 5009 bokeh/hexbin_expression/
 
 serve_dev_raghid4: fix_templates
 	pipenv run bokeh serve --dev --port 5009 bokeh/volcano_plot/
