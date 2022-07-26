@@ -51,23 +51,23 @@ DATASET_NUMBER = 3
 w_dataset_id = create_widget("dataset_id", Select, title="Dataset",
                              options=dataset_options,
                              default=dataset_options[DATASET_NUMBER][0],
-                             visible=False,)
+                             visible=True,)
 
 # Possible siblings of this dataset
-siblings = expset.get_dataset_siblings(w_dataset_id.value)
-sibling_options = []
-for k, v in siblings.items():
-    sname = f"{v['organism']} / {v['datatype']}"
-    sibling_options.append((k, sname))
+# siblings = expset.get_dataset_siblings(w_dataset_id.value)
+# sibling_options = []
+# for k, v in siblings.items():
+#     sname = f"{v['organism']} / {v['datatype']}"
+#     sibling_options.append((k, sname))
 
-w_sibling = create_widget("view", Select,
-                          options=sibling_options,
-                          default=w_dataset_id.value,
-                          update_url=False)
+# w_sibling = create_widget("view", Select,
+#                           options=sibling_options,
+#                           default=w_dataset_id.value,
+#                           update_url=False)
 
 
 ## note: human/plant has meta as 'models' , mouse has meta as 'model'
-siblings = expset.get_dataset_siblings(w_dataset_id.value)
+# siblings = expset.get_dataset_siblings(w_dataset_id.value)
 
 #making widgets for the following:
 
@@ -77,9 +77,9 @@ siblings = expset.get_dataset_siblings(w_dataset_id.value)
 #numerical facet vs numerical facet
 #numerical facet vs gene etc...
 w_gene1 = create_widget("geneX", AutocompleteInput,
-                       completions=[], default='APOE', title="Gene X")
+                       completions=[], default='APOE', title="Gene X", case_sensitive = False)
 w_gene2 = create_widget("geneY", AutocompleteInput,
-                       completions=[], default='TREM2', title = "Gene Y")
+                       completions=[], default='TREM2', title = "Gene Y", case_sensitive = False)
 w_facet_numerical_1 = create_widget("num_facetX",Select, 
                     options=[], title="Select Numerical Facet on X")
 w_facet_numerical_2 = create_widget("num_facetY",Select, 
@@ -351,12 +351,13 @@ def cb_dataset_change(attr, old, new):
     curdoc().hold()
     update_facets()
     update_genes()
+    update_numerical_facets()
     update_plot()
 
 
-def cb_sibling_change(attr, old, new):
-    lg.debug("Sibling change: " + new)
-    w_dataset_id.value = new
+# def cb_sibling_change(attr, old, new):
+#     lg.debug("Sibling change: " + new)
+#     w_dataset_id.value = new
 
 ##TODO: fix download button. only downloads old data
 def cb_download():
@@ -381,7 +382,7 @@ w_facet_numerical_1.on_change("value", partial(cb_update_plot,type_change="num_f
 w_facet_numerical_2.on_change("value", partial(cb_update_plot,type_change="num_facetY"))
 
 
-w_sibling.on_change("value", cb_sibling_change)
+# w_sibling.on_change("value", cb_sibling_change)
 w_dataset_id.on_change("value", cb_dataset_change)
 w_download.js_on_click(cb_download())
 
@@ -392,7 +393,7 @@ curdoc().add_root(
             column([
                 row([w_gene1,w_gene2,w_facet], 
                     sizing_mode='stretch_width'),
-                row([w_facet_numerical_1,w_facet_numerical_2,w_sibling],
+                row([w_facet_numerical_1,w_facet_numerical_2],
                     sizing_mode='stretch_width'),
                 row([w_x_axis,w_y_axis,w_download],
                     sizing_mode='stretch_width')],   
@@ -400,11 +401,11 @@ curdoc().add_root(
             sizing_mode='stretch_width'),
         row([w_div_title_author],
             sizing_mode='stretch_width'),
-        row([w_regression]),
+        row([w_regression,w_dataset_id]),
         row([w_gene_not_found],
             sizing_mode='stretch_width'),
         row([plot],
             sizing_mode='stretch_width'),
-        row([w_dataset_id, w_download_filename],),
+        # row([w_dataset_id, w_download_filename],),
     ], sizing_mode='stretch_width')
 )
