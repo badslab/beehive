@@ -49,7 +49,7 @@ dataset_options = [(k, "{short_title}, {short_author}".format(**v))
 w_dataset_id = create_widget("dataset_id", Select, title="Dataset",
                              options=dataset_options,
                              default=dataset_options[0][0],
-                             visible=False,)
+                             visible=True,)
 
 # Possible siblings of this dataset
 siblings = expset.get_dataset_siblings(w_dataset_id.value)
@@ -63,7 +63,7 @@ w_sibling = create_widget("view", Select,
                           update_url=False)
 
 w_gene = create_widget("gene", AutocompleteInput,
-                       completions=[], default='APOE')
+                       completions=[], default='APOE', case_sensitive = False)
 w_facet = create_widget("facet", Select, options=[], title="Group by")
 w_download = Button(label='Download', align='end')
 w_download_filename = Div(text="", visible=False,
@@ -275,6 +275,7 @@ w_sibling.on_change("value", cb_sibling_change)
 w_dataset_id.on_change("value", cb_dataset_change)
 w_facet.on_change("value", cb_update_plot)
 w_download.js_on_click(cb_download)
+w_dataset_id.on_change("value",cb_update_plot)
 
 
 #
@@ -284,14 +285,14 @@ curdoc().add_root(
     column([
         row([w_gene, w_facet, w_sibling, w_download],
             sizing_mode='stretch_width'),
-        row([w_div_title_author],
+        row([w_gene_not_found,w_dataset_id],
             sizing_mode='stretch_width'),
-        row([w_gene_not_found],
+        row([w_div_title_author],
             sizing_mode='stretch_width'),
         row([plot],
             sizing_mode='stretch_width'),
         row([table],
-            sizing_mode='stretch_width'),
-        row([w_dataset_id, w_download_filename],),
-    ], sizing_mode='stretch_width')
+            sizing_mode='stretch_width')])
+    #     row([w_dataset_id, w_download_filename],),
+    # ], sizing_mode='stretch_width')
 )
