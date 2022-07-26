@@ -185,6 +185,12 @@ def get_dataset():
 plot = figure(background_fill_color="#efefef", x_range=[],
               plot_height=400, title="Plot",
               toolbar_location='right', tools = "save")
+#removed all tools but save
+
+# plot = figure(background_fill_color="#efefef", x_range=[],
+#               plot_height=400, title="Plot",
+#               toolbar_location='right')
+
 source = ColumnDataSource(get_data())
 table = DataTable(source=source,
                   margin=10,
