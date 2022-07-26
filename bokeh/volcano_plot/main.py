@@ -44,21 +44,21 @@ DATASET_NUMBER = 9
 w_dataset_id = create_widget("dataset_id", Select, title="Dataset",
                              options=dataset_options,
                              default=dataset_options[DATASET_NUMBER][0],
-                             visible=False,)
+                             visible=True,)
 
 # Possible siblings of this dataset
-siblings = expset.get_dataset_siblings(w_dataset_id.value)
-sibling_options = []
-for k, v in siblings.items():
-    sname = f"{v['organism']} / {v['datatype']}"
-    sibling_options.append((k, sname))
+# siblings = expset.get_dataset_siblings(w_dataset_id.value)
+# sibling_options = []
+# for k, v in siblings.items():
+#     sname = f"{v['organism']} / {v['datatype']}"
+#     sibling_options.append((k, sname))
 
-w_sibling = create_widget("view", Select,
-                          options=sibling_options,
-                          default=w_dataset_id.value,
-                          update_url=False)
+# w_sibling = create_widget("view", Select,
+#                           options=sibling_options,
+#                           default=w_dataset_id.value,
+#                           update_url=False)
 
-siblings = expset.get_dataset_siblings(w_dataset_id.value)
+# siblings = expset.get_dataset_siblings(w_dataset_id.value)
 
 
 #make widgets for the following:
@@ -116,6 +116,7 @@ def get_data() -> pd.DataFrame:
 
     data = expset.get_dedata_new(dataset_id,categ)
     data.columns = ["lfc","padj","gene"]
+    data.dropna(inplace = True)
     return data
 
 
@@ -257,8 +258,8 @@ labels = LabelSet(x='lfc', y='padj', text='gene',
 
 plot.add_layout(labels)
 
-w_x_range.value = max(data["lfc"]) + max(data["lfc"])/2
-w_y_range.value = max(data["padj"]) + max(data["padj"])/4
+w_x_range.value = max(data["true_lfc"]) + max(data["true_lfc"])/2
+w_y_range.value = max(data["true_padj"]) + max(data["true_padj"])/4
 
 plot.update(x_range = Range1d(w_x_range.value*-1, w_x_range.value), y_range = Range1d(0, w_y_range.value))
 
@@ -276,6 +277,24 @@ def cb_update_plot(attr, old, new):
 
     curdoc().unhold()
 
+def cb_update_plot_new_dataset(attr, old, new):
+    
+    curdoc().hold()
+    
+    global plot, source
+    update_vars()
+    update_genes()
+    data = modify_data()
+    source.data = data
+
+    w_x_range.value = max(data["true_lfc"]) + max(data["true_lfc"])/2
+    w_y_range.value = max(data["true_padj"]) + max(data["true_padj"])/4
+
+    plot.x_range.update(start = w_x_range.value*-1, end = w_x_range.value)
+    plot.y_range.update(start = 0, end = w_y_range.value)
+
+    curdoc().unhold()
+
 
 # convenience shortcut
 update_plot = partial(cb_update_plot, attr=None, old=None, new=None)
@@ -287,19 +306,20 @@ w_category.on_change("value", cb_update_plot)
 w_genes.on_change("value",cb_update_plot)
 w_x_range.on_change("value",cb_update_plot)
 w_y_range.on_change("value",cb_update_plot)
+w_dataset_id.on_change("value",cb_update_plot_new_dataset)
 
-def cb_dataset_change(attr, old, new):
-    """Dataset change."""
-    lg.info("Dataset Change to:" + new)
-    curdoc().hold()
-    update_vars()
-    update_genes()
-    update_plot()
+# def cb_dataset_change(attr, old, new):
+#     """Dataset change."""
+#     lg.info("Dataset Change to:" + new)
+#     curdoc().hold()
+#     update_vars()
+#     update_genes()
+#     update_plot()
 
 
-def cb_sibling_change(attr, old, new):
-    lg.debug("Sibling change: " + new)
-    w_dataset_id.value = new
+# def cb_sibling_change(attr, old, new):
+#     lg.debug("Sibling change: " + new)
+#     w_dataset_id.value = new
 
 
 cb_download = CustomJS(
@@ -316,18 +336,18 @@ curdoc().add_root(
             column([
                 row([w_genes], 
                     sizing_mode='stretch_width'),
-                row([w_category,w_sibling],
+                row([w_category],
                     sizing_mode='stretch_width'),
-                row([w_x_range,w_y_range,w_download],
+                row([w_x_range,w_y_range,w_download,w_dataset_id],
                     sizing_mode='stretch_width')],   
                 sizing_mode='stretch_width')],
             sizing_mode='stretch_width'),
         row([w_div_title_author],
             sizing_mode='stretch_width'),
         row([plot],
-            sizing_mode='stretch_width'),
-        row([w_dataset_id, w_download_filename],),
-    ], sizing_mode='stretch_width')
+            sizing_mode='stretch_width')])
+    #     row([w_dataset_id, w_download_filename],),
+    # ], sizing_mode='stretch_width')
 )
 
 
