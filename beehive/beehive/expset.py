@@ -9,6 +9,7 @@ import yaml
 
 from beehive import util
 
+
 lg = logging.getLogger(__name__)
 lg.setLevel(logging.DEBUG)
 
@@ -109,7 +110,6 @@ def get_facet_options(dsid: str,
     return list(sorted(rv))
 
 
-
 def get_facet_options_numerical(dsid: str) -> List[Tuple[str, str]]:
     """
     Return obs columns that a dataset can be facetted on.
@@ -134,12 +134,6 @@ def get_gene_meta_agg(dsid: str, gene: str, meta: str, nobins: int = 8):
     genedata = get_gene(dsid, gene)
     metadata = get_meta(dsid, meta, nobins=nobins)
 
-    # def chksum(p: pl.DataFrame):
-    #     import hashlib
-    #     md5 = hashlib.md5()
-    #     md5.update(p.to_csv().encode())
-    #     return md5.hexdigest()
-
     if genedata is None:
         return None
     if metadata is None:
@@ -163,10 +157,6 @@ def get_gene_meta_agg(dsid: str, gene: str, meta: str, nobins: int = 8):
             ]
         )
     )
-
-    # print(dsid, gene, meta, nobins,
-    #       chksum(genedata), chksum(metadata),
-    #       chksum(rv))
 
     rv = rv.to_pandas()
     rv = rv.rename(columns={meta: "cat_value"})
@@ -224,26 +214,28 @@ def get_dedata(dsid, categ, genes):
     return rv
 
 
-
-def get_dedata_new(dsid,categ):
+def get_dedata_new(dsid, categ):
     datadir = util.get_datadir("h5ad")
 
-    ##TODO should be a stable name "gene" in all datasets
-    #get last column,, no way to access it just by name
-    #sometimes it's called gene, sometimes it's index__0__
-    last_col =  len(pl.read_parquet(datadir / f"{dsid}.var.prq").columns)
+    # TODO should be a stable name "gene" in all datasets
+    # get last column,, no way to access it just by name
+    # sometimes it's called gene, sometimes it's index__0__
+    last_col = len(pl.read_parquet(datadir / f"{dsid}.var.prq").columns)
 
-    rv1 = pl.read_parquet(datadir / f"{dsid}.var.prq",[last_col - 1])
+    rv1 = pl.read_parquet(datadir / f"{dsid}.var.prq", [last_col - 1])
 
-    #get logfoldchange and padjusted for one category (example injection__None)
-    rv2 = pl.read_parquet(datadir / f"{dsid}.var.prq",[categ+ "__lfc"] + [categ + "__padj"])
+    # get logfoldchange and padjusted for one category
+    # (example injection__None)
+    rv2 = pl.read_parquet(
+        datadir / f"{dsid}.var.prq", [categ + "__lfc"] + [categ + "__padj"])
 
-    rv = pl.concat([rv2,rv1],how="horizontal")
+    rv = pl.concat([rv2, rv1], how="horizontal")
 
     rv = rv.to_pandas()
-    #in new format, padjusted and lfc are already on columns, genes on rows.
-    #get genes has same index as that for the rows.
+    # in new format, padjusted and lfc are already on columns, genes on rows.
+    # get genes has same index as that for the rows.
     return rv
+
 
 def get_meta(dsid, col, raw=False, nobins=8):
     """Return one obs column."""
@@ -284,8 +276,6 @@ def get_meta(dsid, col, raw=False, nobins=8):
         rv[col] = rvq.astype(str)
 
     return rv
-
-
 
 
 # @diskcache()
