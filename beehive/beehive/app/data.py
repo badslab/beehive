@@ -172,16 +172,41 @@ def data_check(yaml_file: Path = typer.Argument(..., exists=True),
         lg.info("Yaml file did not change - not updating")
 
 
-# @app.command("del")
-# def h5ad_del(h5ad_file: Path = typer.Argument(..., exists=True),
-#              key: str = typer.Argument(...)):
+@app.command("transpose_var")
+def transpose_var(
+    var_prq: Path = typer.Argument(..., exists=True),
+    idx_name: str = typer.Argument('?', help='name of index'),
+    doit: bool = typer.Option(False, '--doit', '-d',
+                              help="Actually do it - otherwise check"),):
+    import pandas as pd
 
-#     import scanpy as sc
-#     lg.warning(f"Changing on {h5ad_file}")
-#     lg.warning(f'Removing "{key}" from `.uns["study_md"]`')
-#     adata = sc.read_h5ad(h5ad_file, backed='r+')
-#     del adata.uns['study_md'][key]
-#     adata.write()
+    v = pd.read_parquet(var_prq)
+
+    if idx_name == '?':
+        print("first column names:")
+        print(" ".join(v.columns[:10]))
+        print("last column names:")
+        print(" ".join(v.columns[-10:]))
+        print("please run with column name containing index as extra arg")
+        return
+
+    v = v.set_index(idx_name).T
+    v.index.name = 'gene'
+    print("Columns: ", " ".join(map(str, v.columns[:3])))
+    print("Columns: ", " ".join(map(str, v.index[:3])))
+    print(v.iloc[:3, :3])
+
+    if doit:
+        i = 0
+        backup_file = var_prq.with_suffix(f".prq-backup-{i:03d}")
+        while backup_file.exists():
+            i += 1
+            backup_file = yaml_file.with_suffix(f".prq-backup-{i:03d}")
+
+        lg.warning(f"saving var.prq file to {var_prq}")
+        lg.warning(f"old prq file backed up to {backup_file}")
+        shutil.move(str(var_prq), backup_file)
+        v.to_parquet(var_prq)
 
 
 # @ app.command("prepare")
