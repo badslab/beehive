@@ -2,6 +2,46 @@ author: Renzo Mancuso, Nicola Fattorelli, Anna Martinez-Muriana, Emma Davis, Lee
   Wolfs, Johanna Van Den Daele, Ivana Geric, Pranav Preman, Lutgarde Serneels, Suresh
   Poovathingal, Sriram Balusu, Catherine Verfaille, Mark Fiers, Bart De Strooper
 datatype: raw_counts
+de_meta:
+  cell.state__CRM1:
+    name: cell.state__CRM1
+    obs_field: cell.state
+  cell.state__CRM2:
+    name: cell.state__CRM2
+    obs_field: cell.state
+  cell.state__DAM:
+    name: cell.state__DAM
+    obs_field: cell.state
+  cell.state__HLA:
+    name: cell.state__HLA
+    obs_field: cell.state
+  cell.state__HM:
+    name: cell.state__HM
+    obs_field: cell.state
+  cell.state__IRM:
+    name: cell.state__IRM
+    obs_field: cell.state
+  cell.state__RM:
+    name: cell.state__RM
+    obs_field: cell.state
+  cell.state__tCRM:
+    name: cell.state__tCRM
+    obs_field: cell.state
+  injection__oAbvsScr:
+    name: injection__oAbvsScr
+    obs_field: injection
+  mouse.genotype__NLGFvsWT:
+    name: mouse.genotype__NLGFvsWT
+    obs_field: mouse.genotype
+  xMG.genotype__APOE44vsAPOE33:
+    name: xMG.genotype__APOE44vsAPOE33
+    obs_field: xMG.genotype
+  xMG.genotype__TREM2KOvsWT:
+    name: xMG.genotype__TREM2KOvsWT
+    obs_field: xMG.genotype
+  xMG.genotype__TREM2R47HvsWT:
+    name: xMG.genotype__TREM2R47HvsWT
+    obs_field: xMG.genotype
 description: "Human microglia xenografted in APP-WT/APP-NLGF/APP-NLGFApoeKO mice display\
   \ a multi-pronged response to A\u03B2 pathology. APOE22/33/44 and TREM2-R47H/KO/WT\
   \ xenografted microglia allow study of microglial reponse under different genetic\
