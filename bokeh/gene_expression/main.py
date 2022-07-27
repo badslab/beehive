@@ -16,7 +16,7 @@ from pprint import pprint
 import pandas as pd
 
 from bokeh.layouts import column, row
-from bokeh.models import ColumnDataSource
+from bokeh.models import ColumnDataSource, Range1d
 from bokeh.models import DataTable, TableColumn, ScientificFormatter
 from bokeh.models.callbacks import CustomJS
 from bokeh.models.widgets import (Select, TextInput, Div,
@@ -190,7 +190,8 @@ plot = figure(background_fill_color="#efefef", x_range=[],
 # plot = figure(background_fill_color="#efefef", x_range=[],
 #               plot_height=400, title="Plot",
 #               toolbar_location='right')
-source = ColumnDataSource(get_data())
+data = get_data()
+source = ColumnDataSource(data)
 table = DataTable(source=source,
                   margin=10,
                   index_position=None,
@@ -236,6 +237,12 @@ elements = dict(
                         line_color='black'),
 )
 
+yspacer = (data['_segment_top'].max() - data['_segment_bottom'].min()) / 20
+
+ymax = data['_segment_top'].max() + yspacer
+ymin = data['_segment_bottom'].min() - yspacer
+
+plot.update(y_range = Range1d(ymin,ymax))
 
 def cb_update_plot(attr, old, new):
     """Populate and update the plot."""
@@ -269,8 +276,7 @@ def cb_update_plot(attr, old, new):
     ymin = data['_segment_bottom'].min() - yspacer
 
     lg.warning(f"## Y MIN/MAX {ymin:.2g} / {ymax:.2g} ")
-    plot.y_range.start = ymin
-    plot.y_range.end = ymax
+    plot.y_range.update(start = ymin, end = ymax)
 
     title = dataset['short_title']
     if len(title) > 80:
@@ -281,8 +287,6 @@ def cb_update_plot(attr, old, new):
     plot.yaxis.axis_label = f"{dataset['datatype']}"
 
     curdoc().unhold()
-    plot.y_range.start = ymin
-    plot.y_range.end = ymax
 
 
 # convenience shortcut
@@ -305,6 +309,7 @@ def cb_dataset_change(attr, old, new):
 def cb_sibling_change(attr, old, new):
     lg.debug("Sibling change: " + new)
     w_dataset_id.value = new
+    update_plot()
 
 
 cb_download = CustomJS(
