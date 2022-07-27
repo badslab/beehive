@@ -2,16 +2,14 @@ import logging
 from functools import partial
 import logging
 from pprint import pprint
-from tkinter.tix import TEXT
 import numpy as np
 import pandas as pd
 import polars as pl
-from scipy import stats
 
 from bokeh.layouts import column, row
 from bokeh.models import ColumnDataSource,MultiChoice, HoverTool, Spinner, Range1d, LabelSet
 from bokeh.models.callbacks import CustomJS
-from bokeh.models.widgets import (Select, TextInput, Div,
+from bokeh.models.widgets import (Select, Div,
                                   Button)
 from bokeh.plotting import figure, curdoc
 from bokeh.transform import factor_cmap, transform
@@ -170,7 +168,7 @@ TOOLTIPS = [
 
 
 ##Plot###
-plot = figure(height = 400,x_axis_label='Log Fold Change', y_axis_label = '-Log(10) of P-val adjusted')
+plot = figure(height = 400,x_axis_label='Log Fold Change', y_axis_label = '-Log(10) of P-val adjusted',output_backend = "webgl")
 
 plot.add_tools(HoverTool(tooltips=TOOLTIPS))
 
