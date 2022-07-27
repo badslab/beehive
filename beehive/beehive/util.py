@@ -7,6 +7,36 @@ from typing import List
 import beehive
 
 
+def dict_set(data, *args, overwrite=False):
+    """Careful dict value setter
+        - create parents if required
+        - never overwrite a value if it is already there
+          (unless overwrite is True)
+
+    args should at least be of length 2 - all but the last are interpreted as
+    keys, the last value of *args is the value to set
+
+    so dict_set(yaml, key1, key2, val) sets yaml[key1][key2] = val
+
+    """
+
+    assert len(args) >= 2
+
+    if len(args) > 2:
+        # first organize partent keys
+        parent, *rest = args
+        if parent not in data:
+            data[parent] = {}
+        return dict_set(data[parent], *rest, overwrite=overwrite)
+
+    key, val = args
+    if overwrite or key not in data:
+        data[key] = val
+    else:
+        # not setting - value exists
+        pass
+
+
 def timer(func):
     def wrapper(*arg, **kw):
         '''source: http://www.daniweb.com/code/snippet368.html'''
@@ -34,11 +64,11 @@ def getarg(args, name, default=None, dtype=str):
 
 def create_widget(name: str,
                   widget,
-                  default  = None,
+                  default=None,
                   title: str = None,
                   curdoc=None,
                   update_url: bool = True,
-                  value_type = None,
+                  value_type=None,
                   **kwargs):
     """Widget helper.
 
@@ -72,10 +102,11 @@ def create_widget(name: str,
 
     new_widget = widget(name=name, title=title, **kwargs)
 
-    if (value_type == list) and not(type(getarg(args, param_name, default)) == list):
+    if (value_type == list) \
+            and not(type(getarg(args, param_name, default)) == list):
         new_widget.value = getarg(args, param_name, default).split(",")
     elif (value_type == int) or (value_type == float):
-        new_widget.value = getarg(args, param_name, default,dtype = value_type)
+        new_widget.value = getarg(args, param_name, default, dtype=value_type)
     else:
         new_widget.value = getarg(args, param_name, default)
     if update_url:
@@ -91,11 +122,13 @@ def getcolor(x, palette, vmax, vmin=None):
     v = max(min(v, 255), 0)
     return palette[v]
 
+
 def make_hash_sha256(o):
     "Thanks: https://stackoverflow.com/a/42151923"
     hasher = hashlib.sha256()
     hasher.update(repr(make_hashable(o)).encode())
     return hasher.hexdigest()
+
 
 def make_hashable(o):
     "Thanks: https://stackoverflow.com/a/42151923"
@@ -103,11 +136,12 @@ def make_hashable(o):
         return tuple(sorted([make_hashable(e) for e in o]))
 
     if isinstance(o, dict):
-        return tuple(sorted((k,make_hashable(v)) for k, v in o.items()))
+        return tuple(sorted((k, make_hashable(v)) for k, v in o.items()))
 
     if isinstance(o, (set, frozenset)):
         return tuple(sorted(make_hashable(e) for e in o))
     return o
+
 
 def UID(*args, length=7):
     chs = hashlib.sha512()

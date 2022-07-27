@@ -18,5 +18,6 @@ app.add_typer(gene_expression.app, name="gex")
 app.add_typer(h5ad.app, name="h5ad")
 app.add_typer(data.app, name="data")
 
+
 def run():
     app()

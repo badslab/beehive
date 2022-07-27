@@ -2,6 +2,13 @@ author: Amy F Lloyd, Anna Martinez Muriana, Pengfei Hou, Emma Davis, Renzo Mancu
   Alejandro J Brenes, Ivana Geric, An Snellinx, Katleen Craessaerts, Tom Theys, Mark
   Fiers, Bart De Strooper, Andrew JM Howden
 datatype: log normalized protein concentration
+de_meta:
+  human_models__hESCvsXplant:
+    name: human_models__hESCvsXplant
+  human_models__hMGvsXplant:
+    name: human_models__hMGvsXplant
+  human_models__hMGvshESC:
+    name: human_models__hMGvshESC
 description: Deep proteomic analysis of human microglia via in-vitro hESC, ex-vivo
   primary and xenografted models. Study also performs deep proteomic analysis of mouse
   microglia via in-vitro BV2 and ex-vivo primary. Copy number and concentration proteomics

@@ -2,6 +2,9 @@ author: Amy F Lloyd, Anna Martinez Muriana, Pengfei Hou, Emma Davis, Renzo Mancu
   Alejandro J Brenes, Ivana Geric, An Snellinx, Katleen Craessaerts, Tom Theys, Mark
   Fiers, Bart De Strooper, Andrew JM Howden
 datatype: log normalized protein copy number
+de_meta:
+  mouse_models__BV2:
+    name: mouse_models__BV2
 description: Deep proteomic analysis of human microglia via in-vitro hESC, ex-vivo
   primary and xenografted models. Study also performs deep proteomic analysis of mouse
   microglia via in-vitro BV2 and ex-vivo primary. Copy number and concentration proteomics

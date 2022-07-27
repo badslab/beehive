@@ -1,5 +1,31 @@
 author: 101010 team
 datatype: log normalized ST counts
+de_data:
+  plaque_bin__all:
+    name: plaque_bin__all
+  plaque_bin__alz:
+    name: plaque_bin__alz
+  plaque_bin__res:
+    name: plaque_bin__res
+  ptau_bin__all:
+    name: ptau_bin__all
+  ptau_bin__alz:
+    name: ptau_bin__alz
+  ptau_bin__res:
+    name: ptau_bin__res
+de_meta:
+  plaque_bin__all:
+    name: plaque_bin__all
+  plaque_bin__alz:
+    name: plaque_bin__alz
+  plaque_bin__res:
+    name: plaque_bin__res
+  ptau_bin__all:
+    name: ptau_bin__all
+  ptau_bin__alz:
+    name: ptau_bin__alz
+  ptau_bin__res:
+    name: ptau_bin__res
 description: spatial transcriptomics of the 101010 project
 obs_meta:
   488_Mean:
