@@ -1,8 +1,10 @@
 import logging
 from functools import partial
 import logging
+from pprint import pprint
 import numpy as np
 import pandas as pd
+import polars as pl
 
 from bokeh.layouts import column, row
 from bokeh.models import ColumnDataSource,MultiChoice, HoverTool, Spinner, Range1d, LabelSet
@@ -166,7 +168,7 @@ TOOLTIPS = [
 
 
 ##Plot###
-plot = figure(height = 400,x_axis_label='Log Fold Change', y_axis_label = '-Log(10) of P-val adjusted')
+plot = figure(height = 400,x_axis_label='Log Fold Change', y_axis_label = '-Log(10) of P-val adjusted',output_backend = "webgl")
 
 plot.add_tools(HoverTool(tooltips=TOOLTIPS))
 
