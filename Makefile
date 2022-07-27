@@ -27,7 +27,8 @@ serve_cbd2: fix_templates fix_bokeh_static_js
 			--allow-websocket-origin=data.bdslab.org \
 			 --port 5009 \
 			bokeh/gene_expression/ \
-			bokeh/diffexp/
+			bokeh/volcano_plot/ \
+			bokeh/scatter_expression/
 		sleep 0.5
 	done
 
