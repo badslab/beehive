@@ -89,12 +89,16 @@ obs_meta:
     values:
       APP-NLGF:
         name: APP-NLGF
+        order: 3
       APP-NLGF/ApoeKO:
         name: APP-NLGF/ApoeKO
+        order: 4
       APP-WT:
         name: APP-WT
+        order: 2
       WT:
         name: WT
+        order: 1
   mouse.genotype_xMG.genotype_injection:
     dtype: skip
     name: Genotype-Injection

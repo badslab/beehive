@@ -1,3 +1,4 @@
+from ast import Pass
 from functools import partial, lru_cache
 import logging
 from typing import Dict, List, Tuple
@@ -160,18 +161,26 @@ def get_gene_meta_agg(dsid: str, gene: str, meta: str, nobins: int = 8):
 
     rv = rv.to_pandas()
     rv = rv.rename(columns={meta: "cat_value"})
-    try:
-        # attempt a numerical sort on the cat_value
-        # try to prevent alphanumerically sorted numeric
-        # values 1 10 11 2 3
 
-        rv2 = rv.copy()
-        rv2['cat_value'] = rv['cat_value'].astype(float)
-        rv2 = rv2.sort_values(by=['cat_value', 'mean'])
-        rv = rv.loc[list(rv2.index)]
+    # Does the YAML have sort_order fields? If so use these
+    if False:  # if there are order fields:
+        # TODO: Raghid
+        pass
+    else:
+        # Otherwise - do the following:
+        try:
+            # attempt a numerical sort on the cat_value
+            # try to prevent alphanumerically sorted numeric
+            # values 1 10 11 2 3
 
-    except ValueError:
-        rv = rv.sort_values(by=["cat_value", "mean"])
+            rv2 = rv.copy()
+            rv2['cat_value'] = rv['cat_value'].astype(float)
+            rv2 = rv2.sort_values(by=['cat_value', 'mean'])
+            rv = rv.loc[list(rv2.index)]
+
+        except ValueError:
+            rv = rv.sort_values(by=["cat_value", "mean"])
+
     return rv
 
 
