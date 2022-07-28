@@ -126,10 +126,16 @@ def update_facets():
     """Update interface for a specific dataset."""
     options = expset.get_facet_options(w_dataset_id.value)
     w_facet.options = options
+    
     if w_facet.value not in [x[0] for x in options]:
         # set a default
         w_facet.value = options[0][0]
+        
 
+
+def facet_groups(facet):
+    result_dict = expset.get_facet_groups(w_dataset_id.value,facet)
+    return result_dict
 
 def update_genes():
     """Update genes widget for a dataset."""
@@ -151,6 +157,15 @@ def get_data() -> pd.DataFrame:
     dataset_id = w_dataset_id.value
     gene = w_gene.value
     facet = w_facet.value
+    
+    #TODO get the order from here and sort the data later..
+    #will also get color
+    facet_groups = facet_groups(w_facet.value)
+    
+    #==> check if there is full order
+    #if yes, call get_gene_meta_agg with order = True
+    #can order with the list of orders in expset.get_gene_meta_agg before function returns
+
     lg.warning(f"!! Getting data for {dataset_id} {facet} {gene}")
 
     data = expset.get_gene_meta_agg(
@@ -168,8 +183,7 @@ def get_data() -> pd.DataFrame:
     data['_bar_median'] = data['median']
     data['_bar_bottom'] = data['q25']
     data['_segment_bottom'] = data['q01']
-    # print('x' * 80)
-    # print(data)
+
     return data
 
 
