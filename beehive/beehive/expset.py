@@ -111,6 +111,24 @@ def get_facet_options(dsid: str,
     return list(sorted(rv))
 
 
+def get_facet_groups(dsid,facet):
+    """
+    Return metadata of obs column
+    """
+    dataset = get_dataset(dsid)
+    result = {}
+    for key, data in dataset.get('obs_meta', {}).items():
+        if key == facet:
+            for group in data.get("values",{}).items():
+                name = str(group[1].get("name"))
+                order = group[1].get("order") #will default to none if not existing
+                color = group[1].get("color") #will default to none if not existing
+                result[name] = {'order': order,'color': color}
+
+    return result
+
+
+
 def get_facet_options_numerical(dsid: str) -> List[Tuple[str, str]]:
     """
     Return obs columns that a dataset can be facetted on.
@@ -134,7 +152,7 @@ def get_gene_meta_agg(dsid: str, gene: str, meta: str, nobins: int = 8):
     """Return gene and observation."""
     genedata = get_gene(dsid, gene)
     metadata = get_meta(dsid, meta, nobins=nobins)
-
+    
     if genedata is None:
         return None
     if metadata is None:
@@ -163,23 +181,23 @@ def get_gene_meta_agg(dsid: str, gene: str, meta: str, nobins: int = 8):
     rv = rv.rename(columns={meta: "cat_value"})
 
     # Does the YAML have sort_order fields? If so use these
-    if False:  # if there are order fields:
-        # TODO: Raghid
-        pass
-    else:
-        # Otherwise - do the following:
-        try:
-            # attempt a numerical sort on the cat_value
-            # try to prevent alphanumerically sorted numeric
-            # values 1 10 11 2 3
+    # if False:  # if there are order fields:
+    #     # TODO: Raghid
+    #     pass
+    # else:
+    # Otherwise - do the following:
+    try:
+        # attempt a numerical sort on the cat_value
+        # try to prevent alphanumerically sorted numeric
+        # values 1 10 11 2 3
 
-            rv2 = rv.copy()
-            rv2['cat_value'] = rv['cat_value'].astype(float)
-            rv2 = rv2.sort_values(by=['cat_value', 'mean'])
-            rv = rv.loc[list(rv2.index)]
+        rv2 = rv.copy()
+        rv2['cat_value'] = rv['cat_value'].astype(float)
+        rv2 = rv2.sort_values(by=['cat_value', 'mean'])
+        rv = rv.loc[list(rv2.index)]
 
-        except ValueError:
-            rv = rv.sort_values(by=["cat_value", "mean"])
+    except ValueError:
+        rv = rv.sort_values(by=["cat_value", "mean"])
 
     return rv
 
