@@ -3,9 +3,9 @@ from functools import partial
 import logging
 import pandas as pd
 from scipy import stats
-
-from bokeh.layouts import column, row
-from bokeh.models import ColumnDataSource,CheckboxGroup
+import numpy as np
+from bokeh.layouts import column, row,layout
+from bokeh.models import ColumnDataSource,CheckboxGroup, RadioGroup, Slope
 from bokeh.models.callbacks import CustomJS
 from bokeh.models.widgets import (Select, Div,
                                   Button, AutocompleteInput)
@@ -24,6 +24,8 @@ lg.info("startup")
 curdoc().template_variables['config'] = config
 curdoc().template_variables['view_name'] = 'Scatter Expression'
 
+GENE_OPTION = 0
+FACET_OPTION = 1
 
 create_widget = partial(util.create_widget, curdoc=curdoc())
 
@@ -76,13 +78,13 @@ w_dataset_id = create_widget("dataset_id", Select, title="Dataset",
 #numerical facet vs numerical facet
 #numerical facet vs gene etc...
 w_gene1 = create_widget("geneX", AutocompleteInput,
-                       completions=[], default='APOE', title="Gene X", case_sensitive = False)
+                       completions=[], default='APOE', title="Gene", case_sensitive = False)
 w_gene2 = create_widget("geneY", AutocompleteInput,
-                       completions=[], default='TREM2', title = "Gene Y", case_sensitive = False)
+                       completions=[], default='TREM2', title = "Gene", case_sensitive = False)
 w_facet_numerical_1 = create_widget("num_facetX",Select, 
-                    options=[], title="Select Numerical Facet on X")
+                    options=[], title="Numerical Facet")
 w_facet_numerical_2 = create_widget("num_facetY",Select, 
-                        options=[], title="Select Numerical Facet on Y")
+                        options=[], title="Numerical Facet")
 
 widget_axes = [w_gene1,w_gene2,w_facet_numerical_1,w_facet_numerical_2]
 
@@ -90,14 +92,21 @@ w_regression  = CheckboxGroup(labels=["Regression Lines"], active=[])
 
 FIXED_OPTIONS = [("geneX","Gene X"),("geneY","Gene Y"),("num_facetX","Numerical Facet on X"),("num_facetY","Numerical Facet on Y")]
 
-w_x_axis = create_widget("x_axis",Select, 
-                        options=FIXED_OPTIONS, title="Select X-Axis",default = 'geneX')
-w_y_axis =  create_widget("y_axis",Select, 
-                        options=FIXED_OPTIONS, title="Select Y-Axis",default = 'geneY')
+# w_x_axis = create_widget("x_axis",Select, 
+#                         options=FIXED_OPTIONS, title="Select X-Axis",default = 'geneX')
+# w_y_axis =  create_widget("y_axis",Select, 
+#                         options=FIXED_OPTIONS, title="Select Y-Axis",default = 'geneY')
 
-#categorical facet grouping of data...
-w_facet = create_widget("facet", Select, options=[], title="Group by")
+LABELS = ["Gene","Numerical Facet"]
 
+w_x_axis_radio = create_widget("x_axis_radio",RadioGroup,labels = LABELS, default = 0, title = "X-Axis",value_type = int)
+w_y_axis_radio = create_widget("y_axis_radio",RadioGroup,labels = LABELS, default = 0, title = "Y-Axis", value_type = int)
+
+#categorical facet grouping of data... or gene3 grouping
+w_facet = create_widget("facet", Select, options=[], title="Group by Categories")
+
+w_gene3 = create_widget("gene_categorical", AutocompleteInput,
+                       completions=[], default='APOE', title="Group by Gene Expression", case_sensitive = False)
 
 #download button..
 w_download = Button(label='Download', align='end')
@@ -170,37 +179,25 @@ def get_data() -> pd.DataFrame:
     facet = w_facet.value
     num_facet1 = w_facet_numerical_1.value
     num_facet2 = w_facet_numerical_2.value
-    x_axis = w_x_axis.value
-    y_axis = w_y_axis.value
+    # x_axis = w_x_axis.value
+    # y_axis = w_y_axis.value
 
     geneX = None
     geneY = None
     num_facetX = None
     num_facetY = None
+    x_axis = w_x_axis_radio.active
+    y_axis = w_y_axis_radio.active
+    
+    if x_axis == GENE_OPTION:
+        geneX = expset.get_gene(dataset_id, gene1)[:,0]
+    else:
+        num_facetX = expset.get_meta(dataset_id,num_facet1,raw=True)[:,0]
 
-    if "gene" in x_axis:
-        if x_axis == "geneX":
-            geneX = expset.get_gene(dataset_id, gene1)[:,0]
-        else:
-            geneY = expset.get_gene(dataset_id, gene2)[:,0]
-
-    if "gene" in y_axis:
-        if y_axis == "geneX":
-            geneX = expset.get_gene(dataset_id, gene1)[:,0]
-        else:
-            geneY = expset.get_gene(dataset_id, gene2)[:,0]
-
-    if "num_facet" in x_axis:
-        if x_axis == "num_facetX":
-            num_facetX = expset.get_meta(dataset_id,num_facet1,raw=True)[:,0]
-        else:
-            num_facetY = expset.get_meta(dataset_id,num_facet2,raw=True)[:,0]
-
-    if "num_facet" in y_axis:
-            if y_axis == "num_facetX":
-                num_facetX = expset.get_meta(dataset_id,num_facet1,raw=True)[:,0]
-            else:
-                num_facetY = expset.get_meta(dataset_id,num_facet2,raw=True)[:,0]
+    if y_axis == GENE_OPTION:
+        geneY = expset.get_gene(dataset_id, gene2)[:,0]
+    else:
+        num_facetY = expset.get_meta(dataset_id,num_facet2,raw=True)[:,0]
 
     ##TODO maybe check for numerical/categorical here?
     lg.warning(f"!! Getting data for {dataset_id} {facet} {gene1}")
@@ -231,7 +228,7 @@ def get_unique_obs(data):
 # Create plot
 #
 
-plot = figure(output_backend="webgl")
+plot = figure(output_backend = "webgl")
 data = get_data()
 
 unique_obs = get_unique_obs(data)
@@ -264,7 +261,7 @@ def cb_update_plot(attr, old, new, type_change):
     """Populate and update the plot."""
     curdoc().hold()
     global plot, index_cmap, X_AXIS, Y_AXIS, widget_axes,x_label,y_label, data
-    if type_change != w_x_axis.value and type_change != w_y_axis.value and type_change not in ["XYAXIS","regression","categorical"]:
+    if type_change not in ["XYAXIS","regression","categorical","geneX","geneY","num_facetX","num_facetY"]:
         curdoc().unhold()
         return
 
@@ -281,18 +278,25 @@ def cb_update_plot(attr, old, new, type_change):
     plot.renderers = []
     plot.legend.items = []
 
-    X_AXIS = w_x_axis.value
-    Y_AXIS = w_y_axis.value
+    X_AXIS = "geneX" if w_x_axis_radio.active == GENE_OPTION else "num_facetX"
+    Y_AXIS = "geneY" if w_y_axis_radio.active == GENE_OPTION else "num_facetY"
+    
     for index,obs in enumerate(unique_obs):
 
         new_source = ColumnDataSource(data.loc[(data.obs == obs)])
 
         if len(w_regression.active) == 1:
+            # plot.update(output_backend = "canvas")
             slope, intercept, r_value, p_value, std_err = stats.linregress(new_source.data[X_AXIS],y = new_source.data[Y_AXIS])
-            y_predicted = [slope*i + intercept  for i in new_source.data[X_AXIS]]
-            plot.line(new_source.data[X_AXIS],y_predicted,color=index_cmap["transform"].palette[index],
+            y_predicted = [round(slope,3)*i + round(intercept,3)  for i in new_source.data[X_AXIS]]
+           
+
+            # regression_line = Slope(gradient=slope, y_intercept=intercept, line_color=index_cmap["transform"].palette[index])
+            # plot.add_layout(regression_line)
+            plot.line(new_source.data[X_AXIS],np.array(y_predicted),color=index_cmap["transform"].palette[index],
             legend_label=f"{obs}: y={str(round(slope,2))}x+{str(round(intercept,2))}, p-value={'{:e}'.format(p_value)}, r-value={str(round(r_value,2))}")
         else:
+            # plot.update(output_backend = "webgl")
             plot.scatter(x=X_AXIS, y=Y_AXIS, source=new_source,  legend_label=obs,
             fill_alpha=0.7, size=5,width=0, fill_color = index_cmap["transform"].palette[index])
 
@@ -355,14 +359,17 @@ cb_download = CustomJS(
 
 
 w_regression.on_change("active",partial(cb_update_plot,type_change = "regression"))
-w_x_axis.on_change("value",partial(cb_update_plot,type_change = "XYAXIS"))
-w_y_axis.on_change("value",partial(cb_update_plot,type_change = "XYAXIS"))
+# w_x_axis.on_change("value",partial(cb_update_plot,type_change = "XYAXIS"))
+# w_y_axis.on_change("value",partial(cb_update_plot,type_change = "XYAXIS"))
 w_facet.on_change("value", partial(cb_update_plot,type_change="categorical"))
 
 w_gene1.on_change("value",partial(cb_update_plot,type_change = "geneX"))
 w_gene2.on_change("value", partial(cb_update_plot,type_change="geneY"))
 w_facet_numerical_1.on_change("value", partial(cb_update_plot,type_change="num_facetX"))
 w_facet_numerical_2.on_change("value", partial(cb_update_plot,type_change="num_facetY"))
+
+w_x_axis_radio.on_change("active",partial(cb_update_plot,type_change="XYAXIS"))
+w_y_axis_radio.on_change("active",partial(cb_update_plot,type_change="XYAXIS"))
 
 
 # w_sibling.on_change("value", cb_sibling_change)
@@ -375,20 +382,25 @@ curdoc().add_root(
     column([
         row([
             column([
-                row([w_gene1,w_gene2,w_facet], 
+                row([w_gene1,w_gene2], 
                     sizing_mode='stretch_width'),
                 row([w_facet_numerical_1,w_facet_numerical_2],
                     sizing_mode='stretch_width'),
-                row([w_x_axis,w_y_axis,w_download],
+                row([w_x_axis_radio,w_y_axis_radio],
+                    sizing_mode='stretch_width'),
+                row([w_gene3,w_facet,w_download],
                     sizing_mode='stretch_width')],   
                 sizing_mode='stretch_width')],
             sizing_mode='stretch_width'),
         row([w_div_title_author],
             sizing_mode='stretch_width'),
-        row([w_regression,w_dataset_id]),
+        #TODO regression doesnt work with webgl
+        # row([w_regression]),
         row([w_gene_not_found],
             sizing_mode='stretch_width'),
         row([plot],
             sizing_mode='stretch_width'),
+        row([w_dataset_id],
+            sizing_mode='stretch_width'),          
     ], sizing_mode='stretch_width')
 )

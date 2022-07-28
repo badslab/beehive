@@ -16,7 +16,7 @@ from pprint import pprint
 import pandas as pd
 
 from bokeh.layouts import column, row
-from bokeh.models import ColumnDataSource
+from bokeh.models import ColumnDataSource, Range1d
 from bokeh.models import DataTable, TableColumn, ScientificFormatter
 from bokeh.models.callbacks import CustomJS
 from bokeh.models.widgets import (Select, TextInput, Div,
@@ -126,10 +126,16 @@ def update_facets():
     """Update interface for a specific dataset."""
     options = expset.get_facet_options(w_dataset_id.value)
     w_facet.options = options
+    
     if w_facet.value not in [x[0] for x in options]:
         # set a default
         w_facet.value = options[0][0]
+        
 
+
+def facet_groups(facet):
+    result_dict = expset.get_facet_groups(w_dataset_id.value,facet)
+    return result_dict
 
 def update_genes():
     """Update genes widget for a dataset."""
@@ -151,6 +157,15 @@ def get_data() -> pd.DataFrame:
     dataset_id = w_dataset_id.value
     gene = w_gene.value
     facet = w_facet.value
+    
+    #TODO get the order from here and sort the data later..
+    #will also get color
+    facet_groups = facet_groups(w_facet.value)
+    
+    #==> check if there is full order
+    #if yes, call get_gene_meta_agg with order = True
+    #can order with the list of orders in expset.get_gene_meta_agg before function returns
+
     lg.warning(f"!! Getting data for {dataset_id} {facet} {gene}")
 
     data = expset.get_gene_meta_agg(
@@ -168,8 +183,7 @@ def get_data() -> pd.DataFrame:
     data['_bar_median'] = data['median']
     data['_bar_bottom'] = data['q25']
     data['_segment_bottom'] = data['q01']
-    # print('x' * 80)
-    # print(data)
+
     return data
 
 
@@ -190,7 +204,8 @@ plot = figure(background_fill_color="#efefef", x_range=[],
 # plot = figure(background_fill_color="#efefef", x_range=[],
 #               plot_height=400, title="Plot",
 #               toolbar_location='right')
-source = ColumnDataSource(get_data())
+data = get_data()
+source = ColumnDataSource(data)
 table = DataTable(source=source,
                   margin=10,
                   index_position=None,
@@ -236,6 +251,12 @@ elements = dict(
                         line_color='black'),
 )
 
+yspacer = (data['_segment_top'].max() - data['_segment_bottom'].min()) / 20
+
+ymax = data['_segment_top'].max() + yspacer
+ymin = data['_segment_bottom'].min() - yspacer
+
+plot.update(y_range = Range1d(ymin,ymax))
 
 def cb_update_plot(attr, old, new):
     """Populate and update the plot."""
@@ -269,8 +290,7 @@ def cb_update_plot(attr, old, new):
     ymin = data['_segment_bottom'].min() - yspacer
 
     lg.warning(f"## Y MIN/MAX {ymin:.2g} / {ymax:.2g} ")
-    plot.y_range.start = ymin
-    plot.y_range.end = ymax
+    plot.y_range.update(start = ymin, end = ymax)
 
     title = dataset['short_title']
     if len(title) > 80:
@@ -281,8 +301,6 @@ def cb_update_plot(attr, old, new):
     plot.yaxis.axis_label = f"{dataset['datatype']}"
 
     curdoc().unhold()
-    plot.y_range.start = ymin
-    plot.y_range.end = ymax
 
 
 # convenience shortcut
@@ -305,6 +323,7 @@ def cb_dataset_change(attr, old, new):
 def cb_sibling_change(attr, old, new):
     lg.debug("Sibling change: " + new)
     w_dataset_id.value = new
+    update_plot()
 
 
 cb_download = CustomJS(

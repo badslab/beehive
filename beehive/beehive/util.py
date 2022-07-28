@@ -82,6 +82,7 @@ def create_widget(name: str,
     """
     from bokeh.models.callbacks import CustomJS
     from bokeh.models.widgets.inputs import AutocompleteInput
+    from bokeh.models import RadioGroup
     import random
 
     assert curdoc is not None
@@ -96,11 +97,24 @@ def create_widget(name: str,
         # which messes up different datasets
         name = f"{name}.{random.randint(100000, 999999)}"
 
-    js_onchange = CustomJS(
+    js_onchange_value = CustomJS(
         code=f'insertUrlParam("{param_name}", cb_obj.value);')
     args = curdoc.session_context.request.arguments
 
-    new_widget = widget(name=name, title=title, **kwargs)
+    js_onchange_active = CustomJS(
+        code=f'insertUrlParam("{param_name}", cb_obj.active);')
+
+    if widget == RadioGroup:
+        new_widget = widget(name=name, **kwargs)
+        new_widget.active = getarg(args, param_name, default, dtype=value_type)
+        
+        if update_url:
+            new_widget.js_on_change("active", js_onchange_active)
+        return new_widget
+
+    else:        
+        new_widget = widget(name=name,title = title, **kwargs)
+
 
     if (value_type == list) \
             and not(type(getarg(args, param_name, default)) == list):
@@ -110,7 +124,7 @@ def create_widget(name: str,
     else:
         new_widget.value = getarg(args, param_name, default)
     if update_url:
-        new_widget.js_on_change("value", js_onchange)
+        new_widget.js_on_change("value", js_onchange_value)
     return new_widget
 
 
