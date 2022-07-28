@@ -14,9 +14,12 @@ fix_templates:
 fix_bokeh_static_js:
 	JSPATH=$$(python -c 'import bokeh; print(bokeh.util.paths.bokehjsdir())')
 	echo $$JSPATH
-	mkdir -p static/bokeh/
-	rsync  -arv $$JSPATH/ static/bokeh/
-	chmod -R a+rX static/bokeh
+	mkdir -p static_internal/bokeh/
+	rsync  -arv $$JSPATH/ static_internal/bokeh/
+	chmod -R a+rX static_internal/bokeh
+	mkdir -p static_public/bokeh/
+	rsync  -arv $$JSPATH/ static_public/bokeh/
+	chmod -R a+rX static_public/bokeh
 
 
 .ONESHELL:

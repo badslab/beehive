@@ -90,6 +90,7 @@ obs_meta:
       APP-NLGF:
         name: APP-NLGF
         order: 3
+        color: "#AAEEFF"
       APP-NLGF/ApoeKO:
         name: APP-NLGF/ApoeKO
         order: 4
