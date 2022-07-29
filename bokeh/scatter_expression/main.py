@@ -274,13 +274,15 @@ else:
 color_bar = ColorBar(color_mapper=mapper, location=(0,0),major_label_text_font_size = "0px",major_tick_in = 2)
 plot.add_layout(color_bar,"right")
 #2. colorbar title
-colorbar_text = Label(text=f'{w_gene3.value}', x=-20, y=520, x_units='screen', y_units='screen',text_align = "center")
+colorbar_text = Label(text=f'{w_gene3.value}', x=-20, y=520, x_units='screen', y_units='screen',text_align = "center",text_font_style = "italic",text_font_size="12px")
 plot.add_layout(colorbar_text,"right")
 #3. min value
-tick_min = Label(text=f'{round(np.array(data["geneZ"]).min(),2)}', x=-60, y= 15, y_units='screen',x_units="screen",text_align="left",text_baseline="middle")
+MAX_X = data[X_AXIS].max()
+print(MAX_X)
+tick_min = Label(text=f'{round(np.array(data["geneZ"]).min(),1)}', x=-40, y= 15, y_units='screen',x_units="screen",text_align="left",text_baseline="middle",text_font_size="12px")
 plot.add_layout(tick_min,"right")
 #4. max value
-tick_max = Label(text=f'{round(np.array(data["geneZ"]).max(),2)}', x=-85, y= 510, y_units='screen',x_units="screen",text_align="left",text_baseline="middle")
+tick_max = Label(text=f'{round(np.array(data["geneZ"]).max(),1)}', x=-50, y= 510, y_units='screen',x_units="screen",text_align="left",text_baseline="middle",text_font_size="12px")
 plot.add_layout(tick_max,"right")
 
 #If we plot by categorical obs, we hide all the 4 components
@@ -358,8 +360,8 @@ def cb_update_plot(attr, old, new, type_change):
 
         #change component values texts
         colorbar_text.text  = f'{w_gene3.value}'
-        tick_min.text = f'{round(np.array(data["geneZ"]).min(),2)}'
-        tick_max.text = f'{round(np.array(data["geneZ"]).max(),2)}'
+        tick_min.text = f'{round(np.array(data["geneZ"]).min(),1)}'
+        tick_max.text = f'{round(np.array(data["geneZ"]).max(),1)}'
 
         #make them visible again
         color_bar.visible = True
