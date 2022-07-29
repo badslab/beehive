@@ -278,8 +278,8 @@ else:
     mapper = get_mapper()
     plot.scatter(x=X_AXIS, y=Y_AXIS, source=ColumnDataSource(data),
             fill_alpha=0.7, size=5,width=0, fill_color = {'field': 'geneZ', 'transform': mapper})
-    # color_bar = ColorBar(color_mapper=mapper, location=(0,0),label_standoff=12,title=w_gene3.value)
-    # plot.add_layout(color_bar,"right")
+    color_bar = ColorBar(color_mapper=mapper, location=(0,0),label_standoff=12,title=w_gene3.value)
+    plot.add_layout(color_bar,"right")
 
 
 
@@ -307,12 +307,15 @@ def cb_update_plot(attr, old, new, type_change):
     #TODO fix None => strings
     index_cmap = factor_cmap('obs', Category20[len(unique_obs)], unique_obs)
 
-    if plot.right:
-        plot.right = []
+    # if plot.right:
+    #     plot.right = []
 
     plot.renderers = []
     if plot.legend:
         plot.legend.items = []
+    if layout(plot).children:
+        layout(plot).children.pop()
+        layout(plot).children.append(figure(output_backend="webgl"))
 
     X_AXIS = "geneX" if w_x_axis_radio.active == GENE_OPTION else "num_facetX"
     Y_AXIS = "geneY" if w_y_axis_radio.active == GENE_OPTION else "num_facetY"
@@ -345,8 +348,8 @@ def cb_update_plot(attr, old, new, type_change):
                 fill_alpha=0.7, size=5,width=0, fill_color = {'field': 'geneZ', 'transform': mapper})
        # plot.rect(x=0.5, y='geneZ', fill_color='color', width=1, height=1, source=source)
 
-        # color_bar = ColorBar(color_mapper=mapper, location=(0,0),label_standoff=12,title=w_gene3.value)
-        # plot.add_layout(color_bar,"right")
+        color_bar = ColorBar(color_mapper=mapper, location=(0,0),label_standoff=12,title=w_gene3.value)
+        plot.add_layout(color_bar,"right")
 
 
     w_div_title_author.text = \
