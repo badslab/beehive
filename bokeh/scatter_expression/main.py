@@ -50,34 +50,12 @@ dataset_options = [(k, "{short_title}, {short_author}".format(**v))
 ##TODO setting manually
 DATASET_NUMBER = 3
 
+# Widgets:
 w_dataset_id = create_widget("dataset_id", Select, title="Dataset",
                              options=dataset_options,
                              default=dataset_options[DATASET_NUMBER][0],
                              visible=True,)
 
-# Possible siblings of this dataset
-# siblings = expset.get_dataset_siblings(w_dataset_id.value)
-# sibling_options = []
-# for k, v in siblings.items():
-#     sname = f"{v['organism']} / {v['datatype']}"
-#     sibling_options.append((k, sname))
-
-# w_sibling = create_widget("view", Select,
-#                           options=sibling_options,
-#                           default=w_dataset_id.value,
-#                           update_url=False)
-
-
-## note: human/plant has meta as 'models' , mouse has meta as 'model'
-# siblings = expset.get_dataset_siblings(w_dataset_id.value)
-
-#making widgets for the following:
-
-#gene, has an autocomplete feature.. write in text
-#4 widgets, determine what to show?
-#gene vs gene
-#numerical facet vs numerical facet
-#numerical facet vs gene etc...
 w_gene1 = create_widget("geneX", AutocompleteInput,
                        completions=[], default='APOE', title="Gene", case_sensitive = False)
 w_gene2 = create_widget("geneY", AutocompleteInput,
@@ -91,12 +69,8 @@ widget_axes = [w_gene1,w_gene2,w_facet_numerical_1,w_facet_numerical_2]
 
 w_regression  = CheckboxGroup(labels=["Regression Lines"], active=[])
 
+## Widget fixed options:
 FIXED_OPTIONS = [("geneX","Gene X"),("geneY","Gene Y"),("num_facetX","Numerical Facet on X"),("num_facetY","Numerical Facet on Y")]
-
-# w_x_axis = create_widget("x_axis",Select, 
-#                         options=FIXED_OPTIONS, title="Select X-Axis",default = 'geneX')
-# w_y_axis =  create_widget("y_axis",Select, 
-#                         options=FIXED_OPTIONS, title="Select Y-Axis",default = 'geneY')
 
 LABELS_AXIS = ["Gene","Numerical Facet"]
 LABELS_GROUPING = ["facet","gene"]
@@ -133,6 +107,7 @@ def get_genes():
     genes = sorted(list(expset.get_genes(dataset_id)))
     return genes
 
+
 def update_genes():
     """Update genes widget for a dataset."""
     genes = get_genes()
@@ -163,9 +138,12 @@ update_facets()
 update_genes()
 
 def update_numerical_facets():
+    """"Get and update numerical facets only. Helpful for the w_numerical_facet widget"""
     options = expset.get_facet_options_numerical(w_dataset_id.value)
     w_facet_numerical_1.options = options
     w_facet_numerical_2.options = options
+
+    #some datasets might not have any numerical facets
     if not(options):
         return
         
@@ -187,17 +165,20 @@ def get_data() -> pd.DataFrame:
     facet = w_facet.value
     num_facet1 = w_facet_numerical_1.value
     num_facet2 = w_facet_numerical_2.value
-    # x_axis = w_x_axis.value
-    # y_axis = w_y_axis.value
 
+    #all data will have 6 columns
+    #initially set at None.
     geneX = None
     geneY = None
     num_facetX = None
     num_facetY = None
     geneZ = None
+    gene3 = w_gene3.value
+
+    #only get the data that we want to visualize
+    #x_axis and y_axis values indicate which 
     x_axis = w_x_axis_radio.active
     y_axis = w_y_axis_radio.active
-    gene3 = w_gene3.value
 
     if x_axis == GENE_OPTION:
         geneX = expset.get_gene(dataset_id, gene1)[:,0]
@@ -209,10 +190,11 @@ def get_data() -> pd.DataFrame:
     else:
         num_facetY = expset.get_meta(dataset_id,num_facet2,raw=True)[:,0]
 
+    #always fetched => for the colorbar when coloring
+    #with a gene expression
     if gene3:
         geneZ = expset.get_gene(dataset_id, gene3)[:,0]
 
-    ##TODO maybe check for numerical/categorical here?
     lg.warning(f"!! Getting data for {dataset_id} {facet} {gene1}")
 
     lg.warning(f"!! Getting data for {dataset_id} {facet} {gene2}")
@@ -236,43 +218,43 @@ def get_dataset():
     return dataset_id, datasets[dataset_id]
 
 def get_unique_obs(data):
+    """Fetch the unique facets from the data"""
     unique_obs = pd.DataFrame(data)['obs'].unique()
     return unique_obs
 
-
-#
-# Create plot
-#
-
 def get_mapper():
+    """"Set up palette for ColorBar"""
     mapper = LinearColorMapper(
     palette='Magma256',
     low=data["geneZ"].min(),
     high=data["geneZ"].max())
     return mapper
 
+#
+# Create plot
+#
+
 plot = figure(output_backend = "webgl",name="plot1")
-# plot2 = figure(output_backend = "webgl",name="plot2")
 
 data = get_data()
-
 
 unique_obs = get_unique_obs(data)
 dataset_id, dataset = get_dataset()
 
-
+#palette for the categorical obs
 index_cmap = factor_cmap('obs', Category20[len(unique_obs)], unique_obs)
 
-
-
+#initial set up of which x-axis and y-axis we plot
 X_AXIS = "geneX"
 Y_AXIS = "geneY"
 Z_AXIS = "facet" if w_category_radio.active == 0 else "gene"
 
-mapper = get_mapper() #for colorbar
+#for colorbar
+mapper = get_mapper() 
 
-##need to have multiple glyphs not a single multi glyph:
+#Are we plotting the coloring with obs categorical or with obs numerical?
 if Z_AXIS == "facet":
+    #Plot multiple glyphs, each glyph is for 1 unique obs group
     for index,obs in enumerate(unique_obs):
 
         new_source = ColumnDataSource(data.loc[(data.obs == obs)])
@@ -284,36 +266,31 @@ if Z_AXIS == "facet":
 else:
     plot.scatter(x=X_AXIS, y=Y_AXIS, source=ColumnDataSource(data),
         fill_alpha=0.7, size=5,width=0, fill_color = {'field': 'geneZ', 'transform': mapper})
-    # plot2.scatter(x=X_AXIS, y=Y_AXIS, source=ColumnDataSource(data),
-    #     fill_alpha=0.7, size=5,width=0, fill_color = {'field': 'geneZ', 'transform': mapper})
-
-    # color_bar = ColorBar(color_mapper=mapper, location=(0,0),label_standoff=12,title=w_gene3.value)
-    # plot.add_layout(color_bar,"right")
 
 
-#colorbar:
+###Colorbar###:
+#4 components:
+#1.colorbar
 color_bar = ColorBar(color_mapper=mapper, location=(0,0),major_label_text_font_size = "0px",major_tick_in = 2)
-
 plot.add_layout(color_bar,"right")
-
-#ticks for colorbar
-
-mytext = Label(text=f'{w_gene3.value}', x=-20, y=520, x_units='screen', y_units='screen',text_align = "center")
-plot.add_layout(mytext,"right")
-# ticks = []
-# quantiles = [np.around(np.percentile(np.array(data["geneZ"]),i),decimals = 4) for i in [0,25,50,75,100]]
+#2. colorbar title
+colorbar_text = Label(text=f'{w_gene3.value}', x=-20, y=520, x_units='screen', y_units='screen',text_align = "center")
+plot.add_layout(colorbar_text,"right")
+#3. min value
 tick_min = Label(text=f'{round(np.array(data["geneZ"]).min(),2)}', x=-60, y= 15, y_units='screen',x_units="screen",text_align="left",text_baseline="middle")
-tick_max = Label(text=f'{round(np.array(data["geneZ"]).max(),2)}', x=-85, y= 510, y_units='screen',x_units="screen",text_align="left",text_baseline="middle")
-
 plot.add_layout(tick_min,"right")
+#4. max value
+tick_max = Label(text=f'{round(np.array(data["geneZ"]).max(),2)}', x=-85, y= 510, y_units='screen',x_units="screen",text_align="left",text_baseline="middle")
 plot.add_layout(tick_max,"right")
 
+#If we plot by categorical obs, we hide all the 4 components
 if Z_AXIS == "facet":
     color_bar.visible = False
-    mytext.visible = False
+    colorbar_text.visible = False
     tick_min.visible = False
     tick_max.visible = False
 
+#initial set to x axis label and y axis label
 x_label = ""
 y_label = ""
 
@@ -321,16 +298,13 @@ y_label = ""
 def cb_update_plot(attr, old, new, type_change):
     """Populate and update the plot."""
     curdoc().hold()
-    global plot, index_cmap, X_AXIS, Y_AXIS, widget_axes,x_label,y_label, data, color_bar, mytext, tick_min, tick_max
+    global plot, index_cmap, X_AXIS, Y_AXIS, widget_axes,x_label,y_label, data, color_bar, colorbar_text, tick_min, tick_max
+    #change type: if the button clicked needs to have an update in plotting or not
     if type_change not in ["XYAXIS","regression","categorical","geneX","geneY","num_facetX","num_facetY"]:
         curdoc().unhold()
         return
 
     Z_AXIS = "facet" if w_category_radio.active == 0 else "gene"
-
-    # plot_element = curdoc().get_model_by_name("plot")
-    # plot2_element = curdoc().get_model_by_name("plot2")
- 
 
     data = get_data()
     dataset_id, dataset = get_dataset()
@@ -342,25 +316,22 @@ def cb_update_plot(attr, old, new, type_change):
     #TODO fix None => strings
     index_cmap = factor_cmap('obs', Category20[len(unique_obs)], unique_obs)
 
+    #empty the plot glyphs and legends:
     plot.renderers = []
     if plot.legend:
         plot.legend.items = []
-    # if plot.right:
-    #     plot.right = []
 
-    # print(layout(plot).children)
-    # if layout(plot).children:
-    #     layout(plot).children.pop()
-    #     layout(plot).children.append(figure(output_backend="webgl"))
-
+    #set up new x and y axis to be plotted
     X_AXIS = "geneX" if w_x_axis_radio.active == GENE_OPTION else "num_facetX"
     Y_AXIS = "geneY" if w_y_axis_radio.active == GENE_OPTION else "num_facetY"
+
+    #set colorbar (the 4 components) to be invisible
     color_bar.visible = False
-    mytext.visible = False
+    colorbar_text.visible = False
     tick_min.visible = False
     tick_max.visible = False
 
-
+    #plot again:
     if Z_AXIS == "facet":
         for index,obs in enumerate(unique_obs):
 
@@ -371,12 +342,9 @@ def cb_update_plot(attr, old, new, type_change):
                 slope, intercept, r_value, p_value, std_err = stats.linregress(new_source.data[X_AXIS],y = new_source.data[Y_AXIS])
                 y_predicted = [round(slope,3)*i + round(intercept,3)  for i in new_source.data[X_AXIS]]
             
-                # regression_line = Slope(gradient=slope, y_intercept=intercept, line_color=index_cmap["transform"].palette[index])
-                # plot.add_layout(regression_line)
                 plot.line(new_source.data[X_AXIS],np.array(y_predicted),color=index_cmap["transform"].palette[index],
                 legend_label=f"{obs}: y={str(round(slope,2))}x+{str(round(intercept,2))}, p-value={'{:e}'.format(p_value)}, r-value={str(round(r_value,2))}")
             else:
-                # plot.update(output_backend = "webgl")
                 plot.scatter(x=X_AXIS, y=Y_AXIS, source=new_source,  legend_label=obs,
                 fill_alpha=0.7, size=5,width=0, fill_color = index_cmap["transform"].palette[index])
 
@@ -388,42 +356,18 @@ def cb_update_plot(attr, old, new, type_change):
         plot.scatter(x=X_AXIS, y=Y_AXIS, source=ColumnDataSource(data),
                 fill_alpha=0.7, size=5,width=0, fill_color = {'field': 'geneZ', 'transform': mapper})
 
-        mytext.text  = f'{w_gene3.value}'
+        #change component values texts
+        colorbar_text.text  = f'{w_gene3.value}'
         tick_min.text = f'{round(np.array(data["geneZ"]).min(),2)}'
         tick_max.text = f'{round(np.array(data["geneZ"]).max(),2)}'
 
-        # color_bar = ColorBar(color_mapper=mapper, location=(0,0),major_label_text_font_size = "10px",major_tick_in = 2)
-
+        #make them visible again
         color_bar.visible = True
-        mytext.visible = True
+        colorbar_text.visible = True
         tick_min.visible = True
         tick_max.visible = True
-
-        # plot2.scatter(x=X_AXIS, y=Y_AXIS, source=ColumnDataSource(data),
-        #         fill_alpha=0.7, size=5,width=0, fill_color = {'field': 'geneZ', 'transform': mapper})
-
-       # plot.rect(x=0.5, y='geneZ', fill_color='color', width=1, height=1, source=source)
-
-        # color_bar = ColorBar(color_mapper=mapper, location=(0,0),label_standoff=12,title=w_gene3.value)
-        # plot.add_layout(color_bar,"right")
-
-
-    # rootLayout = curdoc().get_model_by_name('main_layout')
-    # print(rootLayout)
-    # listOfSubLayouts = rootLayout.children
-
-    # if Z_AXIS == "facet":
-    #     plotToRemove = curdoc().get_model_by_name('plot2')
-    #     listOfSubLayouts.remove(plotToRemove)
-    #     listOfSubLayouts.append(row([plot2],
-    #         sizing_mode='stretch_width', name = "main_layout"))
-    # else:
-    #     plotToRemove = curdoc().get_model_by_name('plot')
-    #     listOfSubLayouts.remove(plotToRemove)
-    #     listOfSubLayouts.append(row([plot],
-    #         sizing_mode='stretch_width', name = "main_layout"))
-
     
+    #title text change
     w_div_title_author.text = \
         f"""
         <ul>
@@ -436,22 +380,20 @@ def cb_update_plot(attr, old, new, type_change):
 
     title = dataset['title'][:60]
 
+    plot.title.text = (f"{x_label} vs {y_label} - "
+                       f"({dataset_id}) {title}...")
 
+    #fetch the name of the x axis label and y axis label from the widget value.
     for ind,widget in enumerate(widget_axes):
         if X_AXIS in widget.name:
             x_label = widget_axes[ind].value
         if Y_AXIS in widget.name:
             y_label = widget_axes[ind].value
-
-    plot.title.text = (f"{x_label} vs {y_label} - "
-                       f"({dataset_id}) {title}...")
-
     plot.xaxis.axis_label = f"{x_label}"
     plot.yaxis.axis_label = f"{y_label}"
+
     w_download_filename.text = f"exp_{dataset_id}_{facet}_{x_label}_{y_label}.tsv"
     
-
-
     curdoc().unhold()
 
 
@@ -478,33 +420,28 @@ cb_download = CustomJS(
               filename_div=w_download_filename),
     code="exportToTsv(data, columns, filename_div.text);")
 
-
+#not active for now. removed from root()
 w_regression.on_change("active",partial(cb_update_plot,type_change = "regression"))
+
+#two options for coloring
 w_facet.on_change("value", partial(cb_update_plot,type_change="categorical"))
 w_gene3.on_change("value",partial(cb_update_plot,type_change="categorical"))
 
-
+#widgets responsible for changing the x and y axis options
 w_gene1.on_change("value",partial(cb_update_plot,type_change = "geneX"))
 w_gene2.on_change("value", partial(cb_update_plot,type_change="geneY"))
 w_facet_numerical_1.on_change("value", partial(cb_update_plot,type_change="num_facetX"))
 w_facet_numerical_2.on_change("value", partial(cb_update_plot,type_change="num_facetY"))
 
+#widgets for changing which one of the (gene,gene,facet,facet) are we putting on x and y axis
 w_x_axis_radio.on_change("active",partial(cb_update_plot,type_change="XYAXIS"))
 w_y_axis_radio.on_change("active",partial(cb_update_plot,type_change="XYAXIS"))
 w_category_radio.on_change("active",partial(cb_update_plot,type_change="categorical"))
 
-# w_category_radio.js_on_change("active", CustomJS(args=dict(p=plot), code="""
-#     p.reset.emit()
-# """))
-# w_sibling.on_change("value", cb_sibling_change)
-w_dataset_id.on_change("value", cb_dataset_change)
 
+w_dataset_id.on_change("value", cb_dataset_change)
 w_download.js_on_click(cb_download)
 
-
-# main_plot = plot if Z_AXIS == "facet" else plot2
-# main_layout = row([main_plot],
-#             sizing_mode='stretch_width', name = "main_layout")
 curdoc().add_root(
     column([
         row([
@@ -524,7 +461,6 @@ curdoc().add_root(
         #TODO regression doesnt work with webgl
         row([w_gene_not_found],
             sizing_mode='stretch_width'),
-        # main_layout,
         row([plot],
             sizing_mode='stretch_width', name = "main_layout"),
         row([w_dataset_id],
