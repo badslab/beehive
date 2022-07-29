@@ -4,8 +4,8 @@ import logging
 import pandas as pd
 from scipy import stats
 import numpy as np
-from bokeh.layouts import column, row,layout
-from bokeh.models import ColumnDataSource,CheckboxGroup, RadioGroup, Slope, LinearColorMapper, ColorBar
+from bokeh.layouts import column, row
+from bokeh.models import ColumnDataSource,CheckboxGroup, RadioGroup, LinearColorMapper, ColorBar, Label
 from bokeh.models.callbacks import CustomJS
 from bokeh.models.widgets import (Select, Div,
                                   Button, AutocompleteInput)
@@ -269,6 +269,8 @@ X_AXIS = "geneX"
 Y_AXIS = "geneY"
 Z_AXIS = "facet" if w_category_radio.active == 0 else "gene"
 
+mapper = get_mapper() #for colorbar
+
 ##need to have multiple glyphs not a single multi glyph:
 if Z_AXIS == "facet":
     for index,obs in enumerate(unique_obs):
@@ -280,7 +282,6 @@ if Z_AXIS == "facet":
     plot.legend.location = "top_right"
     plot.legend.click_policy = "hide"
 else:
-    mapper = get_mapper()
     plot.scatter(x=X_AXIS, y=Y_AXIS, source=ColumnDataSource(data),
         fill_alpha=0.7, size=5,width=0, fill_color = {'field': 'geneZ', 'transform': mapper})
     # plot2.scatter(x=X_AXIS, y=Y_AXIS, source=ColumnDataSource(data),
@@ -290,7 +291,28 @@ else:
     # plot.add_layout(color_bar,"right")
 
 
+#colorbar:
+color_bar = ColorBar(color_mapper=mapper, location=(0,0),major_label_text_font_size = "0px",major_tick_in = 2)
 
+plot.add_layout(color_bar,"right")
+
+#ticks for colorbar
+
+mytext = Label(text=f'{w_gene3.value}', x=-20, y=520, x_units='screen', y_units='screen',text_align = "center")
+plot.add_layout(mytext,"right")
+# ticks = []
+# quantiles = [np.around(np.percentile(np.array(data["geneZ"]),i),decimals = 4) for i in [0,25,50,75,100]]
+tick_min = Label(text=f'{round(np.array(data["geneZ"]).min(),2)}', x=-60, y= 15, y_units='screen',x_units="screen",text_align="left",text_baseline="middle")
+tick_max = Label(text=f'{round(np.array(data["geneZ"]).max(),2)}', x=-85, y= 510, y_units='screen',x_units="screen",text_align="left",text_baseline="middle")
+
+plot.add_layout(tick_min,"right")
+plot.add_layout(tick_max,"right")
+
+if Z_AXIS == "facet":
+    color_bar.visible = False
+    mytext.visible = False
+    tick_min.visible = False
+    tick_max.visible = False
 
 x_label = ""
 y_label = ""
@@ -299,7 +321,7 @@ y_label = ""
 def cb_update_plot(attr, old, new, type_change):
     """Populate and update the plot."""
     curdoc().hold()
-    global plot, index_cmap, X_AXIS, Y_AXIS, widget_axes,x_label,y_label, data
+    global plot, index_cmap, X_AXIS, Y_AXIS, widget_axes,x_label,y_label, data, color_bar, mytext, tick_min, tick_max
     if type_change not in ["XYAXIS","regression","categorical","geneX","geneY","num_facetX","num_facetY"]:
         curdoc().unhold()
         return
@@ -333,6 +355,11 @@ def cb_update_plot(attr, old, new, type_change):
 
     X_AXIS = "geneX" if w_x_axis_radio.active == GENE_OPTION else "num_facetX"
     Y_AXIS = "geneY" if w_y_axis_radio.active == GENE_OPTION else "num_facetY"
+    color_bar.visible = False
+    mytext.visible = False
+    tick_min.visible = False
+    tick_max.visible = False
+
 
     if Z_AXIS == "facet":
         for index,obs in enumerate(unique_obs):
@@ -356,9 +383,22 @@ def cb_update_plot(attr, old, new, type_change):
         plot.legend.location = "top_right"
         plot.legend.click_policy = "hide"
     else:
+
         mapper = get_mapper()
         plot.scatter(x=X_AXIS, y=Y_AXIS, source=ColumnDataSource(data),
                 fill_alpha=0.7, size=5,width=0, fill_color = {'field': 'geneZ', 'transform': mapper})
+
+        mytext.text  = f'{w_gene3.value}'
+        tick_min.text = f'{round(np.array(data["geneZ"]).min(),2)}'
+        tick_max.text = f'{round(np.array(data["geneZ"]).max(),2)}'
+
+        # color_bar = ColorBar(color_mapper=mapper, location=(0,0),major_label_text_font_size = "10px",major_tick_in = 2)
+
+        color_bar.visible = True
+        mytext.visible = True
+        tick_min.visible = True
+        tick_max.visible = True
+
         # plot2.scatter(x=X_AXIS, y=Y_AXIS, source=ColumnDataSource(data),
         #         fill_alpha=0.7, size=5,width=0, fill_color = {'field': 'geneZ', 'transform': mapper})
 
