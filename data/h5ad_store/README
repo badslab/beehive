@@ -1,0 +1,4 @@
+This folder contains all h5ad files.
+
+Upon deployment you should make a h5ad folder and link in all datasets that should be displayed 
+
