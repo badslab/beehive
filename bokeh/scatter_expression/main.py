@@ -166,6 +166,9 @@ def update_numerical_facets():
     options = expset.get_facet_options_numerical(w_dataset_id.value)
     w_facet_numerical_1.options = options
     w_facet_numerical_2.options = options
+    if not(options):
+        return
+        
     if w_facet_numerical_1.value not in [x[0] for x in options]:
         # set a default
         w_facet_numerical_1.value = options[0][0]
@@ -248,7 +251,9 @@ def get_mapper():
     high=data["geneZ"].max())
     return mapper
 
-plot = figure(output_backend = "webgl")
+plot = figure(output_backend = "webgl",name="plot1")
+# plot2 = figure(output_backend = "webgl",name="plot2")
+
 data = get_data()
 
 
@@ -277,10 +282,12 @@ if Z_AXIS == "facet":
 else:
     mapper = get_mapper()
     plot.scatter(x=X_AXIS, y=Y_AXIS, source=ColumnDataSource(data),
-            fill_alpha=0.7, size=5,width=0, fill_color = {'field': 'geneZ', 'transform': mapper})
-    color_bar = ColorBar(color_mapper=mapper, location=(0,0),label_standoff=12,title=w_gene3.value)
-    plot.add_layout(color_bar,"right")
+        fill_alpha=0.7, size=5,width=0, fill_color = {'field': 'geneZ', 'transform': mapper})
+    # plot2.scatter(x=X_AXIS, y=Y_AXIS, source=ColumnDataSource(data),
+    #     fill_alpha=0.7, size=5,width=0, fill_color = {'field': 'geneZ', 'transform': mapper})
 
+    # color_bar = ColorBar(color_mapper=mapper, location=(0,0),label_standoff=12,title=w_gene3.value)
+    # plot.add_layout(color_bar,"right")
 
 
 
@@ -297,6 +304,12 @@ def cb_update_plot(attr, old, new, type_change):
         curdoc().unhold()
         return
 
+    Z_AXIS = "facet" if w_category_radio.active == 0 else "gene"
+
+    # plot_element = curdoc().get_model_by_name("plot")
+    # plot2_element = curdoc().get_model_by_name("plot2")
+ 
+
     data = get_data()
     dataset_id, dataset = get_dataset()
 
@@ -307,19 +320,19 @@ def cb_update_plot(attr, old, new, type_change):
     #TODO fix None => strings
     index_cmap = factor_cmap('obs', Category20[len(unique_obs)], unique_obs)
 
-    # if plot.right:
-    #     plot.right = []
-
     plot.renderers = []
     if plot.legend:
         plot.legend.items = []
-    if layout(plot).children:
-        layout(plot).children.pop()
-        layout(plot).children.append(figure(output_backend="webgl"))
+    # if plot.right:
+    #     plot.right = []
+
+    # print(layout(plot).children)
+    # if layout(plot).children:
+    #     layout(plot).children.pop()
+    #     layout(plot).children.append(figure(output_backend="webgl"))
 
     X_AXIS = "geneX" if w_x_axis_radio.active == GENE_OPTION else "num_facetX"
     Y_AXIS = "geneY" if w_y_axis_radio.active == GENE_OPTION else "num_facetY"
-    Z_AXIS = "facet" if w_category_radio.active == 0 else "gene"
 
     if Z_AXIS == "facet":
         for index,obs in enumerate(unique_obs):
@@ -339,19 +352,38 @@ def cb_update_plot(attr, old, new, type_change):
                 # plot.update(output_backend = "webgl")
                 plot.scatter(x=X_AXIS, y=Y_AXIS, source=new_source,  legend_label=obs,
                 fill_alpha=0.7, size=5,width=0, fill_color = index_cmap["transform"].palette[index])
-   
+
         plot.legend.location = "top_right"
         plot.legend.click_policy = "hide"
     else:
         mapper = get_mapper()
         plot.scatter(x=X_AXIS, y=Y_AXIS, source=ColumnDataSource(data),
                 fill_alpha=0.7, size=5,width=0, fill_color = {'field': 'geneZ', 'transform': mapper})
+        # plot2.scatter(x=X_AXIS, y=Y_AXIS, source=ColumnDataSource(data),
+        #         fill_alpha=0.7, size=5,width=0, fill_color = {'field': 'geneZ', 'transform': mapper})
+
        # plot.rect(x=0.5, y='geneZ', fill_color='color', width=1, height=1, source=source)
 
-        color_bar = ColorBar(color_mapper=mapper, location=(0,0),label_standoff=12,title=w_gene3.value)
-        plot.add_layout(color_bar,"right")
+        # color_bar = ColorBar(color_mapper=mapper, location=(0,0),label_standoff=12,title=w_gene3.value)
+        # plot.add_layout(color_bar,"right")
 
 
+    # rootLayout = curdoc().get_model_by_name('main_layout')
+    # print(rootLayout)
+    # listOfSubLayouts = rootLayout.children
+
+    # if Z_AXIS == "facet":
+    #     plotToRemove = curdoc().get_model_by_name('plot2')
+    #     listOfSubLayouts.remove(plotToRemove)
+    #     listOfSubLayouts.append(row([plot2],
+    #         sizing_mode='stretch_width', name = "main_layout"))
+    # else:
+    #     plotToRemove = curdoc().get_model_by_name('plot')
+    #     listOfSubLayouts.remove(plotToRemove)
+    #     listOfSubLayouts.append(row([plot],
+    #         sizing_mode='stretch_width', name = "main_layout"))
+
+    
     w_div_title_author.text = \
         f"""
         <ul>
@@ -421,12 +453,18 @@ w_x_axis_radio.on_change("active",partial(cb_update_plot,type_change="XYAXIS"))
 w_y_axis_radio.on_change("active",partial(cb_update_plot,type_change="XYAXIS"))
 w_category_radio.on_change("active",partial(cb_update_plot,type_change="categorical"))
 
+# w_category_radio.js_on_change("active", CustomJS(args=dict(p=plot), code="""
+#     p.reset.emit()
+# """))
 # w_sibling.on_change("value", cb_sibling_change)
 w_dataset_id.on_change("value", cb_dataset_change)
 
 w_download.js_on_click(cb_download)
 
 
+# main_plot = plot if Z_AXIS == "facet" else plot2
+# main_layout = row([main_plot],
+#             sizing_mode='stretch_width', name = "main_layout")
 curdoc().add_root(
     column([
         row([
@@ -446,8 +484,9 @@ curdoc().add_root(
         #TODO regression doesnt work with webgl
         row([w_gene_not_found],
             sizing_mode='stretch_width'),
+        # main_layout,
         row([plot],
-            sizing_mode='stretch_width'),
+            sizing_mode='stretch_width', name = "main_layout"),
         row([w_dataset_id],
             sizing_mode='stretch_width'),          
     ], sizing_mode='stretch_width')
