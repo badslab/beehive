@@ -111,6 +111,7 @@ def modify_data():
     data = get_data()
 
     #adjust p-value scale
+    data["padj"] = np.where(data["padj"] == 0,10**-10,data["padj"])
     data["padj"] = np.log10(data["padj"])*-1
     #make a new column of genes that are highlighted and those that are not. (Yes No)
     data["highlight"] = data.apply(lambda x: highlight_genes(x),axis = 1)
@@ -254,13 +255,17 @@ w_x_range.value = max(data["true_lfc"]) + max(data["true_lfc"])/2
 w_y_range.value = max(data["true_padj"]) + max(data["true_padj"])/4
 plot.update(x_range = Range1d(w_x_range.value*-1, w_x_range.value), y_range = Range1d(0, w_y_range.value))
 
-def cb_update_plot(attr, old, new):
+def cb_update_plot(attr, old, new,type_change = None):
     """Populate and update the plot."""
     curdoc().hold()
     global plot, source
     #fetch the data, and modify it.
     #this will take care of highlighting/non highlighting genes 
     data = modify_data()
+    #adjust the x y ranges of the widgets!! if we are changing the group of the data
+    if type_change == "new_categ":
+        w_x_range.value = max(data["true_lfc"]) + max(data["true_lfc"])/2
+        w_y_range.value = max(data["true_padj"]) + max(data["true_padj"])/4
 
     source.data = data
     #update the new x and y ranges (if they got changed.)
@@ -294,15 +299,15 @@ def cb_update_plot_new_dataset(attr, old, new):
 
 
 # convenience shortcut
-update_plot = partial(cb_update_plot, attr=None, old=None, new=None)
+update_plot = partial(cb_update_plot, attr=None, old=None, new=None,type_change = None)
 
 # run it directly to ensure there are initial values
 update_plot()
 
-w_category.on_change("value", cb_update_plot)
-w_genes.on_change("value",cb_update_plot)
-w_x_range.on_change("value",cb_update_plot)
-w_y_range.on_change("value",cb_update_plot)
+w_category.on_change("value", partial(cb_update_plot,type_change = "new_categ"))
+w_genes.on_change("value",partial(cb_update_plot,type_change = None))
+w_x_range.on_change("value",partial(cb_update_plot,type_change = None))
+w_y_range.on_change("value",partial(cb_update_plot,type_change = None))
 w_dataset_id.on_change("value",cb_update_plot_new_dataset)
 
 cb_download = CustomJS(
