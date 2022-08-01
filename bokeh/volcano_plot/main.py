@@ -35,7 +35,7 @@ w_div_title_author = Div(text="")
 dataset_options = [(k, "{short_title}, {short_author}".format(**v))
                    for k, v in datasets.items()]
 
-DATASET_NUMBER = 9
+DATASET_NUMBER = 0
 
 w_dataset_id = create_widget("dataset_id", Select, title="Dataset",
                              options=dataset_options,
@@ -55,7 +55,7 @@ w_download_filename = Div(text="", visible=False,
 #genes that can be highlighted
 w_genes = create_widget("genes",MultiChoice,default = ["TREM2","APOE"],options = [], title="Select genes to highlight",value_type = list)
 #adjustable x and y range sliders
-w_x_range = create_widget("x_range",Spinner,title = "Select Min & Max Absolute X-range",low=0, high = 4,step=0.1,default=2,value_type = float)
+w_x_range = create_widget("x_range",Spinner,title = "Select Min & Max Absolute X-range",low=0, high = 30,step=0.1,default=2,value_type = float)
 w_y_range = create_widget("y_range",Spinner,title = "Select Max Y-range",low=0, high = 300,step=1,default=100,value_type = float)
 
 
