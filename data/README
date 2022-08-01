@@ -1,1 +1,7 @@
 Location for databases
+
+h5ad contains the gene (protein) expression databases for active deployment 
+    (sym)link files before deployment! 
+
+h5ad_store contains a database of all datasets available. Separated this 
+out to be able to not show all datasets in every deployment
