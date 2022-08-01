@@ -50,6 +50,19 @@ serve_cbd2: fix_templates fix_bokeh_static_js check_deployment
 		sleep 0.5
 	done
 
+.ONESHELL:
+serve_cbd2_private: fix_templates fix_bokeh_static_js check_deployment
+	while true; do 
+		echo "(re)starting)"
+		bokeh serve --use-xheaders \
+			--allow-websocket-origin=data.bdslab.org \
+			 --port 5008 \
+			bokeh/gene_expression/ \
+			bokeh/volcano_plot/ \
+			bokeh/scatter_expression/
+		sleep 0.5
+	done
+
 .ONEHSELL:
 serve_dev: fix_templates
 	bokeh serve --dev --port 5010 bokeh/gene_expression/ # bokeh/diffexp/ 
