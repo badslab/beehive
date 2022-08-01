@@ -24,7 +24,7 @@ diskcache = partial(
 @lru_cache(1)
 def get_datasets(has_de: bool = False):
     """Return a dict with all dataset."""
-    datadir = util.get_datadir("h5ad_store")
+    datadir = util.get_datadir("h5ad")
     global DATASETS
 
     if len(DATASETS) == 0:
