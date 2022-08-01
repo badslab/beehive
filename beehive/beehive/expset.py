@@ -24,7 +24,7 @@ diskcache = partial(
 @lru_cache(1)
 def get_datasets(has_de: bool = False):
     """Return a dict with all dataset."""
-    datadir = util.get_datadir("h5ad")
+    datadir = util.get_datadir("h5ad_store")
     global DATASETS
 
     if len(DATASETS) == 0:
@@ -210,6 +210,13 @@ def get_gene(dsid, gene):
     except pl.exceptions.SchemaError:
         return None
     return rv
+
+#NOT ADDED TO VIEWS YET
+#Suggested format:
+#Views
+def get_usable_views(dsid):
+    dataset = get_dataset(dsid)
+    return
 
 
 def get_defields(dsid):
