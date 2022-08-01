@@ -211,6 +211,13 @@ def get_gene(dsid, gene):
         return None
     return rv
 
+#NOT ADDED TO VIEWS YET
+#Suggested format:
+#Views
+def get_usable_views(dsid):
+    dataset = get_dataset(dsid)
+    return
+
 
 def get_defields(dsid):
     ds = get_dataset(dsid)
