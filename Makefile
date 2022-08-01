@@ -22,7 +22,7 @@ fix_templates:
 		echo $$bdir $$tdir; \
 		echo "Make templates symlink"; \
 		( cd $$bdir ; ln -sf ../../templates . ); \
-	done 
+	done
 
 .PHONY:
 .ONEHSELL:
@@ -39,7 +39,7 @@ fix_bokeh_static_js:
 
 .ONESHELL:
 serve_cbd2: fix_templates fix_bokeh_static_js check_deployment
-	while true; do 
+	while true; do
 		echo "(re)starting)"
 		bokeh serve --use-xheaders \
 			--allow-websocket-origin=data.bdslab.org \
@@ -65,20 +65,21 @@ serve_cbd2_private: fix_templates fix_bokeh_static_js check_deployment
 
 .ONEHSELL:
 serve_dev: fix_templates
-	bokeh serve --dev --port 5010 bokeh/gene_expression/ # bokeh/diffexp/ 
+	bokeh serve --dev --port 5010 bokeh/scatter_expression/ # bokeh/diffexp/
+	#	bokeh serve --dev --port 5010 bokeh/gene_expression/ # bokeh/diffexp/
 
 
 serve_dev_raghid: fix_templates
-	pipenv run bokeh serve --dev --port 5009 --allow-websocket-origin=* bokeh/gene_expression/ 
+	pipenv run bokeh serve --dev --port 5009 --allow-websocket-origin=* bokeh/gene_expression/
 
 serve_dev_raghid_auth: fix_templates
-	pipenv run bokeh serve --dev --port 5009 --allow-websocket-origin=* --auth-module=beehive/beehive/auth.py bokeh/gene_expression/ 
+	pipenv run bokeh serve --dev --port 5009 --allow-websocket-origin=* --auth-module=beehive/beehive/auth.py bokeh/gene_expression/
 
 serve_dev_raghid_scatter_local: fix_templates
-	pipenv run bokeh serve --dev --port 5009 --allow-websocket-origin=* --auth-module=beehive/beehive/auth.py --ssl-certfile beehive/cert.pem --ssl-keyfile beehive/key.pem bokeh/scatter_expression/ 
+	pipenv run bokeh serve --dev --port 5009 --allow-websocket-origin=* --auth-module=beehive/beehive/auth.py --ssl-certfile beehive/cert.pem --ssl-keyfile beehive/key.pem bokeh/scatter_expression/
 
 serve_dev_raghid_scatter_server: fix_templates
-	pipenv run bokeh serve --dev --port 8009 --allow-websocket-origin=* --auth-module=beehive/beehive/auth.py --ssl-certfile beehive/cert.pem --ssl-keyfile beehive/key.pem bokeh/scatter_expression/ 
+	pipenv run bokeh serve --dev --port 8009 --allow-websocket-origin=* --auth-module=beehive/beehive/auth.py --ssl-certfile beehive/cert.pem --ssl-keyfile beehive/key.pem bokeh/scatter_expression/
 
 serve_dev_raghid2: fix_templates
 	pipenv run bokeh serve --dev --port 5009 bokeh/scatter_expression/
