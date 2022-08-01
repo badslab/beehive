@@ -1,6 +1,21 @@
 SHELL=/bin/bash
 
 .PHONY:
+.SILENT:
+check_deployment:
+	echo "Pre deployment check in $$(hostname):$$PWD"
+	[ -d ./data/h5ad ] || (echo "No ./data/h5ad folder - please create " ; false)
+	(ls ./data/h5ad/*yaml > /dev/null ) ||  (echo "No yaml files in data/h5ad folder - please populate" ; false)
+	for file in ./data/h5ad/*yaml; do \
+		bn=$$(basename $$file .yaml); \
+		[ -f ./data/h5ad/$${bn}.X.prq ] || (echo "Can't find $${bn}.X.prq"; false); \
+		[ -f ./data/h5ad/$${bn}.obs.prq ] || (echo "Can't find $${bn}.obs.prq"; false); \
+		[ -f ./data/h5ad/$${bn}.var.prq ] || (echo "Can't find $${bn}.var.prq"; false); \
+	done
+
+
+
+.PHONY:
 fix_templates:
 	for bdir in ./bokeh/*; do \
 		tdir="$$bdir/templates"; \
@@ -20,7 +35,7 @@ fix_bokeh_static_js:
 
 
 .ONESHELL:
-serve_cbd2: fix_templates fix_bokeh_static_js
+serve_cbd2: fix_templates fix_bokeh_static_js check_deployment
 	while true; do 
 		echo "(re)starting)"
 		bokeh serve --use-xheaders \
