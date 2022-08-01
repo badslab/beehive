@@ -28,19 +28,20 @@ fix_templates:
 .ONEHSELL:
 fix_bokeh_static_js:
 	JSPATH=$$(python -c 'import bokeh; print(bokeh.util.paths.bokehjsdir())')
-	echo $$JSPATH
-	mkdir -p static_internal/bokeh/
-	rsync  -arv $$JSPATH/ static_internal/bokeh/
-	chmod -R a+rX static_internal/bokeh
-	mkdir -p static_public/bokeh/
-	rsync  -arv $$JSPATH/ static_public/bokeh/
-	chmod -R a+rX static_public/bokeh
+	echo "Getting bokeh static data from: $$JSPATH"
+	mkdir -p static/bokeh/
+	rsync  -arv $$JSPATH/ static/bokeh/
+	chmod -R a+rX static/bokeh
+	mkdir -p static/bokeh/
+	rsync  -arv $$JSPATH/ static/bokeh/
+	chmod -R a+rX static/bokeh
 
 
 .ONESHELL:
 serve_cbd2: fix_templates fix_bokeh_static_js check_deployment
-	while true; do
-		echo "(re)starting)"
+	export BEEHIVE_BASEDIR=/media/gbw_cbdbads_alzmap/bdslab_visualization_public/beehive
+	while true; do \
+		echo "(re)starting)"		
 		bokeh serve --use-xheaders \
 			--allow-websocket-origin=data.bdslab.org \
 			 --port 5009 \
@@ -52,10 +53,11 @@ serve_cbd2: fix_templates fix_bokeh_static_js check_deployment
 
 .ONESHELL:
 serve_cbd2_private: fix_templates fix_bokeh_static_js check_deployment
+	export BEEHIVE_BASEDIR=/media/gbw_cbdbads_alzmap/bdslab_visualization_private/beehive
 	while true; do 
-		echo "(re)starting)"
+		echo "(re)starting)" 
 		bokeh serve --use-xheaders \
-			--allow-websocket-origin=data.bdslab.org \
+			--allow-websocket-origin=muna.bdslab.org \
 			 --port 5008 \
 			bokeh/gene_expression/ \
 			bokeh/volcano_plot/ \
