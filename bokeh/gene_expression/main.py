@@ -99,7 +99,6 @@ def update_sibling_options():
 update_sibling_options()
 
 
-
 w_gene = create_widget("gene", AutocompleteInput,
                        completions=[], default='APOE', case_sensitive = False)
 w_facet = create_widget("facet", Select, options=[], title="Group by")
@@ -160,8 +159,8 @@ def get_data() -> pd.DataFrame:
     
     #TODO get the order from here and sort the data later..
     #will also get color
-    facet_groups = facet_groups(w_facet.value)
-    
+    # facet_groups = facet_groups(w_facet.value)
+
     #==> check if there is full order
     #if yes, call get_gene_meta_agg with order = True
     #can order with the list of orders in expset.get_gene_meta_agg before function returns
