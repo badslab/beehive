@@ -1,3 +1,4 @@
+from enum import unique
 import logging
 from functools import partial
 import logging
@@ -251,7 +252,12 @@ unique_obs = get_unique_obs(data)
 dataset_id, dataset = get_dataset()
 
 # palette for the categorical obs
-index_cmap = factor_cmap('obs', Category20[len(unique_obs)], unique_obs)
+if len(unique_obs) < 3:
+    palette = ["blue","red"]
+else:
+    palette = Category20[len(unique_obs)]
+
+index_cmap = factor_cmap('obs', palette, unique_obs)
 
 # initial set up of which x-axis and y-axis we plot
 X_AXIS = "geneX"
@@ -328,8 +334,11 @@ def cb_update_plot(attr, old, new, type_change):
 
     unique_obs = get_unique_obs(data)
 
-    # TODO fix None => strings
-    index_cmap = factor_cmap('obs', Category20[len(unique_obs)], unique_obs)
+    if len(unique_obs) < 3:
+        palette = ["blue","red"]
+    else:
+        palette = Category20[len(unique_obs)]
+    index_cmap = factor_cmap('obs', palette, unique_obs)
 
     # empty the plot glyphs and legends:
     plot.renderers = []
