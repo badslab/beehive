@@ -251,8 +251,8 @@ labels = LabelSet(x='lfc', y='padj', text='gene',
 plot.add_layout(labels)
 
 #set up the initial x and y ranges in the widgets based on the data itself.
-w_x_range.value = max(data["true_lfc"]) + max(data["true_lfc"])/2
-w_y_range.value = max(data["true_padj"]) + max(data["true_padj"])/4
+w_x_range.value = round(max(data["true_lfc"]) + max(data["true_lfc"])/2,1)
+w_y_range.value = round(max(data["true_padj"]) + max(data["true_padj"])/4,1)
 plot.update(x_range = Range1d(w_x_range.value*-1, w_x_range.value), y_range = Range1d(0, w_y_range.value))
 
 def cb_update_plot(attr, old, new,type_change = None):
@@ -264,8 +264,8 @@ def cb_update_plot(attr, old, new,type_change = None):
     data = modify_data()
     #adjust the x y ranges of the widgets!! if we are changing the group of the data
     if type_change == "new_categ":
-        w_x_range.value = max(data["true_lfc"]) + max(data["true_lfc"])/2
-        w_y_range.value = max(data["true_padj"]) + max(data["true_padj"])/4
+        w_x_range.value = round(max(data["true_lfc"]) + max(data["true_lfc"])/2,1)
+        w_y_range.value = round(max(data["true_padj"]) + max(data["true_padj"])/4,1)
 
     source.data = data
     #update the new x and y ranges (if they got changed.)
