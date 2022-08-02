@@ -93,10 +93,20 @@ serve_dev_raghid4: fix_templates
 	pipenv run bokeh serve --dev --port 5009 bokeh/volcano_plot/
 
 
+
 .PHONY:
 .ONESHELL:
-rebuild_static_website:
-	cd static
+rebuild_static_private_website:
+	cd static_private
+	make html
+	git add content/*.md output/*.html  output/category/*.html output/author/*.html output/tag/*.html
+	git commit -m 'rebuild private static website' content/*.md output/*.html  output/category/*.html output/author/*.html output/tag/*.html
+
+
+.PHONY:
+.ONESHELL:
+rebuild_static_public_website:
+	cd static_public
 	make html
 	git add content/*.md output/*.html  output/category/*.html output/author/*.html output/tag/*.html
 	git commit -m 'rebuild static website' content/*.md output/*.html  output/category/*.html output/author/*.html output/tag/*.html
