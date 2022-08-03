@@ -6,7 +6,7 @@ import pandas as pd
 from scipy import stats
 import numpy as np
 from bokeh.layouts import column, row
-from bokeh.models import ColumnDataSource, CheckboxGroup, RadioGroup, LinearColorMapper, ColorBar, Label, ScientificFormatter
+from bokeh.models import ColumnDataSource, CheckboxGroup, RadioGroup, LinearColorMapper, ColorBar, Label
 from bokeh.models.callbacks import CustomJS
 from bokeh.models.widgets import (Select, Div,
                                   Button, AutocompleteInput)
