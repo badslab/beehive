@@ -11,7 +11,7 @@ from bokeh.models.widgets import (Select, Div,
                                   Button, AutocompleteInput)
 from bokeh.plotting import figure, curdoc
 from bokeh.models.transforms import CustomJSTransform
-
+from bokeh.transform import transform
 
 from beehive import config, util, expset
 from bokeh.util.hex import cartesian_to_axial
@@ -23,6 +23,8 @@ lg.info("startup")
 curdoc().template_variables['config'] = config
 curdoc().template_variables['view_name'] = 'Hexbin Expression'
 
+GENE_OPTION = 0
+FACET_OPTION = 1
 
 create_widget = partial(util.create_widget, curdoc=curdoc())
 
@@ -51,9 +53,9 @@ w_dataset_id = create_widget("dataset_id", Select, title="Dataset",
 
 #X and Y axes
 LABELS_AXIS = ["Gene", "Numerical Facet"]
-w_gene1 = create_widget("gene1", AutocompleteInput,
+w_gene1 = create_widget("geneX", AutocompleteInput,
                        completions=[], default='APOE', title = "Gene")
-w_gene2 = create_widget("gene2", AutocompleteInput,
+w_gene2 = create_widget("geneY", AutocompleteInput,
                        completions=[], default='TREM2', title = "Gene")
 w_facet_numerical_1 = create_widget("num_facetX", Select,
                                     options=[], title="Numerical Facet")
@@ -71,19 +73,19 @@ widget_axes = [w_gene1,w_gene2, w_facet_numerical_1,w_facet_numerical_2]
 LABELS_GROUPING = ["Gene", "Numerical Facet"]
 
 #color by gene expression
-w_gene3 = create_widget("gene3", AutocompleteInput,
+w_gene3 = create_widget("geneZ", AutocompleteInput,
                        completions=[], default='TREM2', title = "Gene")
 #color by continuous facet
 w_facet_numerical_3 = create_widget("num_facetZ", Select,
                                     options=[], title="Numerical Facet")
 #color/ yes or no?
-w_z_axis = CheckboxGroup(labels=["Color by Z-Axis"], active=[0])
+w_color_check = CheckboxGroup(labels=["Color by Z-Axis"], active=[0])
 #color by gene or numerical facet?
-w_category_radio = create_widget(
-    "category_radio", RadioGroup, labels=LABELS_GROUPING, default=0, title="Grouped:", value_type=int)
+w_z_axis_radio = create_widget(
+    "z_axis_radio", RadioGroup, labels=LABELS_AXIS, default=0, title="Grouped:", value_type=int)
 
 #user selecting alpha
-w_alpha_slider = create_widget("alpha_picker",Slider,start=0.2, end=1, default=0.5,step=0.05,title = "Opacity",value_type = float)
+w_alpha_slider = create_widget("alpha_picker",Slider,start=0.2, end=1, default=0.2,step=0.05,title = "Opacity",value_type = float)
 
 #subset selection of categorical obs
 w_subset_select = create_widget("subset_categories",MultiSelect,default = [],value_type = list,options = [])
@@ -116,6 +118,7 @@ def update_genes():
     genes = get_genes()
     w_gene1.completions = genes
     w_gene2.completions = genes
+    w_gene3.completions = genes
     if w_gene1.value not in genes:
         if 'APOE' in genes:
             w_gene1.value = 'APOE'
@@ -175,18 +178,53 @@ def get_data() -> pd.DataFrame:
     gene1 = w_gene1.value
     gene2 = w_gene2.value
     gene3 = w_gene3.value
+    num_facet1 = w_facet_numerical_1.value
+    num_facet2 = w_facet_numerical_2.value
+    num_facet3 = w_facet_numerical_3.value
+
     facet = w_facet.value
+
+    geneX = None
+    geneY = None
+    geneZ = None
+    num_facetX = None
+    num_facetY = None
+    num_facetZ = None
+
+
+    x_axis = w_x_axis_radio.active
+    y_axis = w_y_axis_radio.active
+    z_axis = w_z_axis_radio.active
+    color_check = w_color_check.active
+
+    if x_axis == GENE_OPTION:
+        geneX = expset.get_gene(dataset_id, gene1)[:, 0]
+    else:
+        num_facetX = expset.get_meta(dataset_id, num_facet1, raw=True)[:, 0]
+    if y_axis == GENE_OPTION:
+        geneY = expset.get_gene(dataset_id, gene2)[:, 0]
+    else:
+        num_facetY = expset.get_meta(dataset_id, num_facet2, raw=True)[:, 0]
+
+    if len(color_check) == 1:
+        if z_axis == GENE_OPTION:
+            geneZ = expset.get_gene(dataset_id, gene3)[:, 0]
+        else:
+            num_facetZ = expset.get_meta(dataset_id, num_facet3, raw=True)[:, 0]
+    
     ##TODO maybe check for numerical/categorical here?
     lg.warning(f"!! Getting data for {dataset_id} {facet} {gene1}")
 
     lg.warning(f"!! Getting data for {dataset_id} {facet} {gene2}")
 
-    ##TODO scheme to get data => based on what's selected only
     data = pd.DataFrame(dict(
-        gene1 = expset.get_gene(dataset_id, gene1)[:,0],
-        gene2 = expset.get_gene(dataset_id, gene2)[:,0],
-        gene3 = expset.get_gene(dataset_id, gene3)[:,0],
+        geneX = geneX,
+        geneY = geneY,
+        geneZ = geneZ,
         obs=expset.get_meta(dataset_id, facet)[:, 0],
+        num_facetX = num_facetX,
+        num_facetY = num_facetY,
+        num_facetZ = num_facetZ,
         ))
 
     return data
@@ -198,42 +236,54 @@ def get_dataset():
 
 def get_unique_obs(data):
     """Fetch the unique facets from the data"""
+    global w_subset_select
     unique_obs = pd.DataFrame(data)['obs'].unique()
     w_subset_select.options = unique_obs.tolist()
 
-#
-# Create plot
-#
 def modify_data():
     data = get_data()
-    global unique_obs
+    global unique_obs, X_AXIS, Y_AXIS
     unique_obs = get_unique_obs(data)
-    q, r = cartesian_to_axial(data["gene1"], data["gene2"], 0.1, "pointytop")
+    categories = w_subset_select.value
+    if len(categories) == 0:
+        q, r = cartesian_to_axial(data[X_AXIS], data[Y_AXIS], 0.1, "pointytop")
+    else:
+        #filter out uneeded groups:
+        data = data.loc[np.where(data["obs"].isin(categories))].reset_index(drop = True)
+        q, r = cartesian_to_axial(data[X_AXIS], data[Y_AXIS], 0.1, "pointytop")
     df = pd.DataFrame(dict(r=r,q=q,avg_exp = None))
     groups = df.groupby(["q","r"])
     dicts = []
     ###assign axial coordinates to get average gene expression###
+    #need to che
     for key,val in groups.groups.items():
         q,r = key
         counts = len(val)
-        avg_exp = data['gene3'].loc[groups.groups.get((q,r))].mean()
-        dicts = dicts + [{"q" : q,"r" : r,"counts" : counts, "avg_exp" :avg_exp,"index_list":val}]
+        coloring_scheme = data[Z_AXIS].loc[groups.groups.get((q,r))].mean()
+        dicts = dicts + [{"q" : q,"r" : r,"counts" : counts, "coloring_scheme" :coloring_scheme,"index_list":val}]
 
     final_result = pd.DataFrame(dicts)
 
-    return final_result
+    return final_result, data
+
+#
+# Create plot
+#
+
+X_AXIS = "geneX" if w_x_axis_radio.active == GENE_OPTION else "num_facetX"
+Y_AXIS = "geneY" if w_y_axis_radio.active == GENE_OPTION else "num_facetY"
+Z_AXIS = "geneZ" if w_z_axis_radio.active == GENE_OPTION else "num_facetZ"
 
 
-plot = figure()
+plot = figure(output_backend = "webgl")
 dataset_id, dataset = get_dataset()
-data = modify_data()
-
-
-#TODO make 1 and 99 percentiles
+data,yamldata = modify_data()
+print(yamldata)
+print(data)
 mapper = LinearColorMapper(
     palette='Magma256',
-    low=data["avg_exp"].max(),
-    high=data["avg_exp"].min())
+    low=np.percentile(np.array(data["coloring_scheme"]),1),
+    high=np.percentile(np.array(data["coloring_scheme"]),99))
 
 v_func_alpha  = """
 var new_xs = new Array(xs.length)
@@ -251,31 +301,99 @@ alpha_map = dict(zip(sorted(np.unique(source.data["counts"]).tolist()),
 
 numerical_alpha_transformer = CustomJSTransform(args={"alpha_map": alpha_map}, v_func=v_func_alpha)
 
-#TODO: what x and y are we plotting
+#get which categories are we plotting:
+categories = w_subset_select.value
+if len(categories) == 0: #plot all
+    plot.hex_tile(q="q",r="r",size=0.1,source=source, alpha = 0.2, 
+    color  = "#D3D3D3") #grey plot all
 
-#TODO: do we need to color? (add another hextile or not.)
+    if len(w_color_check.active) == 0:
+        pass
+    else:
+        plot.hex_tile(q="q",r="r",size=0.1,source=source,
+        alpha = transform("counts",numerical_alpha_transformer),line_color = None, 
+        color   = {'field': 'coloring_scheme', 'transform': mapper})
+else:
+    #plot only highlighted ones. 
+    #TODO just remove the non highlighted, plot everything else?
+    for category in categories:
+        new_source = ColumnDataSource(data.loc[(data.obs == category)])
+        plot.hex_tile(q="q",r="r",size=0.1,source=new_source, 
+        color  = "#D3D3D3",  alpha = 0.2)
 
-#TODO: if yes, what color sceheme are we using? facet or gene expression
+    if len(w_color_check.active) == 0:
+        pass
+    else:
+        for category in categories:
+            new_source = ColumnDataSource(data.loc[(data.obs == category)])
 
-#TODO: show subsets only => check if subsets are selected, if not, then show all.
+            plot.hex_tile(q="q",r="r",size=0.1,source=new_source,
+            alpha = transform("counts",numerical_alpha_transformer),line_color = None, 
+            color   = {'field': 'coloring_scheme', 'transform': mapper})
+
 
 #TODO: extras: add colorbar, add xy title labels, legend
-
-X_AXIS = "gene1"
-Y_AXIS = "gene2"
 
 
 x_label = ""
 y_label = ""
 
-def cb_update_plot(attr, old, new,type_change,axis):
+def cb_update_plot(attr, old, new,type_change):
     """Populate and update the plot."""
     curdoc().hold()
-    global plot, index_cmap,source, X_AXIS, Y_AXIS, widget_axes,x_label,y_label,merged_image
-    data = modify_data()
+    global plot,source, X_AXIS, Y_AXIS, Z_AXIS, widget_axes,x_label,y_label
+
+
+    X_AXIS = "geneX" if w_x_axis_radio.active == GENE_OPTION else "num_facetX"
+    Y_AXIS = "geneY" if w_y_axis_radio.active == GENE_OPTION else "num_facetY"
+    Z_AXIS = "geneZ" if w_z_axis_radio.active == GENE_OPTION else "num_facetZ"
+
+    data,yamldata = modify_data()
+    # get_unique_obs(data)
     dataset_id, dataset = get_dataset()
+
     facet = w_facet.value
     source = ColumnDataSource(data)
+
+
+
+    #update plot now
+    plot.renderers = []
+
+    mapper = LinearColorMapper(
+        palette='Magma256',
+        low=np.percentile(np.array(data["coloring_scheme"]),1),
+        high=np.percentile(np.array(data["coloring_scheme"]),99))
+
+    if len(categories) == 0: #plot all
+        plot.hex_tile(q="q",r="r",size=0.1,source=source, 
+        color  = "#D3D3D3",  alpha = 0.2) #grey plot all
+
+        if len(w_color_check.active) == 0:
+            pass
+        else:
+            plot.hex_tile(q="q",r="r",size=0.1,source=source,
+            alpha = transform("counts",numerical_alpha_transformer),line_color = None, 
+            color   = {'field': 'coloring_scheme', 'transform': mapper})
+    else:
+        #plot only highlighted ones. 
+        #TODO just remove the non highlighted, plot everything else?
+        for category in categories:
+            new_source = ColumnDataSource(data.loc[(data.obs == category)])
+            plot.hex_tile(q="q",r="r",size=0.1,source=new_source, 
+            color  = "#D3D3D3",  alpha = 0.2)
+
+        if len(w_color_check.active) == 0:
+            pass
+        else:
+            for category in categories:
+                new_source = ColumnDataSource(data.loc[(data.obs == category)])
+
+                plot.hex_tile(q="q",r="r",size=0.1,source=new_source,
+                alpha = transform("counts",numerical_alpha_transformer),line_color = None, 
+                color   = {'field': 'coloring_scheme', 'transform': mapper})
+
+
 
     w_div_title_author.text = \
         f"""
@@ -306,7 +424,7 @@ def cb_update_plot(attr, old, new,type_change,axis):
 
 
 # convenience shortcut
-update_plot = partial(cb_update_plot, attr=None, old=None, new=None,type_change=None,axis=None)
+update_plot = partial(cb_update_plot, attr=None, old=None, new=None,type_change=None)
 
 # run it directly to ensure there are initial values
 update_plot()
@@ -327,11 +445,18 @@ cb_download = CustomJS(
               filename_div=w_download_filename),
     code="exportToTsv(data, columns, filename_div.text);")
 
-w_gene1.on_change("value",partial(cb_update_plot,type_change = "gene1",axis="x"))
-w_gene2.on_change("value", partial(cb_update_plot,type_change="gene2",axis="y"))
-w_facet.on_change("value", partial(cb_update_plot,type_change=None,axis=None))
-w_facet_numerical_1.on_change("value", partial(cb_update_plot,type_change="num_facet1",axis="x"))
-w_facet_numerical_2.on_change("value", partial(cb_update_plot,type_change="num_facet2",axis="y"))
+w_gene1.on_change("value",partial(cb_update_plot,type_change = None))
+w_gene2.on_change("value", partial(cb_update_plot,type_change=None))
+w_gene3.on_change("value",partial(cb_update_plot,type_change=None))
+w_facet.on_change("value", partial(cb_update_plot,type_change=None))
+w_facet_numerical_1.on_change("value", partial(cb_update_plot,type_change=None))
+w_facet_numerical_2.on_change("value", partial(cb_update_plot,type_change=None))
+w_facet_numerical_3.on_change("value", partial(cb_update_plot,type_change=None))
+w_subset_select.on_change("value",partial(cb_update_plot,type_change = None))
+w_alpha_slider.on_change("value",partial(cb_update_plot,type_change = None))
+w_x_axis_radio.on_change("active",partial(cb_update_plot,type_change = None))
+w_y_axis_radio.on_change("active",partial(cb_update_plot,type_change = None))
+w_z_axis_radio.on_change("active",partial(cb_update_plot,type_change = None))
 
 w_dataset_id.on_change("value", cb_dataset_change)
 w_download.js_on_click(cb_download)
@@ -345,11 +470,11 @@ curdoc().add_root(
                     sizing_mode='stretch_width'),
                 row([w_facet_numerical_1,w_facet_numerical_2,w_facet_numerical_3],
                     sizing_mode='stretch_width'),
-                row([w_x_axis_radio,w_y_axis_radio,w_category_radio],
+                row([w_x_axis_radio,w_y_axis_radio,w_z_axis_radio],
                     sizing_mode='stretch_width'),
                 row([w_facet,w_subset_select, w_alpha_slider,w_download],
                     sizing_mode='stretch_both'),
-                row([w_z_axis],
+                row([w_color_check],
                     sizing_mode='stretch_width')],   
                 sizing_mode='stretch_width')],
             sizing_mode='stretch_width'),
