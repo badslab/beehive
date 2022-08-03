@@ -5,7 +5,8 @@ from venv import create
 import pandas as pd
 import numpy as np
 from bokeh.layouts import column, row
-from bokeh.models import ColumnDataSource, RadioGroup, CheckboxGroup, Slider,MultiSelect, LinearColorMapper
+from bokeh.models import (ColumnDataSource, RadioGroup, CheckboxGroup, Slider,MultiSelect, 
+                            LinearColorMapper, ColorBar, Label,LinearAxis, Range1d)
 from bokeh.models.callbacks import CustomJS
 from bokeh.models.widgets import (Select, Div,
                                   Button, AutocompleteInput)
@@ -86,6 +87,7 @@ w_z_axis_radio = create_widget(
 
 #user selecting alpha
 w_alpha_slider = create_widget("alpha_picker",Slider,start=0.2, end=1, default=0.2,step=0.05,title = "Opacity",value_type = float)
+w_size_slider = create_widget("size_picker",Slider,start=0.01, end=1, default=0.1,step=0.01,title = "Hex Tile Size",value_type = float)
 
 #subset selection of categorical obs
 w_subset_select = create_widget("subset_categories",MultiSelect,default = [],value_type = list,options = [])
@@ -245,12 +247,13 @@ def modify_data():
     global unique_obs, X_AXIS, Y_AXIS
     unique_obs = get_unique_obs(data)
     categories = w_subset_select.value
+    SIZE = w_size_slider.value
     if len(categories) == 0:
-        q, r = cartesian_to_axial(data[X_AXIS], data[Y_AXIS], 0.1, "pointytop")
+        q, r = cartesian_to_axial(data[X_AXIS], data[Y_AXIS], size = SIZE, orientation = "pointytop")
     else:
         #filter out uneeded groups:
         data = data.loc[np.where(data["obs"].isin(categories))].reset_index(drop = True)
-        q, r = cartesian_to_axial(data[X_AXIS], data[Y_AXIS], 0.1, "pointytop")
+        q, r = cartesian_to_axial(data[X_AXIS], data[Y_AXIS], size = SIZE, orientation = "pointytop")
     df = pd.DataFrame(dict(r=r,q=q,avg_exp = None))
     groups = df.groupby(["q","r"])
     dicts = []
@@ -265,6 +268,14 @@ def modify_data():
     final_result = pd.DataFrame(dicts)
 
     return final_result, data
+
+v_func_alpha  = """
+var new_xs = new Array(xs.length)
+for(var i = 0; i < xs.length; i++) {
+    new_xs[i] = alpha_map[xs[i]]
+}
+return new_xs
+"""
 
 #
 # Create plot
@@ -284,55 +295,57 @@ mapper = LinearColorMapper(
     low=np.percentile(np.array(data["coloring_scheme"]),1),
     high=np.percentile(np.array(data["coloring_scheme"]),99))
 
-v_func_alpha  = """
-var new_xs = new Array(xs.length)
-for(var i = 0; i < xs.length; i++) {
-    new_xs[i] = alpha_map[xs[i]]
-}
-return new_xs
-"""
-
 source = ColumnDataSource(data)
+
+ALPHA = w_alpha_slider.value
+SIZE = w_size_slider.value
 
 length = len(sorted(np.unique(source.data["counts"]).tolist()))
 alpha_map = dict(zip(sorted(np.unique(source.data["counts"]).tolist()),
-[w_alpha_slider.value if x/length < w_alpha_slider.value else x/length for x in range(0,length)]))
+[w_alpha_slider.value if x/length < ALPHA else x/length for x in range(0,length)]))
 
 numerical_alpha_transformer = CustomJSTransform(args={"alpha_map": alpha_map}, v_func=v_func_alpha)
 
-#get which categories are we plotting:
-categories = w_subset_select.value
-if len(categories) == 0: #plot all
-    plot.hex_tile(q="q",r="r",size=0.1,source=source, alpha = 0.2, 
-    color  = "#D3D3D3") #grey plot all
+plot.hex_tile(q="q",r="r",size = SIZE,source=source, alpha = ALPHA, 
+color  = "#D3D3D3",line_color = None) #grey plot all
 
-    if len(w_color_check.active) == 0:
-        pass
-    else:
-        plot.hex_tile(q="q",r="r",size=0.1,source=source,
-        alpha = transform("counts",numerical_alpha_transformer),line_color = None, 
-        color   = {'field': 'coloring_scheme', 'transform': mapper})
+if len(w_color_check.active) == 0:
+    pass
 else:
-    #plot only highlighted ones. 
-    #TODO just remove the non highlighted, plot everything else?
-    for category in categories:
-        new_source = ColumnDataSource(data.loc[(data.obs == category)])
-        plot.hex_tile(q="q",r="r",size=0.1,source=new_source, 
-        color  = "#D3D3D3",  alpha = 0.2)
+    plot.hex_tile(q="q",r="r",size = SIZE,source=source,
+    alpha = transform("counts",numerical_alpha_transformer),line_color = None, 
+    color   = {'field': 'coloring_scheme', 'transform': mapper})
 
-    if len(w_color_check.active) == 0:
-        pass
-    else:
-        for category in categories:
-            new_source = ColumnDataSource(data.loc[(data.obs == category)])
+#1. colorbar
+color_bar = ColorBar(color_mapper=mapper, location=(
+    0, 0), major_label_text_font_size="0px", major_tick_in=2)
+# 2. colorbar title
+value_text = w_gene3.value if w_z_axis_radio.active == GENE_OPTION else w_facet_numerical_3.value
 
-            plot.hex_tile(q="q",r="r",size=0.1,source=new_source,
-            alpha = transform("counts",numerical_alpha_transformer),line_color = None, 
-            color   = {'field': 'coloring_scheme', 'transform': mapper})
+colorbar_text = Label(text=f'{value_text}', x=-20, y=520, x_units='screen',
+                      y_units='screen', text_align="center", text_font_style="italic", text_font_size="12px")
+# 3. min value
+tick_min = Label(text=f'{np.round(np.percentile(np.array(data["coloring_scheme"]),1),2)}', x=-40, y=15, y_units='screen',
+                 x_units="screen", text_align="left", text_baseline="middle", text_font_size="12px")
+# 4. max value
+tick_max = Label(text= f'{np.round(np.percentile(np.array(data["coloring_scheme"]),99),2)}', x=-50, y=510, y_units='screen',
+                 x_units="screen", text_align="left", text_baseline="middle", text_font_size="12px")
+#5. add count axis
+plot.extra_y_ranges["y2"] =  Range1d(start = data["counts"].min(), end = data["counts"].max())
+extra_axis = LinearAxis(y_range_name = "y2",axis_label = "Counts by Transparency per Hex tile")
 
 
-#TODO: extras: add colorbar, add xy title labels, legend
+plot.add_layout(color_bar, "right")
+plot.add_layout(colorbar_text, "right")
+plot.add_layout(tick_min, "right")
+plot.add_layout(tick_max, "right")
+plot.add_layout(extra_axis, 'right')
 
+if len(w_color_check.active) == 0:
+    color_bar.visible = False
+    colorbar_text.visible = False
+    tick_min.visible = False
+    tick_max.visible = False
 
 x_label = ""
 y_label = ""
@@ -340,12 +353,13 @@ y_label = ""
 def cb_update_plot(attr, old, new,type_change):
     """Populate and update the plot."""
     curdoc().hold()
-    global plot,source, X_AXIS, Y_AXIS, Z_AXIS, widget_axes,x_label,y_label
+    global plot,source, X_AXIS, Y_AXIS, Z_AXIS, SIZE, ALPHA, widget_axes,x_label,y_label, extra_axis,color_bar, colorbar_text, tick_max,tick_min, numerical_alpha_transformer,alpha_map
 
 
     X_AXIS = "geneX" if w_x_axis_radio.active == GENE_OPTION else "num_facetX"
     Y_AXIS = "geneY" if w_y_axis_radio.active == GENE_OPTION else "num_facetY"
     Z_AXIS = "geneZ" if w_z_axis_radio.active == GENE_OPTION else "num_facetZ"
+
 
     data,yamldata = modify_data()
     # get_unique_obs(data)
@@ -353,8 +367,17 @@ def cb_update_plot(attr, old, new,type_change):
 
     facet = w_facet.value
     source = ColumnDataSource(data)
+    ALPHA = w_alpha_slider.value
+    SIZE = w_size_slider.value
+    alpha_map = dict(zip(sorted(np.unique(source.data["counts"]).tolist()),
+    [w_alpha_slider.value if x/length < ALPHA else x/length for x in range(0,length)]))
 
+    numerical_alpha_transformer = CustomJSTransform(args={"alpha_map": alpha_map}, v_func=v_func_alpha)
 
+    color_bar.visible = False
+    colorbar_text.visible = False
+    tick_min.visible = False
+    tick_max.visible = False
 
     #update plot now
     plot.renderers = []
@@ -364,35 +387,28 @@ def cb_update_plot(attr, old, new,type_change):
         low=np.percentile(np.array(data["coloring_scheme"]),1),
         high=np.percentile(np.array(data["coloring_scheme"]),99))
 
-    if len(categories) == 0: #plot all
-        plot.hex_tile(q="q",r="r",size=0.1,source=source, 
-        color  = "#D3D3D3",  alpha = 0.2) #grey plot all
+    # if len(categories) == 0: #plot all
+    plot.hex_tile(q="q",r="r",size = SIZE,source=source, 
+    color  = "#D3D3D3",  alpha = ALPHA,line_color = None) #grey plot all
 
-        if len(w_color_check.active) == 0:
-            pass
-        else:
-            plot.hex_tile(q="q",r="r",size=0.1,source=source,
-            alpha = transform("counts",numerical_alpha_transformer),line_color = None, 
-            color   = {'field': 'coloring_scheme', 'transform': mapper})
+    if len(w_color_check.active) == 0:
+        pass
     else:
-        #plot only highlighted ones. 
-        #TODO just remove the non highlighted, plot everything else?
-        for category in categories:
-            new_source = ColumnDataSource(data.loc[(data.obs == category)])
-            plot.hex_tile(q="q",r="r",size=0.1,source=new_source, 
-            color  = "#D3D3D3",  alpha = 0.2)
+        plot.hex_tile(q="q",r="r",size = SIZE,source=source,
+        alpha = transform("counts",numerical_alpha_transformer),line_color = None, 
+        color   = {'field': 'coloring_scheme', 'transform': mapper})
 
-        if len(w_color_check.active) == 0:
-            pass
-        else:
-            for category in categories:
-                new_source = ColumnDataSource(data.loc[(data.obs == category)])
+        # change component values texts
+        value_text = w_gene3.value if w_z_axis_radio.active == GENE_OPTION else w_facet_numerical_3.value
+        colorbar_text.text = f'{value_text}'
+        tick_min.text = f'{np.round(np.percentile(np.array(data["coloring_scheme"]),1),2)}'
+        tick_max.text = f'{np.round(np.percentile(np.array(data["coloring_scheme"]),99),2)}'
 
-                plot.hex_tile(q="q",r="r",size=0.1,source=new_source,
-                alpha = transform("counts",numerical_alpha_transformer),line_color = None, 
-                color   = {'field': 'coloring_scheme', 'transform': mapper})
-
-
+        # make them visible again
+        color_bar.visible = True
+        colorbar_text.visible = True
+        tick_min.visible = True
+        tick_max.visible = True
 
     w_div_title_author.text = \
         f"""
@@ -415,8 +431,12 @@ def cb_update_plot(attr, old, new,type_change):
     plot.title.text = (f"{x_label} vs {y_label} - "
                        f"({dataset_id}) {title}...")
 
-    plot.xaxis.axis_label = f"{x_label}"
-    plot.yaxis.axis_label = f"{y_label}"
+    #only change main x and y axes labels...
+    plot.xaxis[0].axis_label = f"{x_label}"
+    plot.yaxis[0].axis_label = f"{y_label}"
+
+    plot.extra_y_ranges["y2"].update(start = data["counts"].min(), end = data["counts"].max())
+
     w_download_filename.text = f"exp_{dataset_id}_{facet}_{x_label}_{y_label}.tsv"
     
     curdoc().unhold()
@@ -453,13 +473,13 @@ w_facet_numerical_2.on_change("value", partial(cb_update_plot,type_change=None))
 w_facet_numerical_3.on_change("value", partial(cb_update_plot,type_change=None))
 w_subset_select.on_change("value",partial(cb_update_plot,type_change = None))
 w_alpha_slider.on_change("value",partial(cb_update_plot,type_change = None))
+w_size_slider.on_change("value",partial(cb_update_plot,type_change = None))
 w_x_axis_radio.on_change("active",partial(cb_update_plot,type_change = None))
 w_y_axis_radio.on_change("active",partial(cb_update_plot,type_change = None))
 w_z_axis_radio.on_change("active",partial(cb_update_plot,type_change = None))
 w_color_check.on_change("active",partial(cb_update_plot,type_change = None))
 w_dataset_id.on_change("value", cb_dataset_change)
 w_download.js_on_click(cb_download)
-
 
 curdoc().add_root(
     column([
@@ -471,7 +491,7 @@ curdoc().add_root(
                     sizing_mode='stretch_width'),
                 row([w_x_axis_radio,w_y_axis_radio,w_z_axis_radio],
                     sizing_mode='stretch_width'),
-                row([w_facet,w_subset_select, w_alpha_slider,w_download],
+                row([w_facet,w_subset_select, w_alpha_slider,w_size_slider, w_download],
                     sizing_mode='stretch_both'),
                 row([w_color_check],
                     sizing_mode='stretch_width')],   
