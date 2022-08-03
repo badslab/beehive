@@ -54,9 +54,9 @@ w_dataset_id = create_widget("dataset_id", Select, title="Dataset",
 #X and Y axes
 LABELS_AXIS = ["Gene", "Numerical Facet"]
 w_gene1 = create_widget("geneX", AutocompleteInput,
-                       completions=[], default='APOE', title = "Gene")
+                       completions=[], default='APOE', title = "Gene", case_sensitive=False)
 w_gene2 = create_widget("geneY", AutocompleteInput,
-                       completions=[], default='TREM2', title = "Gene")
+                       completions=[], default='TREM2', title = "Gene", case_sensitive=False)
 w_facet_numerical_1 = create_widget("num_facetX", Select,
                                     options=[], title="Numerical Facet")
 w_facet_numerical_2 = create_widget("num_facetY", Select,
@@ -74,7 +74,7 @@ LABELS_GROUPING = ["Gene", "Numerical Facet"]
 
 #color by gene expression
 w_gene3 = create_widget("geneZ", AutocompleteInput,
-                       completions=[], default='TREM2', title = "Gene")
+                       completions=[], default='TREM2', title = "Gene", case_sensitive=False)
 #color by continuous facet
 w_facet_numerical_3 = create_widget("num_facetZ", Select,
                                     options=[], title="Numerical Facet")
@@ -278,8 +278,7 @@ Z_AXIS = "geneZ" if w_z_axis_radio.active == GENE_OPTION else "num_facetZ"
 plot = figure(output_backend = "webgl")
 dataset_id, dataset = get_dataset()
 data,yamldata = modify_data()
-print(yamldata)
-print(data)
+
 mapper = LinearColorMapper(
     palette='Magma256',
     low=np.percentile(np.array(data["coloring_scheme"]),1),
@@ -457,7 +456,7 @@ w_alpha_slider.on_change("value",partial(cb_update_plot,type_change = None))
 w_x_axis_radio.on_change("active",partial(cb_update_plot,type_change = None))
 w_y_axis_radio.on_change("active",partial(cb_update_plot,type_change = None))
 w_z_axis_radio.on_change("active",partial(cb_update_plot,type_change = None))
-
+w_color_check.on_change("active",partial(cb_update_plot,type_change = None))
 w_dataset_id.on_change("value", cb_dataset_change)
 w_download.js_on_click(cb_download)
 
