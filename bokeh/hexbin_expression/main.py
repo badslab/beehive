@@ -267,7 +267,7 @@ def modify_data():
 
     final_result = pd.DataFrame(dicts)
 
-    return final_result, data
+    return final_result
 
 v_func_alpha  = """
 var new_xs = new Array(xs.length)
@@ -288,7 +288,7 @@ Z_AXIS = "geneZ" if w_z_axis_radio.active == GENE_OPTION else "num_facetZ"
 
 plot = figure(output_backend = "webgl")
 dataset_id, dataset = get_dataset()
-data,yamldata = modify_data()
+data = modify_data()
 
 mapper = LinearColorMapper(
     palette='Magma256',
@@ -361,7 +361,7 @@ def cb_update_plot(attr, old, new,type_change):
     Z_AXIS = "geneZ" if w_z_axis_radio.active == GENE_OPTION else "num_facetZ"
 
 
-    data,yamldata = modify_data()
+    data = modify_data()
     # get_unique_obs(data)
     dataset_id, dataset = get_dataset()
 
