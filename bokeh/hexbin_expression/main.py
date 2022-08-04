@@ -26,7 +26,7 @@ curdoc().template_variables['view_name'] = 'Hexbin Expression'
 
 GENE_OPTION = 0
 FACET_OPTION = 1
-
+COLOR_POSSIBILITIES = ["None", "Density (counts)","Metadata (Gene or Numerical Facet)"]
 create_widget = partial(util.create_widget, curdoc=curdoc())
 
 datasets = expset.get_datasets()
@@ -80,7 +80,8 @@ w_gene3 = create_widget("geneZ", AutocompleteInput,
 w_facet_numerical_3 = create_widget("num_facetZ", Select,
                                     options=[], title="Numerical Facet")
 #color/ yes or no?
-w_color_check = CheckboxGroup(labels=["Color by Z-Axis"], active=[0])
+w_color_check = create_widget(
+    "w_color_check", RadioGroup, labels=COLOR_POSSIBILITIES, default=0, title="Color By:", value_type=int)
 #color by gene or numerical facet?
 w_z_axis_radio = create_widget(
     "z_axis_radio", RadioGroup, labels=LABELS_AXIS, default=0, title="Grouped:", value_type=int)
@@ -197,7 +198,6 @@ def get_data() -> pd.DataFrame:
     x_axis = w_x_axis_radio.active
     y_axis = w_y_axis_radio.active
     z_axis = w_z_axis_radio.active
-    color_check = w_color_check.active
 
     if x_axis == GENE_OPTION:
         geneX = expset.get_gene(dataset_id, gene1)[:, 0]
@@ -208,12 +208,14 @@ def get_data() -> pd.DataFrame:
     else:
         num_facetY = expset.get_meta(dataset_id, num_facet2, raw=True)[:, 0]
 
-    if len(color_check) == 1:
-        if z_axis == GENE_OPTION:
-            geneZ = expset.get_gene(dataset_id, gene3)[:, 0]
-        else:
-            num_facetZ = expset.get_meta(dataset_id, num_facet3, raw=True)[:, 0]
-    
+    # if COLOR_POSSIBILITIES[w_color_check.active] == "Metadata (Gene or Numerical Facet)":
+    #     if z_axis == GENE_OPTION:
+    #         geneZ = expset.get_gene(dataset_id, gene3)[:, 0]
+    #     else:
+    #         num_facetZ = expset.get_meta(dataset_id, num_facet3, raw=True)[:, 0]
+    geneZ = expset.get_gene(dataset_id, gene3)[:, 0]
+    num_facetZ = expset.get_meta(dataset_id, num_facet3, raw=True)[:, 0]
+
     ##TODO maybe check for numerical/categorical here?
     lg.warning(f"!! Getting data for {dataset_id} {facet} {gene1}")
 
@@ -244,10 +246,18 @@ def get_unique_obs(data):
 
 def modify_data():
     data = get_data()
+
+    # if COLOR_POSSIBILITIES[w_color_check.active] == "None":
+    #     data.drop("num_facetZ",axis=1,inplace = True)
+    #     data.drop("geneZ",axis=1,inplace = True)
+ 
     global unique_obs, X_AXIS, Y_AXIS
     unique_obs = get_unique_obs(data)
     categories = w_subset_select.value
     SIZE = w_size_slider.value
+
+    q_full, r_full = cartesian_to_axial(data[X_AXIS], data[Y_AXIS], size = SIZE, orientation = "pointytop")
+
     if len(categories) == 0:
         q, r = cartesian_to_axial(data[X_AXIS], data[Y_AXIS], size = SIZE, orientation = "pointytop")
     else:
@@ -259,15 +269,17 @@ def modify_data():
     dicts = []
     ###assign axial coordinates to get average gene expression###
     #need to che
+
     for key,val in groups.groups.items():
         q,r = key
         counts = len(val)
+
         coloring_scheme = data[Z_AXIS].loc[groups.groups.get((q,r))].mean()
         dicts = dicts + [{"q" : q,"r" : r,"counts" : counts, "coloring_scheme" :coloring_scheme,"index_list":val}]
 
     final_result = pd.DataFrame(dicts)
-
-    return final_result
+    data_full = pd.DataFrame(dict(r=r_full,q=q_full))
+    return final_result, data_full
 
 v_func_alpha  = """
 var new_xs = new Array(xs.length)
@@ -288,15 +300,21 @@ Z_AXIS = "geneZ" if w_z_axis_radio.active == GENE_OPTION else "num_facetZ"
 
 plot = figure(output_backend = "webgl")
 dataset_id, dataset = get_dataset()
-data = modify_data()
+data,hex_full = modify_data()
 
 mapper = LinearColorMapper(
     palette='Magma256',
     low=np.percentile(np.array(data["coloring_scheme"]),1),
     high=np.percentile(np.array(data["coloring_scheme"]),99))
 
-source = ColumnDataSource(data)
+mapper2 = LinearColorMapper(
+    palette='Viridis256',
+    low=np.percentile(np.array(data["counts"]),1),
+    high=np.percentile(np.array(data["counts"]),99))
 
+
+source = ColumnDataSource(data)
+source_full = ColumnDataSource(hex_full)
 ALPHA = w_alpha_slider.value
 SIZE = w_size_slider.value
 
@@ -306,42 +324,52 @@ alpha_map = dict(zip(sorted(np.unique(source.data["counts"]).tolist()),
 
 numerical_alpha_transformer = CustomJSTransform(args={"alpha_map": alpha_map}, v_func=v_func_alpha)
 
-plot.hex_tile(q="q",r="r",size = SIZE,source=source, alpha = ALPHA, 
-color  = "#D3D3D3",line_color = None) #grey plot all
+plot.hex_tile(q="q",r="r",size = SIZE,source=source_full,
+    color  = "#D3D3D3",line_color = None) #grey plot all
 
-if len(w_color_check.active) == 0:
+
+if COLOR_POSSIBILITIES[w_color_check.active] == "None":
+    value_text = ""
+    tick_min_text = ""
+    tick_max_text = ""
     pass
+    
+elif COLOR_POSSIBILITIES[w_color_check.active] == "Density (counts)":
+    plot.hex_tile(q="q",r="r",size = SIZE,source=source,
+    line_color = None, 
+    color   = {'field': 'counts', 'transform': mapper2})
+    value_text = "counts"
+    tick_min_text = f'{np.round(np.percentile(np.array(data["counts"]),1),2)}'
+    tick_max_text = f'{np.round(np.percentile(np.array(data["counts"]),99),2)}'
+
 else:
     plot.hex_tile(q="q",r="r",size = SIZE,source=source,
-    alpha = transform("counts",numerical_alpha_transformer),line_color = None, 
+    line_color = None, 
     color   = {'field': 'coloring_scheme', 'transform': mapper})
+    value_text = w_gene3.value if w_z_axis_radio.active == GENE_OPTION else w_facet_numerical_3.value
+    tick_min_text = f'{np.round(np.percentile(np.array(data["coloring_scheme"]),1),2)}'
+    tick_max_text = f'{np.round(np.percentile(np.array(data["coloring_scheme"]),99),2)}'
 
 #1. colorbar
 color_bar = ColorBar(color_mapper=mapper, location=(
     0, 0), major_label_text_font_size="0px", major_tick_in=2)
 # 2. colorbar title
-value_text = w_gene3.value if w_z_axis_radio.active == GENE_OPTION else w_facet_numerical_3.value
 
-colorbar_text = Label(text=f'{value_text}', x=-20, y=520, x_units='screen',
+colorbar_text = Label(text=value_text, x=-20, y=520, x_units='screen',
                       y_units='screen', text_align="center", text_font_style="italic", text_font_size="12px")
 # 3. min value
-tick_min = Label(text=f'{np.round(np.percentile(np.array(data["coloring_scheme"]),1),2)}', x=-40, y=15, y_units='screen',
+tick_min = Label(text=tick_min_text, x=-40, y=15, y_units='screen',
                  x_units="screen", text_align="left", text_baseline="middle", text_font_size="12px")
 # 4. max value
-tick_max = Label(text= f'{np.round(np.percentile(np.array(data["coloring_scheme"]),99),2)}', x=-50, y=510, y_units='screen',
+tick_max = Label(text=tick_max_text, x=-50, y=510, y_units='screen',
                  x_units="screen", text_align="left", text_baseline="middle", text_font_size="12px")
-#5. add count axis
-plot.extra_y_ranges["y2"] =  Range1d(start = data["counts"].min(), end = data["counts"].max())
-extra_axis = LinearAxis(y_range_name = "y2",axis_label = "Counts by Transparency per Hex tile")
-
 
 plot.add_layout(color_bar, "right")
 plot.add_layout(colorbar_text, "right")
 plot.add_layout(tick_min, "right")
 plot.add_layout(tick_max, "right")
-plot.add_layout(extra_axis, 'right')
 
-if len(w_color_check.active) == 0:
+if COLOR_POSSIBILITIES[w_color_check.active] == "None":
     color_bar.visible = False
     colorbar_text.visible = False
     tick_min.visible = False
@@ -361,18 +389,20 @@ def cb_update_plot(attr, old, new,type_change):
     Z_AXIS = "geneZ" if w_z_axis_radio.active == GENE_OPTION else "num_facetZ"
 
 
-    data = modify_data()
+    data,hex_full = modify_data()
     # get_unique_obs(data)
     dataset_id, dataset = get_dataset()
 
     facet = w_facet.value
     source = ColumnDataSource(data)
+    source_full = ColumnDataSource(hex_full)
     ALPHA = w_alpha_slider.value
     SIZE = w_size_slider.value
-    alpha_map = dict(zip(sorted(np.unique(source.data["counts"]).tolist()),
-    [w_alpha_slider.value if x/length < ALPHA else x/length for x in range(0,length)]))
 
-    numerical_alpha_transformer = CustomJSTransform(args={"alpha_map": alpha_map}, v_func=v_func_alpha)
+    # alpha_map = dict(zip(sorted(np.unique(source.data["counts"]).tolist()),
+    # [w_alpha_slider.value if x/length < ALPHA else x/length for x in range(0,length)]))
+
+    # numerical_alpha_transformer = CustomJSTransform(args={"alpha_map": alpha_map}, v_func=v_func_alpha)
 
     color_bar.visible = False
     colorbar_text.visible = False
@@ -386,23 +416,36 @@ def cb_update_plot(attr, old, new,type_change):
         palette='Magma256',
         low=np.percentile(np.array(data["coloring_scheme"]),1),
         high=np.percentile(np.array(data["coloring_scheme"]),99))
+    
+    mapper2 = LinearColorMapper(
+    palette='Viridis256',
+    low=np.percentile(np.array(data["counts"]),1),
+    high=np.percentile(np.array(data["counts"]),99))
 
-    # if len(categories) == 0: #plot all
-    plot.hex_tile(q="q",r="r",size = SIZE,source=source, 
-    color  = "#D3D3D3",  alpha = ALPHA,line_color = None) #grey plot all
 
-    if len(w_color_check.active) == 0:
+    plot.hex_tile(q="q",r="r",size = SIZE,source=source_full,
+        color  = "#D3D3D3",line_color = None) #grey plot all
+
+
+    if COLOR_POSSIBILITIES[w_color_check.active] == "None":
         pass
     else:
-        plot.hex_tile(q="q",r="r",size = SIZE,source=source,
-        alpha = transform("counts",numerical_alpha_transformer),line_color = None, 
-        color   = {'field': 'coloring_scheme', 'transform': mapper})
+        if COLOR_POSSIBILITIES[w_color_check.active] == "Density (counts)":
+            plot.hex_tile(q="q",r="r",size = SIZE,source=source,
+            line_color = None, 
+            color   = {'field': 'counts', 'transform': mapper2})
+            colorbar_text.text = "counts"
+            tick_min.text = f'{np.round(np.percentile(np.array(data["counts"]),1),2)}'
+            tick_max.text = f'{np.round(np.percentile(np.array(data["counts"]),99),2)}'
 
-        # change component values texts
-        value_text = w_gene3.value if w_z_axis_radio.active == GENE_OPTION else w_facet_numerical_3.value
-        colorbar_text.text = f'{value_text}'
-        tick_min.text = f'{np.round(np.percentile(np.array(data["coloring_scheme"]),1),2)}'
-        tick_max.text = f'{np.round(np.percentile(np.array(data["coloring_scheme"]),99),2)}'
+        else:
+            plot.hex_tile(q="q",r="r",size = SIZE,source=source,
+            line_color = None, 
+            color   = {'field': 'coloring_scheme', 'transform': mapper})
+
+            colorbar_text.text = w_gene3.value if w_z_axis_radio.active == GENE_OPTION else w_facet_numerical_3.value
+            tick_min.text = f'{np.round(np.percentile(np.array(data["coloring_scheme"]),1),2)}'
+            tick_max.text = f'{np.round(np.percentile(np.array(data["coloring_scheme"]),99),2)}'
 
         # make them visible again
         color_bar.visible = True
@@ -434,8 +477,6 @@ def cb_update_plot(attr, old, new,type_change):
     #only change main x and y axes labels...
     plot.xaxis[0].axis_label = f"{x_label}"
     plot.yaxis[0].axis_label = f"{y_label}"
-
-    plot.extra_y_ranges["y2"].update(start = data["counts"].min(), end = data["counts"].max())
 
     w_download_filename.text = f"exp_{dataset_id}_{facet}_{x_label}_{y_label}.tsv"
     
