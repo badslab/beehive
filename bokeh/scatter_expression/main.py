@@ -304,21 +304,33 @@ else:
 
 # Colorbar###:
 # 4 components:
+if Z_AXIS == "gene":
+    text_label = w_gene3.value
+    min_text = data["geneZ"].min()
+    max_text = data["geneZ"].max()
+elif Z_AXIS == "numerical facet":
+    text_label = w_facet_numerical_3.value
+    min_text = data["num_facetZ"].min()
+    max_text = data["num_facetZ"].max()
+else:
+    text_label = ""
+    min_text = ""
+    max_text = ""
 # 1.colorbar
 color_bar = ColorBar(color_mapper=mapper, location=(
     0, 0), major_label_text_font_size="0px", major_tick_in=2)
 plot.add_layout(color_bar, "right")
 # 2. colorbar title
-colorbar_text = Label(text=f'{w_gene3.value}', x=-20, y=520, x_units='screen',
+colorbar_text = Label(text=f'{text_label}', x=-20, y=520, x_units='screen',
                       y_units='screen', text_align="center", text_font_style="italic", text_font_size="12px")
 plot.add_layout(colorbar_text, "right")
 # 3. min value
 
-tick_min = Label(text=f'{data["geneZ"].min():.2f}', x=-40, y=15, y_units='screen',
+tick_min = Label(text=f'{min_text:.2f}', x=-40, y=15, y_units='screen',
                  x_units="screen", text_align="left", text_baseline="middle", text_font_size="12px")
 plot.add_layout(tick_min, "right")
 # 4. max value
-tick_max = Label(text=f'{data["geneZ"].max():.2f}', x=-50, y=510, y_units='screen',
+tick_max = Label(text=f'{max_text:.2f}', x=-50, y=510, y_units='screen',
                  x_units="screen", text_align="left", text_baseline="middle", text_font_size="12px")
 plot.add_layout(tick_max, "right")
 
