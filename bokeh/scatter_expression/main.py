@@ -1,3 +1,4 @@
+from ctypes import sizeof
 from enum import unique
 import logging
 from functools import partial
@@ -6,7 +7,7 @@ import pandas as pd
 from scipy import stats
 import numpy as np
 from bokeh.layouts import column, row
-from bokeh.models import ColumnDataSource, CheckboxGroup, RadioGroup, LinearColorMapper, ColorBar, Label
+from bokeh.models import (ColumnDataSource, CheckboxGroup, RadioGroup, LinearColorMapper, ColorBar, Label,Slider)
 from bokeh.models.callbacks import CustomJS
 from bokeh.models.widgets import (Select, Div,
                                   Button, AutocompleteInput)
@@ -101,6 +102,8 @@ w_download = Button(label='Download', align='end')
 w_download_filename = Div(text="", visible=False,
                           name="download_filename")
 
+w_alpha_slider = create_widget("alpha_picker",Slider,start=0.1, end=1, default=0.7,step=0.05,title = "Opacity",value_type = float)
+w_size_slider = create_widget("size_picker",Slider,start=2, end=15, default=5,step=1,title = "Points Size",value_type = int)
 
 # To display text if the gene is not found
 w_gene_not_found = Div(text="")
@@ -155,7 +158,7 @@ def update_numerical_facets():
     w_facet_numerical_2.options = options
     w_facet_numerical_3.options = options
     # some datasets might not have any numerical facets
-    if not(options):
+    if not(options): 
         return
 
     if w_facet_numerical_1.value not in [x[0] for x in options]:
@@ -167,6 +170,8 @@ def update_numerical_facets():
     if w_facet_numerical_3.value not in [x[0] for x in options]:
         # set a default
         w_facet_numerical_3.value = options[0][0]
+    if len(options) == 0:
+        w_category_radio.update(labels = ["categorical facet", "gene"])
 
 update_numerical_facets()
 
@@ -213,6 +218,7 @@ def get_data() -> pd.DataFrame:
     
     if num_facet3:
         num_facetZ = expset.get_meta(dataset_id, num_facet3, raw=True)[:, 0]
+
     lg.warning(f"!! Getting data for {dataset_id} {facet} {gene1}")
 
     lg.warning(f"!! Getting data for {dataset_id} {facet} {gene2}")
@@ -226,6 +232,9 @@ def get_data() -> pd.DataFrame:
         geneZ=geneZ,
         num_facetZ = num_facetZ
     ))
+    if len(w_facet_numerical_1.options) == 0:
+        data.drop("num_facetZ",axis=1,inplace = True)
+
     return data
 
 
@@ -243,7 +252,8 @@ def get_unique_obs(data):
 
 def get_mapper():
     """"Set up palette for ColorBar"""
-    if LABELS_GROUPING[w_category_radio.active] == "gene":
+
+    if LABELS_GROUPING[w_category_radio.active] == "gene" or len(w_facet_numerical_1.options) == 0 :
         mapper = LinearColorMapper(
             palette='Magma256',
             low=data["geneZ"].min(),
@@ -283,6 +293,8 @@ Z_AXIS = LABELS_GROUPING[w_category_radio.active]
 
 # for colorbar
 mapper = get_mapper()
+ALPHA = w_alpha_slider.value
+SIZE = w_size_slider.value
 
 # Are we plotting the coloring with obs categorical or with obs numerical?
 if Z_AXIS == "categorical facet":
@@ -292,15 +304,15 @@ if Z_AXIS == "categorical facet":
         new_source = ColumnDataSource(data.loc[(data.obs == obs)])
 
         plot.scatter(x=X_AXIS, y=Y_AXIS, source=new_source,  legend_label=obs,
-                     fill_alpha=0.7, size=5, width=0, fill_color=index_cmap["transform"].palette[index])
+                     fill_alpha=ALPHA, size=SIZE, width=0, fill_color=index_cmap["transform"].palette[index])
     plot.legend.location = "top_right"
     plot.legend.click_policy = "hide"
 elif Z_AXIS == "gene":
     plot.scatter(x=X_AXIS, y=Y_AXIS, source=ColumnDataSource(data),
-                 fill_alpha=0.7, size=5, width=0, fill_color={'field': 'geneZ', 'transform': mapper})
+                 fill_alpha=ALPHA, size=SIZE, width=0, fill_color={'field': 'geneZ', 'transform': mapper})
 else:
     plot.scatter(x=X_AXIS, y=Y_AXIS, source=ColumnDataSource(data),
-                 fill_alpha=0.7, size=5, width=0, fill_color={'field': 'num_facetZ', 'transform': mapper})
+                 fill_alpha=ALPHA, size=ALPHA, width=0, fill_color={'field': 'num_facetZ', 'transform': mapper})
 
 # Colorbar###:
 # 4 components:
@@ -314,8 +326,8 @@ elif Z_AXIS == "numerical facet":
     max_text = data["num_facetZ"].max()
 else:
     text_label = ""
-    min_text = ""
-    max_text = ""
+    min_text = "1"
+    max_text = "1"
 # 1.colorbar
 color_bar = ColorBar(color_mapper=mapper, location=(
     0, 0), major_label_text_font_size="0px", major_tick_in=2)
@@ -326,11 +338,11 @@ colorbar_text = Label(text=f'{text_label}', x=-20, y=520, x_units='screen',
 plot.add_layout(colorbar_text, "right")
 # 3. min value
 
-tick_min = Label(text=f'{min_text:.2f}', x=-40, y=15, y_units='screen',
+tick_min = Label(text=f'{min_text}:.2f', x=-40, y=15, y_units='screen',
                  x_units="screen", text_align="left", text_baseline="middle", text_font_size="12px")
 plot.add_layout(tick_min, "right")
 # 4. max value
-tick_max = Label(text=f'{max_text:.2f}', x=-50, y=510, y_units='screen',
+tick_max = Label(text=f'{max_text}:.2f', x=-50, y=510, y_units='screen',
                  x_units="screen", text_align="left", text_baseline="middle", text_font_size="12px")
 plot.add_layout(tick_max, "right")
 
@@ -354,9 +366,16 @@ def cb_update_plot(attr, old, new, type_change):
     # if type_change not in ["XYAXIS", "regression", "categorical", "geneX", "geneY", "num_facetX", "num_facetY","num_facetZ"]:
     #     curdoc().unhold()
     #     return
-
+    if type_change == "cosmetics":
+        for glyph_renderer in plot.renderers:
+            glyph_renderer.glyph.size = w_size_slider.value
+            glyph_renderer.glyph.fill_alpha = w_alpha_slider.value
+        curdoc().unhold()
+        return
 
     data = get_data()
+    #no numerical facets. => need to add which views have numerical and which dont : updates widgets
+
     dataset_id, dataset = get_dataset()
 
     facet = w_facet.value
@@ -384,7 +403,8 @@ def cb_update_plot(attr, old, new, type_change):
     colorbar_text.visible = False
     tick_min.visible = False
     tick_max.visible = False
-
+    ALPHA =  w_alpha_slider.value
+    SIZE = w_size_slider.value
     # plot again:
     if Z_AXIS == "categorical facet":
         for index, obs in enumerate(unique_obs):
@@ -402,13 +422,13 @@ def cb_update_plot(attr, old, new, type_change):
                           legend_label=f"{obs}: y={str(round(slope,2))}x+{str(round(intercept,2))}, p-value={'{:e}'.format(p_value)}, r-value={str(round(r_value,2))}")
             else:
                 plot.scatter(x=X_AXIS, y=Y_AXIS, source=new_source,  legend_label=obs,
-                             fill_alpha=0.7, size=5, width=0, fill_color=index_cmap["transform"].palette[index])
+                             fill_alpha=ALPHA, size=SIZE, width=0, fill_color=index_cmap["transform"].palette[index])
         plot.legend.location = "top_right"
         plot.legend.click_policy = "hide"
     elif Z_AXIS == "gene":
         mapper = get_mapper()
         plot.scatter(x=X_AXIS, y=Y_AXIS, source=ColumnDataSource(data),
-                     fill_alpha=0.7, size=5, width=0, fill_color={'field': 'geneZ', 'transform': mapper})
+                     fill_alpha=ALPHA, size=SIZE, width=0, fill_color={'field': 'geneZ', 'transform': mapper})
 
         # change component values texts
         colorbar_text.text = f'{w_gene3.value}'
@@ -423,7 +443,7 @@ def cb_update_plot(attr, old, new, type_change):
     else:
         mapper = get_mapper()
         plot.scatter(x=X_AXIS, y=Y_AXIS, source=ColumnDataSource(data),
-                     fill_alpha=0.7, size=5, width=0, fill_color={'field': 'num_facetZ', 'transform': mapper})
+                     fill_alpha=ALPHA, size=SIZE, width=0, fill_color={'field': 'num_facetZ', 'transform': mapper})
 
         # change component values texts
         colorbar_text.text = f'{w_facet_numerical_3.value}'
@@ -513,6 +533,8 @@ w_y_axis_radio.on_change("active", partial(
 w_category_radio.on_change("active", partial(
     cb_update_plot, type_change="categorical"))
 
+w_alpha_slider.on_change("value", partial(cb_update_plot, type_change="cosmetics"))
+w_size_slider.on_change("value", partial(cb_update_plot, type_change="cosmetics"))
 
 w_dataset_id.on_change("value", cb_dataset_change)
 w_download.js_on_click(cb_download)
@@ -528,6 +550,8 @@ curdoc().add_root(
                 row([w_x_axis_radio, w_y_axis_radio],
                     sizing_mode='stretch_width'),
                 row([w_gene3, w_facet, w_facet_numerical_3, w_category_radio,w_download],
+                    sizing_mode='stretch_width'),
+                row([w_alpha_slider, w_size_slider],
                     sizing_mode='stretch_width')],
                    sizing_mode='stretch_width')],
             sizing_mode='stretch_width'),
