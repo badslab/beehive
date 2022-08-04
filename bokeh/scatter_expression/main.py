@@ -75,7 +75,7 @@ FIXED_OPTIONS = [("geneX", "Gene X"), ("geneY", "Gene Y"), ("num_facetX",
                                                             "Numerical Facet on X"), ("num_facetY", "Numerical Facet on Y")]
 
 LABELS_AXIS = ["Gene", "Numerical Facet"]
-LABELS_GROUPING = ["facet", "gene"]
+LABELS_GROUPING = ["categorical facet", "gene","numerical facet"]
 
 w_x_axis_radio = create_widget(
     "x_axis_radio", RadioGroup, labels=LABELS_AXIS, default=0, title="X-Axis", value_type=int)
@@ -86,8 +86,11 @@ w_y_axis_radio = create_widget(
 w_facet = create_widget("facet", Select, options=[],
                         title="Group by Categories")
 
-w_gene3 = create_widget("gene_categorical", AutocompleteInput,
+w_gene3 = create_widget("geneZ", AutocompleteInput,
                         completions=[], default="APOE", title="Group by Gene Expression", case_sensitive=False)
+                        
+w_facet_numerical_3 = create_widget("num_facetZ", Select,
+                                    options=[], title="Numerical Facet")
 
 w_category_radio = create_widget(
     "category_radio", RadioGroup, labels=LABELS_GROUPING, default=0, title="Grouped:", value_type=int)
@@ -150,7 +153,7 @@ def update_numerical_facets():
     options = expset.get_facet_options_numerical(w_dataset_id.value)
     w_facet_numerical_1.options = options
     w_facet_numerical_2.options = options
-
+    w_facet_numerical_3.options = options
     # some datasets might not have any numerical facets
     if not(options):
         return
@@ -161,7 +164,9 @@ def update_numerical_facets():
     if w_facet_numerical_2.value not in [x[0] for x in options]:
         # set a default
         w_facet_numerical_2.value = options[0][0]
-
+    if w_facet_numerical_3.value not in [x[0] for x in options]:
+        # set a default
+        w_facet_numerical_3.value = options[0][0]
 
 update_numerical_facets()
 
@@ -174,6 +179,7 @@ def get_data() -> pd.DataFrame:
     facet = w_facet.value
     num_facet1 = w_facet_numerical_1.value
     num_facet2 = w_facet_numerical_2.value
+    num_facet3 = w_facet_numerical_3.value
 
     # all data will have 6 columns
     # initially set at None.
@@ -183,6 +189,7 @@ def get_data() -> pd.DataFrame:
     num_facetY = None
     geneZ = None
     gene3 = w_gene3.value
+    num_facetZ = None
 
     # only get the data that we want to visualize
     # x_axis and y_axis values indicate which
@@ -203,7 +210,9 @@ def get_data() -> pd.DataFrame:
     # with a gene expression
     if gene3:
         geneZ = expset.get_gene(dataset_id, gene3)[:, 0]
-
+    
+    if num_facet3:
+        num_facetZ = expset.get_meta(dataset_id, num_facet3, raw=True)[:, 0]
     lg.warning(f"!! Getting data for {dataset_id} {facet} {gene1}")
 
     lg.warning(f"!! Getting data for {dataset_id} {facet} {gene2}")
@@ -214,7 +223,8 @@ def get_data() -> pd.DataFrame:
         obs=expset.get_meta(dataset_id, facet)[:, 0],
         num_facetX=num_facetX,
         num_facetY=num_facetY,
-        geneZ=geneZ
+        geneZ=geneZ,
+        num_facetZ = num_facetZ
     ))
     return data
 
@@ -233,10 +243,17 @@ def get_unique_obs(data):
 
 def get_mapper():
     """"Set up palette for ColorBar"""
-    mapper = LinearColorMapper(
-        palette='Magma256',
-        low=data["geneZ"].min(),
-        high=data["geneZ"].max())
+    if LABELS_GROUPING[w_category_radio.active] == "gene":
+        mapper = LinearColorMapper(
+            palette='Magma256',
+            low=data["geneZ"].min(),
+            high=data["geneZ"].max())
+    else:
+        mapper = LinearColorMapper(
+            palette='Magma256',
+            low=data["num_facetZ"].min(),
+            high=data["num_facetZ"].max())
+
     return mapper
 
 #
@@ -262,13 +279,13 @@ index_cmap = factor_cmap('obs', palette, unique_obs)
 # initial set up of which x-axis and y-axis we plot
 X_AXIS = "geneX"
 Y_AXIS = "geneY"
-Z_AXIS = "facet" if w_category_radio.active == 0 else "gene"
+Z_AXIS = LABELS_GROUPING[w_category_radio.active]
 
 # for colorbar
 mapper = get_mapper()
 
 # Are we plotting the coloring with obs categorical or with obs numerical?
-if Z_AXIS == "facet":
+if Z_AXIS == "categorical facet":
     # Plot multiple glyphs, each glyph is for 1 unique obs group
     for index, obs in enumerate(unique_obs):
 
@@ -278,10 +295,12 @@ if Z_AXIS == "facet":
                      fill_alpha=0.7, size=5, width=0, fill_color=index_cmap["transform"].palette[index])
     plot.legend.location = "top_right"
     plot.legend.click_policy = "hide"
-else:
+elif Z_AXIS == "gene":
     plot.scatter(x=X_AXIS, y=Y_AXIS, source=ColumnDataSource(data),
                  fill_alpha=0.7, size=5, width=0, fill_color={'field': 'geneZ', 'transform': mapper})
-
+else:
+    plot.scatter(x=X_AXIS, y=Y_AXIS, source=ColumnDataSource(data),
+                 fill_alpha=0.7, size=5, width=0, fill_color={'field': 'num_facetZ', 'transform': mapper})
 
 # Colorbar###:
 # 4 components:
@@ -304,7 +323,7 @@ tick_max = Label(text=f'{data["geneZ"].max():.2f}', x=-50, y=510, y_units='scree
 plot.add_layout(tick_max, "right")
 
 # If we plot by categorical obs, we hide all the 4 components
-if Z_AXIS == "facet":
+if Z_AXIS == "categorical facet":
     color_bar.visible = False
     colorbar_text.visible = False
     tick_min.visible = False
@@ -320,11 +339,10 @@ def cb_update_plot(attr, old, new, type_change):
     curdoc().hold()
     global plot, index_cmap, X_AXIS, Y_AXIS, widget_axes, x_label, y_label, data, color_bar, colorbar_text, tick_min, tick_max
     # change type: if the button clicked needs to have an update in plotting or not
-    if type_change not in ["XYAXIS", "regression", "categorical", "geneX", "geneY", "num_facetX", "num_facetY"]:
-        curdoc().unhold()
-        return
+    # if type_change not in ["XYAXIS", "regression", "categorical", "geneX", "geneY", "num_facetX", "num_facetY","num_facetZ"]:
+    #     curdoc().unhold()
+    #     return
 
-    Z_AXIS = "facet" if w_category_radio.active == 0 else "gene"
 
     data = get_data()
     dataset_id, dataset = get_dataset()
@@ -347,6 +365,7 @@ def cb_update_plot(attr, old, new, type_change):
     # set up new x and y axis to be plotted
     X_AXIS = "geneX" if w_x_axis_radio.active == GENE_OPTION else "num_facetX"
     Y_AXIS = "geneY" if w_y_axis_radio.active == GENE_OPTION else "num_facetY"
+    Z_AXIS = LABELS_GROUPING[w_category_radio.active]
 
     # set colorbar (the 4 components) to be invisible
     color_bar.visible = False
@@ -355,7 +374,7 @@ def cb_update_plot(attr, old, new, type_change):
     tick_max.visible = False
 
     # plot again:
-    if Z_AXIS == "facet":
+    if Z_AXIS == "categorical facet":
         for index, obs in enumerate(unique_obs):
 
             new_source = ColumnDataSource(data.loc[(data.obs == obs)])
@@ -372,11 +391,9 @@ def cb_update_plot(attr, old, new, type_change):
             else:
                 plot.scatter(x=X_AXIS, y=Y_AXIS, source=new_source,  legend_label=obs,
                              fill_alpha=0.7, size=5, width=0, fill_color=index_cmap["transform"].palette[index])
-
         plot.legend.location = "top_right"
         plot.legend.click_policy = "hide"
-    else:
-
+    elif Z_AXIS == "gene":
         mapper = get_mapper()
         plot.scatter(x=X_AXIS, y=Y_AXIS, source=ColumnDataSource(data),
                      fill_alpha=0.7, size=5, width=0, fill_color={'field': 'geneZ', 'transform': mapper})
@@ -385,6 +402,21 @@ def cb_update_plot(attr, old, new, type_change):
         colorbar_text.text = f'{w_gene3.value}'
         tick_min.text = f'{data["geneZ"].min():.2f}'
         tick_max.text = f'{data["geneZ"].max():.2f}'
+
+        # make them visible again
+        color_bar.visible = True
+        colorbar_text.visible = True
+        tick_min.visible = True
+        tick_max.visible = True
+    else:
+        mapper = get_mapper()
+        plot.scatter(x=X_AXIS, y=Y_AXIS, source=ColumnDataSource(data),
+                     fill_alpha=0.7, size=5, width=0, fill_color={'field': 'num_facetZ', 'transform': mapper})
+
+        # change component values texts
+        colorbar_text.text = f'{w_facet_numerical_3.value}'
+        tick_min.text = f'{data["num_facetZ"].min():.2f}'
+        tick_max.text = f'{data["num_facetZ"].max():.2f}'
 
         # make them visible again
         color_bar.visible = True
@@ -454,14 +486,12 @@ w_regression.on_change("active", partial(
 # two options for coloring
 w_facet.on_change("value", partial(cb_update_plot, type_change="categorical"))
 w_gene3.on_change("value", partial(cb_update_plot, type_change="categorical"))
-
+w_facet_numerical_3.on_change("value",partial(cb_update_plot, type_change="categorical"))
 # widgets responsible for changing the x and y axis options
 w_gene1.on_change("value", partial(cb_update_plot, type_change="geneX"))
 w_gene2.on_change("value", partial(cb_update_plot, type_change="geneY"))
-w_facet_numerical_1.on_change("value", partial(
-    cb_update_plot, type_change="num_facetX"))
-w_facet_numerical_2.on_change("value", partial(
-    cb_update_plot, type_change="num_facetY"))
+w_facet_numerical_1.on_change("value", partial(cb_update_plot, type_change="num_facetX"))
+w_facet_numerical_2.on_change("value", partial(cb_update_plot, type_change="num_facetY"))
 
 # widgets for changing which one of the (gene,gene,facet,facet) are we putting on x and y axis
 w_x_axis_radio.on_change("active", partial(
@@ -485,7 +515,7 @@ curdoc().add_root(
                     sizing_mode='stretch_width'),
                 row([w_x_axis_radio, w_y_axis_radio],
                     sizing_mode='stretch_width'),
-                row([w_gene3, w_facet, w_download, w_category_radio],
+                row([w_gene3, w_facet, w_facet_numerical_3, w_category_radio,w_download],
                     sizing_mode='stretch_width')],
                    sizing_mode='stretch_width')],
             sizing_mode='stretch_width'),
