@@ -16,6 +16,7 @@ from bokeh.transform import transform
 
 from beehive import config, util, expset
 from bokeh.util.hex import cartesian_to_axial
+from bokeh.palettes import Viridis256,Magma256
 
 lg = logging.getLogger('ScatterExpression')
 lg.setLevel(logging.DEBUG)
@@ -27,6 +28,7 @@ curdoc().template_variables['view_name'] = 'Hexbin Expression'
 GENE_OPTION = 0
 FACET_OPTION = 1
 COLOR_POSSIBILITIES = ["None", "Density (counts)","Metadata (Gene or Numerical Facet)"]
+LABELS_AXIS = ["Gene", "Numerical Facet"]
 create_widget = partial(util.create_widget, curdoc=curdoc())
 
 datasets = expset.get_datasets()
@@ -53,7 +55,6 @@ w_dataset_id = create_widget("dataset_id", Select, title="Dataset",
 #making widgets for the following:
 
 #X and Y axes
-LABELS_AXIS = ["Gene", "Numerical Facet"]
 w_gene1 = create_widget("geneX", AutocompleteInput,
                        completions=[], default='APOE', title = "Gene", case_sensitive=False)
 w_gene2 = create_widget("geneY", AutocompleteInput,
@@ -86,8 +87,7 @@ w_color_check = create_widget(
 w_z_axis_radio = create_widget(
     "z_axis_radio", RadioGroup, labels=LABELS_AXIS, default=0, title="Grouped:", value_type=int)
 
-#user selecting alpha
-w_alpha_slider = create_widget("alpha_picker",Slider,start=0.2, end=1, default=0.2,step=0.05,title = "Opacity",value_type = float)
+#user selecting size
 w_size_slider = create_widget("size_picker",Slider,start=0.01, end=1, default=0.1,step=0.01,title = "Hex Tile Size",value_type = float)
 
 #subset selection of categorical obs
@@ -208,11 +208,6 @@ def get_data() -> pd.DataFrame:
     else:
         num_facetY = expset.get_meta(dataset_id, num_facet2, raw=True)[:, 0]
 
-    # if COLOR_POSSIBILITIES[w_color_check.active] == "Metadata (Gene or Numerical Facet)":
-    #     if z_axis == GENE_OPTION:
-    #         geneZ = expset.get_gene(dataset_id, gene3)[:, 0]
-    #     else:
-    #         num_facetZ = expset.get_meta(dataset_id, num_facet3, raw=True)[:, 0]
     geneZ = expset.get_gene(dataset_id, gene3)[:, 0]
     num_facetZ = expset.get_meta(dataset_id, num_facet3, raw=True)[:, 0]
 
@@ -246,10 +241,6 @@ def get_unique_obs(data):
 
 def modify_data():
     data = get_data()
-
-    # if COLOR_POSSIBILITIES[w_color_check.active] == "None":
-    #     data.drop("num_facetZ",axis=1,inplace = True)
-    #     data.drop("geneZ",axis=1,inplace = True)
  
     global unique_obs, X_AXIS, Y_AXIS
     unique_obs = get_unique_obs(data)
@@ -259,12 +250,14 @@ def modify_data():
     q_full, r_full = cartesian_to_axial(data[X_AXIS], data[Y_AXIS], size = SIZE, orientation = "pointytop")
 
     if len(categories) == 0:
-        q, r = cartesian_to_axial(data[X_AXIS], data[Y_AXIS], size = SIZE, orientation = "pointytop")
+        # q, r = cartesian_to_axial(data[X_AXIS], data[Y_AXIS], size = SIZE, orientation = "pointytop")
+        q,r = q_full,r_full
     else:
         #filter out uneeded groups:
         data = data.loc[np.where(data["obs"].isin(categories))].reset_index(drop = True)
         q, r = cartesian_to_axial(data[X_AXIS], data[Y_AXIS], size = SIZE, orientation = "pointytop")
     df = pd.DataFrame(dict(r=r,q=q,avg_exp = None))
+
     groups = df.groupby(["q","r"])
     dicts = []
     ###assign axial coordinates to get average gene expression###
@@ -281,18 +274,16 @@ def modify_data():
     data_full = pd.DataFrame(dict(r=r_full,q=q_full))
     return final_result, data_full
 
-v_func_alpha  = """
-var new_xs = new Array(xs.length)
-for(var i = 0; i < xs.length; i++) {
-    new_xs[i] = alpha_map[xs[i]]
-}
-return new_xs
-"""
+
+def get_mapper(feature,data,palette):
+    return  LinearColorMapper(
+    palette=palette,
+    low=np.percentile(np.array(data[feature]),1),
+    high=np.percentile(np.array(data[feature]),99))
 
 #
 # Create plot
 #
-
 X_AXIS = "geneX" if w_x_axis_radio.active == GENE_OPTION else "num_facetX"
 Y_AXIS = "geneY" if w_y_axis_radio.active == GENE_OPTION else "num_facetY"
 Z_AXIS = "geneZ" if w_z_axis_radio.active == GENE_OPTION else "num_facetZ"
@@ -302,56 +293,56 @@ plot = figure(output_backend = "webgl")
 dataset_id, dataset = get_dataset()
 data,hex_full = modify_data()
 
-mapper = LinearColorMapper(
-    palette='Magma256',
-    low=np.percentile(np.array(data["coloring_scheme"]),1),
-    high=np.percentile(np.array(data["coloring_scheme"]),99))
-
-mapper2 = LinearColorMapper(
-    palette='Viridis256',
-    low=np.percentile(np.array(data["counts"]),1),
-    high=np.percentile(np.array(data["counts"]),99))
-
+mapper_metadata = get_mapper("coloring_scheme", data, [x for x in Magma256][::-1])
+mapper_counts = get_mapper("counts",data,[x for x in Viridis256][::-1])
 
 source = ColumnDataSource(data)
 source_full = ColumnDataSource(hex_full)
-ALPHA = w_alpha_slider.value
+ALPHA = 0.8
 SIZE = w_size_slider.value
 
 length = len(sorted(np.unique(source.data["counts"]).tolist()))
-alpha_map = dict(zip(sorted(np.unique(source.data["counts"]).tolist()),
-[w_alpha_slider.value if x/length < ALPHA else x/length for x in range(0,length)]))
-
-numerical_alpha_transformer = CustomJSTransform(args={"alpha_map": alpha_map}, v_func=v_func_alpha)
 
 plot.hex_tile(q="q",r="r",size = SIZE,source=source_full,
-    color  = "#D3D3D3",line_color = None) #grey plot all
+    color  = "#D3D3D3",line_color = None, alpha = ALPHA) #grey plot all
 
+visibility_counts = True
+visibility_metadata = True
 
 if COLOR_POSSIBILITIES[w_color_check.active] == "None":
     value_text = ""
     tick_min_text = ""
     tick_max_text = ""
+    visibility_counts = False
+    visibility_metadata = False
     pass
     
 elif COLOR_POSSIBILITIES[w_color_check.active] == "Density (counts)":
     plot.hex_tile(q="q",r="r",size = SIZE,source=source,
     line_color = None, 
-    color   = {'field': 'counts', 'transform': mapper2})
+    color   = {'field': 'counts', 'transform': mapper_counts} , alpha = ALPHA)
     value_text = "counts"
     tick_min_text = f'{np.round(np.percentile(np.array(data["counts"]),1),2)}'
     tick_max_text = f'{np.round(np.percentile(np.array(data["counts"]),99),2)}'
+    visibility_counts = True
+    visibility_metadata = False
+
 
 else:
     plot.hex_tile(q="q",r="r",size = SIZE,source=source,
     line_color = None, 
-    color   = {'field': 'coloring_scheme', 'transform': mapper})
+    color   = {'field': 'coloring_scheme', 'transform': mapper_metadata}, alpha = ALPHA)
     value_text = w_gene3.value if w_z_axis_radio.active == GENE_OPTION else w_facet_numerical_3.value
     tick_min_text = f'{np.round(np.percentile(np.array(data["coloring_scheme"]),1),2)}'
     tick_max_text = f'{np.round(np.percentile(np.array(data["coloring_scheme"]),99),2)}'
+    visibility_counts = False
+    visibility_metadata = True
+
 
 #1. colorbar
-color_bar = ColorBar(color_mapper=mapper, location=(
+color_bar_meta = ColorBar(color_mapper=mapper_metadata, location=(
+    0, 0), major_label_text_font_size="0px", major_tick_in=2)
+color_bar_counts = ColorBar(color_mapper=mapper_counts, location=(
     0, 0), major_label_text_font_size="0px", major_tick_in=2)
 # 2. colorbar title
 
@@ -364,13 +355,16 @@ tick_min = Label(text=tick_min_text, x=-40, y=15, y_units='screen',
 tick_max = Label(text=tick_max_text, x=-50, y=510, y_units='screen',
                  x_units="screen", text_align="left", text_baseline="middle", text_font_size="12px")
 
-plot.add_layout(color_bar, "right")
+plot.add_layout(color_bar_meta, "right")
+plot.add_layout(color_bar_counts, "right")
 plot.add_layout(colorbar_text, "right")
 plot.add_layout(tick_min, "right")
 plot.add_layout(tick_max, "right")
 
+color_bar_meta.visible = visibility_metadata
+color_bar_counts.visible = visibility_metadata
+
 if COLOR_POSSIBILITIES[w_color_check.active] == "None":
-    color_bar.visible = False
     colorbar_text.visible = False
     tick_min.visible = False
     tick_max.visible = False
@@ -381,7 +375,7 @@ y_label = ""
 def cb_update_plot(attr, old, new,type_change):
     """Populate and update the plot."""
     curdoc().hold()
-    global plot,source, X_AXIS, Y_AXIS, Z_AXIS, SIZE, ALPHA, widget_axes,x_label,y_label, extra_axis,color_bar, colorbar_text, tick_max,tick_min, numerical_alpha_transformer,alpha_map
+    global plot,source, X_AXIS, Y_AXIS, Z_AXIS, SIZE, ALPHA, widget_axes,x_label,y_label,color_bar, colorbar_text, tick_max,tick_min
 
 
     X_AXIS = "geneX" if w_x_axis_radio.active == GENE_OPTION else "num_facetX"
@@ -396,15 +390,10 @@ def cb_update_plot(attr, old, new,type_change):
     facet = w_facet.value
     source = ColumnDataSource(data)
     source_full = ColumnDataSource(hex_full)
-    ALPHA = w_alpha_slider.value
     SIZE = w_size_slider.value
 
-    # alpha_map = dict(zip(sorted(np.unique(source.data["counts"]).tolist()),
-    # [w_alpha_slider.value if x/length < ALPHA else x/length for x in range(0,length)]))
-
-    # numerical_alpha_transformer = CustomJSTransform(args={"alpha_map": alpha_map}, v_func=v_func_alpha)
-
-    color_bar.visible = False
+    color_bar_counts.visible = False
+    color_bar_meta.visible = False
     colorbar_text.visible = False
     tick_min.visible = False
     tick_max.visible = False
@@ -412,19 +401,11 @@ def cb_update_plot(attr, old, new,type_change):
     #update plot now
     plot.renderers = []
 
-    mapper = LinearColorMapper(
-        palette='Magma256',
-        low=np.percentile(np.array(data["coloring_scheme"]),1),
-        high=np.percentile(np.array(data["coloring_scheme"]),99))
-    
-    mapper2 = LinearColorMapper(
-    palette='Viridis256',
-    low=np.percentile(np.array(data["counts"]),1),
-    high=np.percentile(np.array(data["counts"]),99))
-
+    mapper_metadata = get_mapper("coloring_scheme", data, [x for x in Magma256][::-1])
+    mapper_counts = get_mapper("counts",data,[x for x in Viridis256][::-1])
 
     plot.hex_tile(q="q",r="r",size = SIZE,source=source_full,
-        color  = "#D3D3D3",line_color = None) #grey plot all
+        color  = "#D3D3D3",line_color = None, alpha = ALPHA) #grey plot all
 
 
     if COLOR_POSSIBILITIES[w_color_check.active] == "None":
@@ -433,22 +414,22 @@ def cb_update_plot(attr, old, new,type_change):
         if COLOR_POSSIBILITIES[w_color_check.active] == "Density (counts)":
             plot.hex_tile(q="q",r="r",size = SIZE,source=source,
             line_color = None, 
-            color   = {'field': 'counts', 'transform': mapper2})
+            color   = {'field': 'counts', 'transform': mapper_counts}, alpha = ALPHA)
             colorbar_text.text = "counts"
             tick_min.text = f'{np.round(np.percentile(np.array(data["counts"]),1),2)}'
             tick_max.text = f'{np.round(np.percentile(np.array(data["counts"]),99),2)}'
+            color_bar_counts.visible = True
 
         else:
             plot.hex_tile(q="q",r="r",size = SIZE,source=source,
             line_color = None, 
-            color   = {'field': 'coloring_scheme', 'transform': mapper})
-
+            color   = {'field': 'coloring_scheme', 'transform': mapper_metadata}, alpha = ALPHA)
             colorbar_text.text = w_gene3.value if w_z_axis_radio.active == GENE_OPTION else w_facet_numerical_3.value
             tick_min.text = f'{np.round(np.percentile(np.array(data["coloring_scheme"]),1),2)}'
             tick_max.text = f'{np.round(np.percentile(np.array(data["coloring_scheme"]),99),2)}'
+            color_bar_meta.visible = True
 
         # make them visible again
-        color_bar.visible = True
         colorbar_text.visible = True
         tick_min.visible = True
         tick_max.visible = True
@@ -490,7 +471,6 @@ update_plot = partial(cb_update_plot, attr=None, old=None, new=None,type_change=
 update_plot()
 
 
-
 def cb_dataset_change(attr, old, new):
     """Dataset change."""
     lg.info("Dataset Change to:" + new)
@@ -513,7 +493,6 @@ w_facet_numerical_1.on_change("value", partial(cb_update_plot,type_change=None))
 w_facet_numerical_2.on_change("value", partial(cb_update_plot,type_change=None))
 w_facet_numerical_3.on_change("value", partial(cb_update_plot,type_change=None))
 w_subset_select.on_change("value",partial(cb_update_plot,type_change = None))
-w_alpha_slider.on_change("value",partial(cb_update_plot,type_change = None))
 w_size_slider.on_change("value",partial(cb_update_plot,type_change = None))
 w_x_axis_radio.on_change("active",partial(cb_update_plot,type_change = None))
 w_y_axis_radio.on_change("active",partial(cb_update_plot,type_change = None))
@@ -532,7 +511,7 @@ curdoc().add_root(
                     sizing_mode='stretch_width'),
                 row([w_x_axis_radio,w_y_axis_radio,w_z_axis_radio],
                     sizing_mode='stretch_width'),
-                row([w_facet,w_subset_select, w_alpha_slider,w_size_slider, w_download],
+                row([w_facet,w_subset_select,w_size_slider, w_download],
                     sizing_mode='stretch_both'),
                 row([w_color_check],
                     sizing_mode='stretch_width')],   
