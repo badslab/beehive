@@ -352,32 +352,6 @@ w_dataset_id.on_change("value", cb_update_plot)
 #
 # Build the document
 #
-# curdoc().add_root(
-#     column([
-#         row([w_gene, w_facet, w_sibling, w_download],
-#             sizing_mode='stretch_width'),
-#         row([w_gene_not_found, w_dataset_id], sizing_mode='stretch_width'),
-#         row([w_div_title_author], sizing_mode='stretch_width'),
-#         row([plot], sizing_mode='stretch_width'),
-#         row([table], sizing_mode='stretch_width'),
-#         row([w_dataset_id, w_download_filename],),
-#     ]
-#     )
-# )
-
-# curdoc().add_root(
-#     column([
-#         row([w_gene, w_facet, w_sibling, w_download],
-#             sizing_mode='stretch_width'),
-#         row([w_gene_not_found, w_dataset_id], sizing_mode='stretch_width'),
-#         row([w_div_title_author], sizing_mode='stretch_width'),
-#         row([plot], sizing_mode='stretch_width'),
-#         row([table], sizing_mode='stretch_width'),
-#         row([w_dataset_id, w_download_filename],),
-#     ]
-#     )
-# )
-
 curdoc().add_root(row([
     column([
         column([
@@ -389,7 +363,6 @@ curdoc().add_root(row([
         ]),
     column([
         column([plot], sizing_mode='stretch_width')
-        # column([table], sizing_mode='stretch_width'),
     ])
 ])
 )
