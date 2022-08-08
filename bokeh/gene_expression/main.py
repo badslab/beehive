@@ -67,7 +67,7 @@ w_dataset_id = create_widget("dataset_id", Select, title="Dataset",
 # else:
 #     for k, v in siblings.items():
 #         sname = f"{v['organism']} / {v['datatype']}"
-        # sibling_options.append((k, sname))
+# sibling_options.append((k, sname))
 
 
 w_sibling = create_widget("view", Select,
@@ -75,10 +75,11 @@ w_sibling = create_widget("view", Select,
                           default=w_dataset_id.value,
                           update_url=False)
 
+
 def update_sibling_options():
     siblings = expset.get_dataset_siblings(w_dataset_id.value)
     sibling_options = []
-    #check all organisms
+    # check all organisms
     organisms = []
     for k, v in siblings.items():
         organisms = organisms + [v['organism']]
@@ -100,7 +101,7 @@ update_sibling_options()
 
 
 w_gene = create_widget("gene", AutocompleteInput,
-                       completions=[], default='APOE', case_sensitive = False)
+                       completions=[], default='APOE', case_sensitive=False)
 w_facet = create_widget("facet", Select, options=[], title="Group by")
 w_download = Button(label='Download', align='end')
 w_download_filename = Div(text="", visible=False,
@@ -125,16 +126,16 @@ def update_facets():
     """Update interface for a specific dataset."""
     options = expset.get_facet_options(w_dataset_id.value)
     w_facet.options = options
-    
+
     if w_facet.value not in [x[0] for x in options]:
         # set a default
         w_facet.value = options[0][0]
-        
 
 
 def facet_groups(facet):
-    result_dict = expset.get_facet_groups(w_dataset_id.value,facet)
+    result_dict = expset.get_facet_groups(w_dataset_id.value, facet)
     return result_dict
+
 
 def update_genes():
     """Update genes widget for a dataset."""
@@ -156,14 +157,14 @@ def get_data() -> pd.DataFrame:
     dataset_id = w_dataset_id.value
     gene = w_gene.value
     facet = w_facet.value
-    
-    #TODO get the order from here and sort the data later..
-    #will also get color
+
+    # TODO get the order from here and sort the data later..
+    # will also get color
     # facet_groups = facet_groups(w_facet.value)
 
-    #==> check if there is full order
-    #if yes, call get_gene_meta_agg with order = True
-    #can order with the list of orders in expset.get_gene_meta_agg before function returns
+    # ==> check if there is full order
+    # if yes, call get_gene_meta_agg with order = True
+    # can order with the list of orders in expset.get_gene_meta_agg before function returns
 
     lg.warning(f"!! Getting data for {dataset_id} {facet} {gene}")
 
@@ -197,8 +198,8 @@ def get_dataset():
 #
 plot = figure(background_fill_color="#efefef", x_range=[],
               plot_height=400, title="Plot",
-              toolbar_location='right', tools = "save")
-#removed all tools but save
+              toolbar_location='right', tools="save")
+# removed all tools but save
 
 # plot = figure(background_fill_color="#efefef", x_range=[],
 #               plot_height=400, title="Plot",
@@ -255,7 +256,8 @@ yspacer = (data['_segment_top'].max() - data['_segment_bottom'].min()) / 20
 ymax = data['_segment_top'].max() + yspacer
 ymin = data['_segment_bottom'].min() - yspacer
 
-plot.update(y_range = Range1d(ymin,ymax))
+plot.update(y_range=Range1d(ymin, ymax))
+
 
 def cb_update_plot(attr, old, new):
     """Populate and update the plot."""
@@ -289,7 +291,7 @@ def cb_update_plot(attr, old, new):
     ymin = data['_segment_bottom'].min() - yspacer
 
     lg.warning(f"## Y MIN/MAX {ymin:.2g} / {ymax:.2g} ")
-    plot.y_range.update(start = ymin, end = ymax)
+    plot.y_range.update(start=ymin, end=ymax)
 
     title = dataset['short_title']
     if len(title) > 80:
@@ -337,7 +339,7 @@ w_sibling.on_change("value", cb_sibling_change)
 w_dataset_id.on_change("value", cb_dataset_change)
 w_facet.on_change("value", cb_update_plot)
 w_download.js_on_click(cb_download)
-w_dataset_id.on_change("value",cb_update_plot)
+w_dataset_id.on_change("value", cb_update_plot)
 
 
 #
@@ -347,14 +349,11 @@ curdoc().add_root(
     column([
         row([w_gene, w_facet, w_sibling, w_download],
             sizing_mode='stretch_width'),
-        row([w_gene_not_found,w_dataset_id],
-            sizing_mode='stretch_width'),
-        row([w_div_title_author],
-            sizing_mode='stretch_width'),
-        row([plot],
-            sizing_mode='stretch_width'),
-        row([table],
-            sizing_mode='stretch_width')])
-    #     row([w_dataset_id, w_download_filename],),
-    # ], sizing_mode='stretch_width')
+        row([w_gene_not_found, w_dataset_id], sizing_mode='stretch_width'),
+        row([w_div_title_author], sizing_mode='stretch_width'),
+        row([plot], sizing_mode='stretch_width'),
+        row([table], sizing_mode='stretch_width'),
+        row([w_dataset_id, w_download_filename],),
+    ]
+    )
 )
