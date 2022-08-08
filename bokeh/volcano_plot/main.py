@@ -109,9 +109,14 @@ def highlight_genes(x):
 def modify_data():
     """"Helper function called after getting the data that will help in plotting:"""
     data = get_data()
+    x_range_min = w_x_range.value*-1
+    x_range_max = w_x_range.value
+    y_range_max = w_y_range.value
 
-    #adjust p-value scale
-    data["padj"] = np.where(data["padj"] == 0,10**-10,data["padj"])
+    data["true_padj"] = data["padj"]
+    data["true_lfc"] = data["lfc"]
+    #adjust p-value scale, for those that are 0 => assign them y_range_max.
+    data["padj"] = np.where(data["padj"] == 0, y_range_max,data["padj"])
     data["padj"] = np.log10(data["padj"])*-1
     #make a new column of genes that are highlighted and those that are not. (Yes No)
     data["highlight"] = data.apply(lambda x: highlight_genes(x),axis = 1)
@@ -120,9 +125,7 @@ def modify_data():
     data["true_lfc"] = data["lfc"]
 
     #take care of x y ranges. Ranges will limit the view of which genes can we see:
-    x_range_min = w_x_range.value*-1
-    x_range_max = w_x_range.value
-    y_range_max = w_y_range.value
+
 
     ##stick the outliers on the edges
     data["lfc"] = np.where(data["lfc"] < x_range_min, x_range_min + 0.1, data["lfc"])
@@ -178,7 +181,7 @@ SIZES_PALETTE_1 = [SMALL_CIRCLE,0,0]
 SIZES_PALETTE_2 = [0,BIG_CIRCLE,BIG_CIRCLE]
 TEXT_SIZES = ['0px','15px','15px'] # text gene size for: [non highlighted, highlighted, toplow]
 
-
+Y_START_MIN = -10
 
 #-----------------------------------------------------------------------------------------------
 
@@ -253,7 +256,7 @@ plot.add_layout(labels)
 #set up the initial x and y ranges in the widgets based on the data itself.
 w_x_range.value = round(max(data["true_lfc"]) + max(data["true_lfc"])/2,1)
 w_y_range.value = round(max(data["true_padj"]) + max(data["true_padj"])/4,1)
-plot.update(x_range = Range1d(w_x_range.value*-1, w_x_range.value), y_range = Range1d(0, w_y_range.value))
+plot.update(x_range = Range1d(w_x_range.value*-1, w_x_range.value), y_range = Range1d(Y_START_MIN, w_y_range.value))
 
 def cb_update_plot(attr, old, new,type_change = None):
     """Populate and update the plot."""
@@ -271,7 +274,7 @@ def cb_update_plot(attr, old, new,type_change = None):
     #update the new x and y ranges (if they got changed.)
     #if not, will be the same..
     plot.x_range.update(start = w_x_range.value*-1, end = w_x_range.value)
-    plot.y_range.update(start = 0, end = w_y_range.value)
+    plot.y_range.update(start = Y_START_MIN, end = w_y_range.value)
 
     curdoc().unhold()
 
