@@ -67,9 +67,12 @@ serve_cbd2_private: fix_templates fix_bokeh_static_js check_deployment
 
 .ONEHSELL:
 serve_dev: fix_templates
-	bokeh serve --dev --port 5010 bokeh/scatter_expression/ # bokeh/diffexp/
-	#	bokeh serve --dev --port 5010 bokeh/gene_expression/ # bokeh/diffexp/
-
+	export BEEHIVE_BASEDIR=/data/project/mark/beehive
+	while true; do 
+		echo "(re)starting)" 
+		# bokeh serve --dev --port 5010 bokeh/scatter_expression/ # bokeh/diffexp/
+		bokeh serve --dev --port 5010 bokeh/gene_expression/ # bokeh/diffexp/
+	done
 
 serve_dev_raghid: fix_templates
 	pipenv run bokeh serve --dev --port 5009 --allow-websocket-origin=* bokeh/gene_expression/
