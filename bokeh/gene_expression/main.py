@@ -172,6 +172,10 @@ def get_data() -> pd.DataFrame:
         gene=gene,
         meta=facet)
 
+    #drop "NONE"
+    #calculations in tbale will not include NONE.
+    data = data[data["cat_value"] != 'NONE']
+    #Note: table calculations are based on dropping NONE now...
     data['perc'] = 100 * data['count'] / data['count'].sum()
 
     # default settings for a boxplot -
@@ -256,6 +260,7 @@ ymax = data['_segment_top'].max() + yspacer
 ymin = data['_segment_bottom'].min() - yspacer
 
 plot.update(y_range = Range1d(ymin,ymax))
+plot.xaxis.major_label_orientation = 3.14/4
 
 def cb_update_plot(attr, old, new):
     """Populate and update the plot."""
@@ -298,6 +303,7 @@ def cb_update_plot(attr, old, new):
                        f" - {dataset['organism']}"
                        f" - {dataset['first_author']} - {title}")
     plot.yaxis.axis_label = f"{dataset['datatype']}"
+    plot.xaxis.major_label_orientation = 3.14/4
 
     curdoc().unhold()
 
