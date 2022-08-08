@@ -200,8 +200,7 @@ def get_dataset():
 #
 # Create plot
 #
-plot = figure(background_fill_color="#efefef", x_range=[],
-              plot_height=400, title="Plot",
+plot = figure(background_fill_color="#efefef", x_range=[],title="Plot",
               toolbar_location='right', tools="save")
 # removed all tools but save
 
@@ -255,13 +254,15 @@ elements = dict(
                         line_color='black'),
 )
 
+X_AXIS_LABELS_ORIENTATION = 3.14/2
+
 yspacer = (data['_segment_top'].max() - data['_segment_bottom'].min()) / 20
 
 ymax = data['_segment_top'].max() + yspacer
 ymin = data['_segment_bottom'].min() - yspacer
 
 plot.update(y_range=Range1d(ymin, ymax))
-plot.xaxis.major_label_orientation = 3.14/4
+plot.xaxis.major_label_orientation = X_AXIS_LABELS_ORIENTATION
 
 
 def cb_update_plot(attr, old, new):
@@ -305,7 +306,7 @@ def cb_update_plot(attr, old, new):
                        f" - {dataset['organism']}"
                        f" - {dataset['first_author']} - {title}")
     plot.yaxis.axis_label = f"{dataset['datatype']}"
-    plot.xaxis.major_label_orientation = 3.14/4
+    plot.xaxis.major_label_orientation = X_AXIS_LABELS_ORIENTATION
 
     curdoc().unhold()
 
@@ -351,15 +352,44 @@ w_dataset_id.on_change("value", cb_update_plot)
 #
 # Build the document
 #
-curdoc().add_root(
+# curdoc().add_root(
+#     column([
+#         row([w_gene, w_facet, w_sibling, w_download],
+#             sizing_mode='stretch_width'),
+#         row([w_gene_not_found, w_dataset_id], sizing_mode='stretch_width'),
+#         row([w_div_title_author], sizing_mode='stretch_width'),
+#         row([plot], sizing_mode='stretch_width'),
+#         row([table], sizing_mode='stretch_width'),
+#         row([w_dataset_id, w_download_filename],),
+#     ]
+#     )
+# )
+
+# curdoc().add_root(
+#     column([
+#         row([w_gene, w_facet, w_sibling, w_download],
+#             sizing_mode='stretch_width'),
+#         row([w_gene_not_found, w_dataset_id], sizing_mode='stretch_width'),
+#         row([w_div_title_author], sizing_mode='stretch_width'),
+#         row([plot], sizing_mode='stretch_width'),
+#         row([table], sizing_mode='stretch_width'),
+#         row([w_dataset_id, w_download_filename],),
+#     ]
+#     )
+# )
+
+curdoc().add_root(row([
     column([
-        row([w_gene, w_facet, w_sibling, w_download],
-            sizing_mode='stretch_width'),
-        row([w_gene_not_found, w_dataset_id], sizing_mode='stretch_width'),
-        row([w_div_title_author], sizing_mode='stretch_width'),
-        row([plot], sizing_mode='stretch_width'),
-        row([table], sizing_mode='stretch_width'),
-        row([w_dataset_id, w_download_filename],),
-    ]
-    )
+        column([
+        row([w_gene, w_facet]),
+        row([w_sibling, w_download]),
+        ]),
+        column([w_gene_not_found,w_div_title_author,w_dataset_id], sizing_mode='stretch_width'),
+        column([table])
+        ]),
+    column([
+        column([plot], sizing_mode='stretch_width')
+        # column([table], sizing_mode='stretch_width'),
+    ])
+])
 )
