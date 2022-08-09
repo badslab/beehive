@@ -29,7 +29,7 @@ curdoc().template_variables['view_name'] = 'Hexbin Expression'
 
 GENE_OPTION = 0
 FACET_OPTION = 1
-COLOR_POSSIBILITIES = ["None", "Density (counts)","Metadata (Gene or Numerical Facet)"]
+COLOR_POSSIBILITIES = ["None", "Density (counts)","Metadata"]
 LABELS_AXIS = ["Gene", "Numerical Facet"]
 create_widget = partial(util.create_widget, curdoc=curdoc())
 
@@ -52,24 +52,24 @@ dataset_options = [(k, "{short_title}, {short_author}".format(**v))
 w_dataset_id = create_widget("dataset_id", Select, title="Dataset",
                              options=dataset_options,
                              default=dataset_options[0][0],
-                             visible=False,)
+                             visible=True)
 
 #making widgets for the following:
 
 #X and Y axes
 w_gene1 = create_widget("geneX", AutocompleteInput,
-                       completions=[], default='APOE', title = "Gene", case_sensitive=False)
+                       completions=[], default='APOE', title = "Gene", case_sensitive=False,width = 100)
 w_gene2 = create_widget("geneY", AutocompleteInput,
-                       completions=[], default='TREM2', title = "Gene", case_sensitive=False)
+                       completions=[], default='TREM2', title = "Gene", case_sensitive=False,width = 100)
 w_facet_numerical_1 = create_widget("num_facetX", Select,
-                                    options=[], title="Numerical Facet")
+                                    options=[], title="Numerical Facet",width = 100)
 w_facet_numerical_2 = create_widget("num_facetY", Select,
-                                    options=[], title="Numerical Facet")
+                                    options=[], title="Numerical Facet",width = 100)
 
 w_x_axis_radio = create_widget(
-    "x_axis_radio", RadioGroup, labels=LABELS_AXIS, default=0, title="X-Axis", value_type=int)
+    "x_axis_radio", RadioGroup, labels=LABELS_AXIS, default=0, title="X-Axis", value_type=int,width = 120)
 w_y_axis_radio = create_widget(
-    "y_axis_radio", RadioGroup, labels=LABELS_AXIS, default=0, title="Y-Axis", value_type=int)
+    "y_axis_radio", RadioGroup, labels=LABELS_AXIS, default=0, title="Y-Axis", value_type=int,width = 120)
 
 widget_axes = [w_gene1,w_gene2, w_facet_numerical_1,w_facet_numerical_2]
 
@@ -78,29 +78,29 @@ LABELS_GROUPING = ["Gene", "Numerical Facet"]
 
 #color by gene expression
 w_gene3 = create_widget("geneZ", AutocompleteInput,
-                       completions=[], default='TREM2', title = "Gene", case_sensitive=False)
+                       completions=[], default='TREM2', title = "Gene", case_sensitive=False,width = 100)
 #color by continuous facet
 w_facet_numerical_3 = create_widget("num_facetZ", Select,
-                                    options=[], title="Numerical Facet")
+                                    options=[], title="Numerical Facet",width = 100)
 #color/ yes or no?
 w_color_check = create_widget(
-    "w_color_check", RadioGroup, labels=COLOR_POSSIBILITIES, default=0, title="Color By:", value_type=int)
+    "w_color_check", RadioGroup, labels=COLOR_POSSIBILITIES, default=0, title="Color By:", value_type=int,width = 120)
 #color by gene or numerical facet?
 w_z_axis_radio = create_widget(
-    "z_axis_radio", RadioGroup, labels=LABELS_AXIS, default=0, title="Grouped:", value_type=int)
+    "z_axis_radio", RadioGroup, labels=LABELS_AXIS, default=0, title="Grouped:", value_type=int,width = 120)
 
 #user selecting size
-w_size_slider = create_widget("size_picker",Slider,start=10, end=150, default=20,step=1,title = "Number of Bins",value_type = float)
+w_size_slider = create_widget("size_picker",Slider,start=10, end=150, default=20,step=1,title = "Number of Bins",value_type = float,width = 120)
 
 #subset selection of categorical obs
-w_subset_select = create_widget("subset_categories",MultiSelect,default = [],value_type = list,options = [])
+w_subset_select = create_widget("subset_categories",MultiSelect,default = [],value_type = list,options = [],width = 200)
 
 w_facet = create_widget("facet", Select, options=[],
-                        title="Subset by Categories")
+                        title="Subset by Categories",width = 120)
 
 
 #download button..
-w_download = Button(label='Download', align='end')
+w_download = Button(label='Download', align='end',width = 100)
 
 w_download_filename = Div(text="", visible=False,
                           name="download_filename")
@@ -186,7 +186,6 @@ def get_data() -> pd.DataFrame:
     num_facet1 = w_facet_numerical_1.value
     num_facet2 = w_facet_numerical_2.value
     num_facet3 = w_facet_numerical_3.value
-
     facet = w_facet.value
 
     geneX = None
@@ -211,7 +210,8 @@ def get_data() -> pd.DataFrame:
         num_facetY = expset.get_meta(dataset_id, num_facet2, raw=True)[:, 0]
 
     geneZ = expset.get_gene(dataset_id, gene3)[:, 0]
-    num_facetZ = expset.get_meta(dataset_id, num_facet3, raw=True)[:, 0]
+    if num_facet3:
+        num_facetZ = expset.get_meta(dataset_id, num_facet3, raw=True)[:, 0]
 
     ##TODO maybe check for numerical/categorical here?
     lg.warning(f"!! Getting data for {dataset_id} {facet} {gene1}")
@@ -241,15 +241,15 @@ def get_unique_obs(data):
     unique_obs = pd.DataFrame(data)['obs'].unique()
     w_subset_select.options = unique_obs.tolist()
 
-@diskcache(where="./.cache/simple_disk_cache/", refresh= False)
+# @diskcache(where="./.cache/simple_disk_cache/", refresh= False)
 def calculate_hexes(hexsize, aspect_scale,x,y,orientation):
     q, r = cartesian_to_axial(x, y, size = hexsize, orientation = orientation,aspect_scale = aspect_scale)
     return q,r
 
 def modify_data():
     data = get_data()
- 
     global unique_obs, X_AXIS, Y_AXIS
+
     unique_obs = get_unique_obs(data)
     categories = w_subset_select.value
     NO_BINS = w_size_slider.value
@@ -272,6 +272,7 @@ def modify_data():
         data = data.loc[np.where(data["obs"].isin(categories))].reset_index(drop = True)
         # q, r = cartesian_to_axial(data[X_AXIS], data[Y_AXIS],size = hexsize, orientation = "pointytop",aspect_scale = aspect_scale)
         q,r = calculate_hexes(hexsize,aspect_scale,data[X_AXIS],data[Y_AXIS],"pointytop")
+
     df = pd.DataFrame(dict(r=r,q=q,avg_exp = None))
 
     groups = df.groupby(["q","r"])
@@ -305,10 +306,9 @@ Y_AXIS = "geneY" if w_y_axis_radio.active == GENE_OPTION else "num_facetY"
 Z_AXIS = "geneZ" if w_z_axis_radio.active == GENE_OPTION else "num_facetZ"
 
 
-plot = figure(output_backend = "webgl")
+plot = figure(output_backend = "webgl",width = 1000)
 dataset_id, dataset = get_dataset()
 data,hex_full = modify_data()
-
 mapper_metadata = get_mapper("coloring_scheme", data, [x for x in Magma256][::-1])
 mapper_counts = get_mapper("counts",data,[x for x in Viridis256][::-1])
 
@@ -517,28 +517,46 @@ w_color_check.on_change("active",partial(cb_update_plot,type_change = None))
 w_dataset_id.on_change("value", cb_dataset_change)
 w_download.js_on_click(cb_download)
 
-curdoc().add_root(
-    column([
-        row([
+# curdoc().add_root(
+#     column([
+#         row([
+#             column([
+#                 row([w_gene1,w_gene2,w_gene3], 
+#                     sizing_mode='stretch_width'),
+#                 row([w_facet_numerical_1,w_facet_numerical_2,w_facet_numerical_3],
+#                     sizing_mode='stretch_width'),
+#                 row([w_x_axis_radio,w_y_axis_radio,w_z_axis_radio],
+#                     sizing_mode='stretch_width'),
+#                 row([w_facet,w_subset_select,w_size_slider, w_download],
+#                     sizing_mode='stretch_both'),
+#                 row([w_color_check],
+#                     sizing_mode='stretch_width')],   
+#                 sizing_mode='stretch_width')],
+#             sizing_mode='stretch_width'),
+#         row([w_div_title_author],
+#             sizing_mode='stretch_width'),
+#         row([w_gene_not_found],
+#             sizing_mode='stretch_width'),
+#         row([plot],
+#             sizing_mode='stretch_width'),
+#         row([w_dataset_id, w_download_filename],),
+#     ], sizing_mode='stretch_width')
+# )
+
+curdoc().add_root(row([
             column([
-                row([w_gene1,w_gene2,w_gene3], 
-                    sizing_mode='stretch_width'),
-                row([w_facet_numerical_1,w_facet_numerical_2,w_facet_numerical_3],
-                    sizing_mode='stretch_width'),
-                row([w_x_axis_radio,w_y_axis_radio,w_z_axis_radio],
-                    sizing_mode='stretch_width'),
-                row([w_facet,w_subset_select,w_size_slider, w_download],
-                    sizing_mode='stretch_both'),
-                row([w_color_check],
-                    sizing_mode='stretch_width')],   
-                sizing_mode='stretch_width')],
-            sizing_mode='stretch_width'),
-        row([w_div_title_author],
-            sizing_mode='stretch_width'),
-        row([w_gene_not_found],
-            sizing_mode='stretch_width'),
-        row([plot],
-            sizing_mode='stretch_width'),
-        row([w_dataset_id, w_download_filename],),
-    ], sizing_mode='stretch_width')
+                row([w_gene1,w_gene2]),
+                row([w_facet_numerical_1,w_facet_numerical_2]),
+                row([w_x_axis_radio,w_y_axis_radio]),
+                row([w_gene3,w_facet_numerical_3]),
+                row([w_z_axis_radio,w_color_check]),
+                row([w_size_slider,w_download]),
+                row([w_facet,w_subset_select]),
+                row([w_div_title_author]),
+                row([w_dataset_id]),
+            ]),
+            column([
+                row([plot], sizing_mode="stretch_width"),
+                ]),
+    ])
 )
