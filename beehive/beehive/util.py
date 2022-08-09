@@ -5,7 +5,7 @@ import time
 from typing import List
 import pandas as pd
 import beehive
-
+import numpy as np
 
 def dict_set(data, *args, overwrite=False):
     """Careful dict value setter
@@ -160,7 +160,7 @@ def make_hashable(o):
 def UID(*args, length=7):
     chs = hashlib.sha512()
     for a in args:
-        if isinstance(a, int) or isinstance(a,float):
+        if isinstance(a, int) or isinstance(a,float) or isinstance(a,np.float32):
             chs.update(str(a).encode())
         elif isinstance(a, str):
             chs.update(str(a).lower().encode())
