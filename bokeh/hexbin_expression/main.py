@@ -18,6 +18,7 @@ from bokeh.transform import transform
 from beehive import config, util, expset
 from bokeh.util.hex import cartesian_to_axial
 from bokeh.palettes import Viridis256,Magma256
+from beehive.util import diskcache
 
 lg = logging.getLogger('ScatterExpression')
 lg.setLevel(logging.DEBUG)
@@ -240,6 +241,11 @@ def get_unique_obs(data):
     unique_obs = pd.DataFrame(data)['obs'].unique()
     w_subset_select.options = unique_obs.tolist()
 
+@diskcache(where="./.cache/simple_disk_cache/", refresh= False)
+def calculate_hexes(hexsize, aspect_scale,x,y,orientation):
+    q, r = cartesian_to_axial(x, y, size = hexsize, orientation = orientation,aspect_scale = aspect_scale)
+    return q,r
+
 def modify_data():
     data = get_data()
  
@@ -257,15 +263,15 @@ def modify_data():
     hexsize = ydelta / NO_BINS
     aspect_scale = ydelta / xdelta
 
-    q_full, r_full = cartesian_to_axial(data[X_AXIS], data[Y_AXIS], size = hexsize, orientation = "pointytop",aspect_scale = aspect_scale)
-
+    # q_full, r_full = cartesian_to_axial(data[X_AXIS], data[Y_AXIS], size = hexsize, orientation = "pointytop",aspect_scale = aspect_scale)
+    q_full, r_full = calculate_hexes(hexsize,aspect_scale,data[X_AXIS],data[Y_AXIS],"pointytop")
     if len(categories) == 0:
-        # q, r = cartesian_to_axial(data[X_AXIS], data[Y_AXIS], size = SIZE, orientation = "pointytop")
         q,r = q_full,r_full
     else:
         #filter out uneeded groups:
         data = data.loc[np.where(data["obs"].isin(categories))].reset_index(drop = True)
-        q, r = cartesian_to_axial(data[X_AXIS], data[Y_AXIS],size = hexsize, orientation = "pointytop",aspect_scale = aspect_scale)
+        # q, r = cartesian_to_axial(data[X_AXIS], data[Y_AXIS],size = hexsize, orientation = "pointytop",aspect_scale = aspect_scale)
+        q,r = calculate_hexes(hexsize,aspect_scale,data[X_AXIS],data[Y_AXIS],"pointytop")
     df = pd.DataFrame(dict(r=r,q=q,avg_exp = None))
 
     groups = df.groupby(["q","r"])
