@@ -578,6 +578,7 @@ curdoc().add_root(row([
                 row([w_category_radio,w_download]),
                 row([w_alpha_slider,w_size_slider]),
                 row([w_div_title_author]),
+                row([w_dataset_id]),
             ]),
             column([
                 row([plot], sizing_mode="stretch_width"),
