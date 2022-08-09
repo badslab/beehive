@@ -55,8 +55,11 @@ def get_datadir(name):
 
 def getarg(args, name, default=None, dtype=str):
     """Bokeh helper to get arguments from the URL."""
+
     if name in args:
         val = args[name][0].decode()
+        # if name == "subset_categories":
+        #     return
         return dtype(val)
     else:
         return default
@@ -116,9 +119,10 @@ def create_widget(name: str,
         new_widget = widget(name=name,title = title, **kwargs)
 
 
-    if (value_type == list) \
-            and not(type(getarg(args, param_name, default)) == list):
+    if (value_type == list) and not(type(getarg(args, param_name, default)) == list):
         new_widget.value = getarg(args, param_name, default).split(",")
+        if new_widget.value == [""]:
+            new_widget.value = []
     elif (value_type == int) or (value_type == float):
         new_widget.value = getarg(args, param_name, default, dtype=value_type)
     else:
