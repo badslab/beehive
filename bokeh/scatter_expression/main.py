@@ -59,13 +59,13 @@ w_dataset_id = create_widget("dataset_id", Select, title="Dataset",
                              visible=True,)
 
 w_gene1 = create_widget("geneX", AutocompleteInput,
-                        completions=[], default='APOE', title="Gene", case_sensitive=False)
+                        completions=[], default='APOE', title="Gene", case_sensitive=False,width=100)
 w_gene2 = create_widget("geneY", AutocompleteInput,
-                        completions=[], default='TREM2', title="Gene", case_sensitive=False)
+                        completions=[], default='TREM2', title="Gene", case_sensitive=False,width=100)
 w_facet_numerical_1 = create_widget("num_facetX", Select,
-                                    options=[], title="Numerical Facet")
+                                    options=[], title="Numerical Facet",width=100)
 w_facet_numerical_2 = create_widget("num_facetY", Select,
-                                    options=[], title="Numerical Facet")
+                                    options=[], title="Numerical Facet",width=100)
 
 widget_axes = [w_gene1, w_gene2, w_facet_numerical_1, w_facet_numerical_2]
 
@@ -79,31 +79,31 @@ LABELS_AXIS = ["Gene", "Numerical Facet"]
 LABELS_GROUPING = ["categorical facet", "gene","numerical facet"]
 
 w_x_axis_radio = create_widget(
-    "x_axis_radio", RadioGroup, labels=LABELS_AXIS, default=0, title="X-Axis", value_type=int)
+    "x_axis_radio", RadioGroup, labels=LABELS_AXIS, default=0, title="X-Axis", value_type=int,width=120)
 w_y_axis_radio = create_widget(
-    "y_axis_radio", RadioGroup, labels=LABELS_AXIS, default=0, title="Y-Axis", value_type=int)
+    "y_axis_radio", RadioGroup, labels=LABELS_AXIS, default=0, title="Y-Axis", value_type=int,width=120)
 
 # categorical facet grouping of data... or gene3 grouping
 w_facet = create_widget("facet", Select, options=[],
-                        title="Group by Categories")
+                        title="Group by Categories",width=100)
 
 w_gene3 = create_widget("geneZ", AutocompleteInput,
-                        completions=[], default="APOE", title="Group by Gene Expression", case_sensitive=False)
+                        completions=[], default="APOE", title="Group by Gene Expression", case_sensitive=False,width=150)
                         
 w_facet_numerical_3 = create_widget("num_facetZ", Select,
-                                    options=[], title="Numerical Facet")
+                                    options=[], title="Numerical Facet",width=100)
 
 w_category_radio = create_widget(
-    "category_radio", RadioGroup, labels=LABELS_GROUPING, default=0, title="Grouped:", value_type=int)
+    "category_radio", RadioGroup, labels=LABELS_GROUPING, default=0, title="Grouped:", value_type=int,width=100)
 
 # download button..
-w_download = Button(label='Download', align='end')
+w_download = Button(label='Download', align='end',width=100)
 
 w_download_filename = Div(text="", visible=False,
                           name="download_filename")
 
-w_alpha_slider = create_widget("alpha_picker",Slider,start=0.1, end=1, default=0.7,step=0.05,title = "Opacity",value_type = float)
-w_size_slider = create_widget("size_picker",Slider,start=2, end=15, default=5,step=1,title = "Points Size",value_type = int)
+w_alpha_slider = create_widget("alpha_picker",Slider,start=0.1, end=1, default=0.7,step=0.05,title = "Opacity",value_type = float,width=100)
+w_size_slider = create_widget("size_picker",Slider,start=2, end=15, default=5,step=1,title = "Points Size",value_type = int,width=100)
 
 # To display text if the gene is not found
 w_gene_not_found = Div(text="")
@@ -271,7 +271,7 @@ def get_mapper():
 #
 
 
-plot = figure(output_backend="webgl", name="plot1")
+plot = figure(output_backend="webgl",width=1000)
 
 data = get_data()
 
@@ -539,30 +539,50 @@ w_size_slider.on_change("value", partial(cb_update_plot, type_change="cosmetics"
 w_dataset_id.on_change("value", cb_dataset_change)
 w_download.js_on_click(cb_download)
 
-curdoc().add_root(
-    column([
-        row([
+# curdoc().add_root(
+#     column([
+#         row([
+#             column([
+#                 row([w_gene1, w_gene2],
+#                     sizing_mode='stretch_width'),
+#                 row([w_facet_numerical_1, w_facet_numerical_2],
+#                     sizing_mode='stretch_width'),
+#                 row([w_x_axis_radio, w_y_axis_radio],
+#                     sizing_mode='stretch_width'),
+#                 row([w_gene3, w_facet, w_facet_numerical_3, w_category_radio,w_download],
+#                     sizing_mode='stretch_width'),
+#                 row([w_alpha_slider, w_size_slider],
+#                     sizing_mode='stretch_width')],
+#                    sizing_mode='stretch_width')],
+#             sizing_mode='stretch_width'),
+#         row([w_div_title_author],
+#             sizing_mode='stretch_width'),
+#         # TODO regression doesnt work with webgl
+#         row([w_gene_not_found],
+#             sizing_mode='stretch_width'),
+#         row([plot],
+#             sizing_mode='stretch_width', name="main_layout"),
+#         row([w_dataset_id],
+#             sizing_mode='stretch_width'),
+#     ], sizing_mode='stretch_width')
+# )
+
+
+
+curdoc().add_root(row([
             column([
-                row([w_gene1, w_gene2],
-                    sizing_mode='stretch_width'),
-                row([w_facet_numerical_1, w_facet_numerical_2],
-                    sizing_mode='stretch_width'),
-                row([w_x_axis_radio, w_y_axis_radio],
-                    sizing_mode='stretch_width'),
-                row([w_gene3, w_facet, w_facet_numerical_3, w_category_radio,w_download],
-                    sizing_mode='stretch_width'),
-                row([w_alpha_slider, w_size_slider],
-                    sizing_mode='stretch_width')],
-                   sizing_mode='stretch_width')],
-            sizing_mode='stretch_width'),
-        row([w_div_title_author],
-            sizing_mode='stretch_width'),
-        # TODO regression doesnt work with webgl
-        row([w_gene_not_found],
-            sizing_mode='stretch_width'),
-        row([plot],
-            sizing_mode='stretch_width', name="main_layout"),
-        row([w_dataset_id],
-            sizing_mode='stretch_width'),
-    ], sizing_mode='stretch_width')
+                row([w_gene1,w_gene2]),
+                row([w_facet_numerical_1,w_facet_numerical_2]),
+                row([w_x_axis_radio,w_y_axis_radio]),
+                row([w_gene3,w_facet]),
+                row([w_category_radio,w_download]),
+                row([w_alpha_slider,w_size_slider]),
+                row([w_div_title_author]),
+            ]),
+            column([
+                row([plot], sizing_mode="stretch_width"),
+                ]),
+
+
+    ])
 )
