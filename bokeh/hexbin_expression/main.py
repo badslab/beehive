@@ -1,6 +1,7 @@
 import logging
 from functools import partial
 import logging
+from pyexpat.errors import XML_ERROR_INCOMPLETE_PE
 from venv import create
 import pandas as pd
 import numpy as np
@@ -88,7 +89,7 @@ w_z_axis_radio = create_widget(
     "z_axis_radio", RadioGroup, labels=LABELS_AXIS, default=0, title="Grouped:", value_type=int)
 
 #user selecting size
-w_size_slider = create_widget("size_picker",Slider,start=0.01, end=1, default=0.1,step=0.01,title = "Hex Tile Size",value_type = float)
+w_size_slider = create_widget("size_picker",Slider,start=10, end=150, default=20,step=1,title = "Number of Bins",value_type = float)
 
 #subset selection of categorical obs
 w_subset_select = create_widget("subset_categories",MultiSelect,default = [],value_type = list,options = [])
@@ -245,9 +246,18 @@ def modify_data():
     global unique_obs, X_AXIS, Y_AXIS
     unique_obs = get_unique_obs(data)
     categories = w_subset_select.value
-    SIZE = w_size_slider.value
+    NO_BINS = w_size_slider.value
+    xmin = data[X_AXIS].min()
+    xmax = data[X_AXIS].max()
+    ymin = data[Y_AXIS].min()
+    ymax = data[Y_AXIS].max()
 
-    q_full, r_full = cartesian_to_axial(data[X_AXIS], data[Y_AXIS], size = SIZE, orientation = "pointytop")
+    xdelta = xmax - xmin
+    ydelta = ymax - ymin
+    hexsize = ydelta / NO_BINS
+    aspect_scale = ydelta / xdelta
+
+    q_full, r_full = cartesian_to_axial(data[X_AXIS], data[Y_AXIS], size = hexsize, orientation = "pointytop",aspect_scale = aspect_scale)
 
     if len(categories) == 0:
         # q, r = cartesian_to_axial(data[X_AXIS], data[Y_AXIS], size = SIZE, orientation = "pointytop")
@@ -255,7 +265,7 @@ def modify_data():
     else:
         #filter out uneeded groups:
         data = data.loc[np.where(data["obs"].isin(categories))].reset_index(drop = True)
-        q, r = cartesian_to_axial(data[X_AXIS], data[Y_AXIS], size = SIZE, orientation = "pointytop")
+        q, r = cartesian_to_axial(data[X_AXIS], data[Y_AXIS],size = hexsize, orientation = "pointytop",aspect_scale = aspect_scale)
     df = pd.DataFrame(dict(r=r,q=q,avg_exp = None))
 
     groups = df.groupby(["q","r"])
