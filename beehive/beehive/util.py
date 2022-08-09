@@ -3,7 +3,7 @@ import subprocess as sp
 import hashlib
 import time
 from typing import List
-
+import pandas as pd
 import beehive
 
 
@@ -160,12 +160,14 @@ def make_hashable(o):
 def UID(*args, length=7):
     chs = hashlib.sha512()
     for a in args:
-        if isinstance(a, int):
+        if isinstance(a, int) or isinstance(a,float):
             chs.update(str(a).encode())
         elif isinstance(a, str):
             chs.update(str(a).lower().encode())
         elif isinstance(a, bytes):
             chs.update(a)
+        elif isinstance(a,pd.Series):
+            chs.update(str(a).encode())
         else:
             raise Exception("Invalid type to generate UID")
     chs_hex = chs.hexdigest()
