@@ -181,7 +181,7 @@ SIZES_PALETTE_1 = [SMALL_CIRCLE,0,0]
 SIZES_PALETTE_2 = [0,BIG_CIRCLE,BIG_CIRCLE]
 TEXT_SIZES = ['0px','15px','15px'] # text gene size for: [non highlighted, highlighted, toplow]
 
-Y_START_MIN = -10
+Y_START_MIN = -5
 
 #-----------------------------------------------------------------------------------------------
 
@@ -264,6 +264,7 @@ def cb_update_plot(attr, old, new,type_change = None):
     global plot, source
     #fetch the data, and modify it.
     #this will take care of highlighting/non highlighting genes 
+    dataset_id, dataset = get_dataset()    
     data = modify_data()
     #adjust the x y ranges of the widgets!! if we are changing the group of the data
     if type_change == "new_categ":
@@ -276,6 +277,15 @@ def cb_update_plot(attr, old, new,type_change = None):
     plot.x_range.update(start = w_x_range.value*-1, end = w_x_range.value)
     plot.y_range.update(start = Y_START_MIN, end = w_y_range.value)
 
+    w_div_title_author.text = \
+        f"""
+        <ul>
+          <li><b>Title:</b> {dataset['title']}</li>
+          <li><b>Author:</b> {dataset['author']}</li>
+          <li><b>Organism / Datatype:</b>
+              {dataset['organism']} / {dataset['datatype']}</li>
+        </ul>
+        """
     curdoc().unhold()
 
 def cb_update_plot_new_dataset(attr, old, new):
@@ -321,20 +331,31 @@ cb_download = CustomJS(
 
 w_download.js_on_click(cb_download)
 
-curdoc().add_root(
-    column([
-        row([
-            column([
-                row([w_genes], 
-                    sizing_mode='stretch_width'),
-                row([w_category],
-                    sizing_mode='stretch_width'),
-                row([w_x_range,w_y_range,w_download,w_dataset_id],
-                    sizing_mode='stretch_width')],   
-                sizing_mode='stretch_width')],
-            sizing_mode='stretch_width'),
-        row([w_div_title_author],
-            sizing_mode='stretch_width'),
-        row([plot],
-            sizing_mode='stretch_width')])
+# curdoc().add_root(
+#     column([
+#         row([
+#             column([
+#                 row([w_genes], 
+#                     sizing_mode='stretch_width'),
+#                 row([w_category],
+#                     sizing_mode='stretch_width'),
+#                 row([w_x_range,w_y_range,w_download,w_dataset_id],
+#                     sizing_mode='stretch_width')],   
+#                 sizing_mode='stretch_width')],
+#             sizing_mode='stretch_width'),
+#         row([w_div_title_author],
+#             sizing_mode='stretch_width'),
+#         row([plot],
+#             sizing_mode='stretch_width')])
+# )
+
+curdoc().add_root(row([
+        column([
+            row([w_genes,w_category]),
+            row([w_x_range,w_y_range]),
+            row([w_download,w_dataset_id]),
+            row([w_div_title_author],sizing_mode="stretch_width"),
+                ]),
+        column([plot],sizing_mode="stretch_both")
+        ],sizing_mode="stretch_both")
 )
