@@ -153,10 +153,17 @@ def get_gene_meta_three_facets(dsid: str, gene: str, meta1: str, meta2: str, met
     metadata = get_meta(dsid, meta1, nobins=nobins, raw = True) #facet1
     metadata2 = get_meta(dsid,meta2,nobins=nobins, raw = True) #facet2
     metadata3 = get_meta(dsid,meta3,nobins=nobins,raw = True) #most likely mouse_id
-
+    """"
+    function to return the aggregate of 3 metadata options
+    first two metadatas will be displayed in a boxplot doubled
+    and the third will be specific to every possible combination
+    we end up with means of the third metadata
+    and means of (metadata1 * metadata2) groups.
+    """
     if genedata is None or metadata is None or metadata2 is None or metadata3 is None:
         return None
     
+    #group on both metadatas => excluding the third
     rv_combined = (
         pl.concat([genedata, metadata,metadata2,metadata3], how="horizontal")
         .groupby([meta1,meta2])
@@ -176,6 +183,7 @@ def get_gene_meta_three_facets(dsid: str, gene: str, meta1: str, meta2: str, met
         )
     )
 
+    #group on all => get the means of the third.
     rv_mouseid = (
         pl.concat([genedata, metadata,metadata2,metadata3], how="horizontal")
         .groupby([meta1,meta2,meta3])
@@ -187,10 +195,13 @@ def get_gene_meta_three_facets(dsid: str, gene: str, meta1: str, meta2: str, met
         )
     )
 
+    #switch to dfs
     rv_combined = rv_combined.to_pandas()
     rv_mouseid = rv_mouseid.to_pandas()
 
+    #need to exclude NONE here. (when yaml is updated...)
 
+    #calculate other measures
     rv_combined['perc'] = 100 * rv_combined['count'] / rv_combined['count'].sum()
     rv_combined['_segment_top'] = rv_combined['q99']
     rv_combined['_bar_top'] = rv_combined['q75']
@@ -199,17 +210,21 @@ def get_gene_meta_three_facets(dsid: str, gene: str, meta1: str, meta2: str, met
     rv_combined['_segment_bottom'] = rv_combined['q01']
 
 
+    #factors to plot... factor is based on metadata1 x metadata2 = tuples.
     factors =  [ (x, y) for x in rv_combined[meta2].tolist() for y in rv_combined[meta1].tolist() ]
 
+    #manipulation to get the ["X"] columns as the factors 
     rv_combined["x"] = list(set(factors))
     rv_combined["x"] = sorted(rv_combined["x"],key=lambda tup: tup[0])
-
     rv_mouseid["x"] = rv_mouseid[[meta2,meta1]].apply(tuple, axis=1)
     rv_mouseid["x"] = sorted(rv_mouseid["x"],key=lambda tup: tup[0])
-    final_rv = pd.merge(rv_combined,rv_mouseid,on="x")
 
+    #merge on the just created ["X"] column
+    final_rv = pd.merge(rv_combined,rv_mouseid,on="x")
+    #sort..
     final_rv["x"] = sorted(final_rv["x"],key=lambda tup: tup[0])
 
+    #note, returning factors as we need it for the x_range of the plot.
     return final_rv, factors #returns the different degrees of freedom = factors (meta1 x meta2) and the final rv 
 
 
