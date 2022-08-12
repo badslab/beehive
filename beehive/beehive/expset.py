@@ -148,6 +148,73 @@ def get_facet_options_numerical(dsid: str) -> List[Tuple[str, str]]:
     return list(sorted(rv))
 
 
+def get_gene_meta_three_facets(dsid: str, gene: str, meta1: str, meta2: str, meta3: str = "mouse.id",nobins:int = 8):
+    genedata = get_gene(dsid,gene)
+    metadata = get_meta(dsid, meta1, nobins=nobins, raw = True) #facet1
+    metadata2 = get_meta(dsid,meta2,nobins=nobins, raw = True) #facet2
+    metadata3 = get_meta(dsid,meta3,nobins=nobins,raw = True) #most likely mouse_id
+
+    if genedata is None or metadata is None or metadata2 is None or metadata3 is None:
+        return None
+    
+    rv_combined = (
+        pl.concat([genedata, metadata,metadata2,metadata3], how="horizontal")
+        .groupby([meta1,meta2])
+        .agg(
+            [
+                pl.count(),
+                pl.mean(gene).alias("mean"),
+                pl.std(gene).alias("std"),
+                pl.median(gene).alias("median"),
+                pl.quantile(gene, 0.25).alias("q25"),
+                pl.quantile(gene, 0.75).alias("q75"),
+                pl.quantile(gene, 0.01).alias("q01"),
+                pl.quantile(gene, 0.99).alias("q99"),
+                pl.min(gene).alias("min"),
+                pl.max(gene).alias("max"),
+            ]
+        )
+    )
+
+    rv_mouseid = (
+        pl.concat([genedata, metadata,metadata2,metadata3], how="horizontal")
+        .groupby([meta1,meta2,meta3])
+        .agg(
+            [
+                pl.count().alias("count_" + meta3), #count_mouseid
+                pl.mean(gene).alias("mean_" + meta3), #mean_mouseid
+            ]
+        )
+    )
+
+    rv_combined = rv_combined.to_pandas()
+    rv_mouseid = rv_mouseid.to_pandas()
+
+
+    rv_combined['perc'] = 100 * rv_combined['count'] / rv_combined['count'].sum()
+    rv_combined['_segment_top'] = rv_combined['q99']
+    rv_combined['_bar_top'] = rv_combined['q75']
+    rv_combined['_bar_median'] = rv_combined['median']
+    rv_combined['_bar_bottom'] = rv_combined['q25']
+    rv_combined['_segment_bottom'] = rv_combined['q01']
+
+
+    factors =  [ (x, y) for x in rv_combined[meta2].tolist() for y in rv_combined[meta1].tolist() ]
+
+    rv_combined["x"] = list(set(factors))
+    rv_combined["x"] = sorted(rv_combined["x"],key=lambda tup: tup[0])
+
+    rv_mouseid["x"] = rv_mouseid[[meta2,meta1]].apply(tuple, axis=1)
+    rv_mouseid["x"] = sorted(rv_mouseid["x"],key=lambda tup: tup[0])
+    final_rv = pd.merge(rv_combined,rv_mouseid,on="x")
+
+    final_rv["x"] = sorted(final_rv["x"],key=lambda tup: tup[0])
+
+    return final_rv, factors #returns the different degrees of freedom = factors (meta1 x meta2) and the final rv 
+
+
+
+
 def get_gene_meta_agg(dsid: str, gene: str, meta: str, nobins: int = 8):
     """Return gene and observation."""
     genedata = get_gene(dsid, gene)
