@@ -358,6 +358,40 @@ x_label = ""
 y_label = ""
 
 
+
+
+##spinner test##
+#thanks https://discourse.bokeh.org/t/small-example-on-a-loading-div/9058/6
+spinner_text = """
+<!-- https://www.w3schools.com/howto/howto_css_loader.asp -->
+<div class="loader">
+<style scoped>
+.loader {
+    border: 16px solid #f3f3f3; /* Light grey */
+    border-top: 16px solid #3498db; /* Blue */
+    border-radius: 50%;
+    width: 120px;
+    height: 120px;
+    animation: spin 2s linear infinite;
+    displat: flex;
+    margin: 250px 0 0 300px;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+} 
+</style>
+</div>
+"""
+div_spinner = Div(text=spinner_text,visible=True)
+
+
+
+def remove_spinner():
+    div_spinner.visible = False
+    plot.visible = True
+
 def cb_update_plot(attr, old, new, type_change):
     """Populate and update the plot."""
     curdoc().hold()
@@ -366,10 +400,15 @@ def cb_update_plot(attr, old, new, type_change):
     # if type_change not in ["XYAXIS", "regression", "categorical", "geneX", "geneY", "num_facetX", "num_facetY","num_facetZ"]:
     #     curdoc().unhold()
     #     return
+    
+    div_spinner.visible = True
+    plot.visible = False
     if type_change == "cosmetics":
         for glyph_renderer in plot.renderers:
             glyph_renderer.glyph.size = w_size_slider.value
             glyph_renderer.glyph.fill_alpha = w_alpha_slider.value
+            curdoc().add_next_tick_callback(remove_spinner)
+
         curdoc().unhold()
         return
 
@@ -482,6 +521,8 @@ def cb_update_plot(attr, old, new, type_change):
     plot.yaxis.axis_label = f"{y_label}"
 
     w_download_filename.text = f"exp_{dataset_id}_{facet}_{x_label}_{y_label}.tsv"
+    curdoc().add_next_tick_callback(remove_spinner)
+    # div_spinner.visible = False
 
     curdoc().unhold()
 
@@ -539,6 +580,12 @@ w_size_slider.on_change("value", partial(cb_update_plot, type_change="cosmetics"
 w_dataset_id.on_change("value", cb_dataset_change)
 w_download.js_on_click(cb_download)
 
+cb = CustomJS(args=dict(div_spinner=div_spinner)
+              ,code='''
+              console.log('cb triggered!')
+              div_spinner.change.emit()''')
+              
+div_spinner.js_on_change('visible',cb)
 # curdoc().add_root(
 #     column([
 #         row([
@@ -581,7 +628,7 @@ curdoc().add_root(row([
                 row([w_dataset_id]),
             ]),
             column([
-                row([plot], sizing_mode="stretch_width"),
+                row([plot,div_spinner], sizing_mode="stretch_width"),
                 ]),
 
 
