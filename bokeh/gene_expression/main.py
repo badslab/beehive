@@ -49,31 +49,12 @@ dataset_options = [(k, "{short_title}, {short_author}".format(**v))
 w_dataset_id = create_widget("dataset_id", Select, title="Dataset",
                              options=dataset_options,
                              default=dataset_options[0][0],
-                             visible=True,)
-
-# Possible siblings of this dataset
-# siblings = expset.get_dataset_siblings(w_dataset_id.value)
-# sibling_options = []
-# #check all organisms
-# organisms = []
-# for k, v in siblings.items():
-#     organisms = organisms + [v['organism']]
-
-# if len(list(set(organisms))) == 1:
-#     for k, v in siblings.items():
-#         # sname = f"{v['organism']} / {v['datatype']}"
-#         sname = f"{v['datatype']}"
-#         sibling_options.append((k, sname))
-# else:
-#     for k, v in siblings.items():
-#         sname = f"{v['organism']} / {v['datatype']}"
-# sibling_options.append((k, sname))
-
+                             visible=True,height = 10, width = 100)
 
 w_sibling = create_widget("view", Select,
                           options=[],
                           default=w_dataset_id.value,
-                          update_url=False)
+                          update_url=False,height = 20, width = 150)
 
 
 def update_sibling_options():
@@ -101,9 +82,9 @@ update_sibling_options()
 
 
 w_gene = create_widget("gene", AutocompleteInput,
-                       completions=[], default='APOE', case_sensitive=False)
-w_facet = create_widget("facet", Select, options=[], title="Group by")
-w_download = Button(label='Download', align='end')
+                       completions=[], default='APOE', case_sensitive=False, height = 50, width = 150)
+w_facet = create_widget("facet", Select, options=[], title="Group by",height = 50, width = 150)
+w_download = Button(label='Download', align='end', height = 50, width = 150)
 w_download_filename = Div(text="", visible=False,
                           name="download_filename")
 
@@ -124,7 +105,8 @@ def get_genes():
 
 def update_facets():
     """Update interface for a specific dataset."""
-    options = expset.get_facet_options(w_dataset_id.value)
+    options = expset.get_facet_options(w_dataset_id.value,only_categorical = True)
+    
     w_facet.options = options
 
     if w_facet.value not in [x[0] for x in options]:
@@ -201,17 +183,14 @@ def get_dataset():
 # Create plot
 #
 plot = figure(background_fill_color="#efefef", x_range=[],title="Plot",
-              toolbar_location='right', tools="save")
-# removed all tools but save
+              toolbar_location='right', tools="save", sizing_mode = "scale_both")
 
-# plot = figure(background_fill_color="#efefef", x_range=[],
-#               plot_height=400, title="Plot",
-#               toolbar_location='right')
 data = get_data()
 source = ColumnDataSource(data)
 table = DataTable(source=source,
                   margin=10,
                   index_position=None,
+                  sizing_mode = "scale_both",
                   columns=[
                       TableColumn(field='cat_value', title='Category'),
                       TableColumn(field='count', title='No Samples/Cells',
@@ -269,6 +248,7 @@ def cb_update_plot(attr, old, new):
     """Populate and update the plot."""
     curdoc().hold()
     global plot, source
+
     data = get_data()
     dataset_id, dataset = get_dataset()
     facet = w_facet.value
@@ -348,21 +328,21 @@ w_facet.on_change("value", cb_update_plot)
 w_download.js_on_click(cb_download)
 w_dataset_id.on_change("value", cb_update_plot)
 
-
 #
 # Build the document
 #
 curdoc().add_root(row([
     column([
         column([
-        row([w_gene, w_facet]),
-        row([w_sibling, w_download]),
+        row([w_gene, w_facet],sizing_mode='scale_both'),
+        row([w_sibling, w_download],sizing_mode='scale_both'),
         ]),
-        column([w_gene_not_found,w_div_title_author,w_dataset_id], sizing_mode='stretch_width'),
-        column([table])
+        column([w_div_title_author], sizing_mode='scale_both'),
+        column([w_dataset_id],sizing_mode='scale_both'),
+        column([table],sizing_mode='scale_both')
         ]),
     column([
-        column([plot], sizing_mode='stretch_width')
+        column([plot], sizing_mode='scale_both')
     ])
-])
+], sizing_mode='scale_both')
 )
