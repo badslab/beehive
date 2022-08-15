@@ -1,7 +1,7 @@
 author: Renzo Mancuso, Nicola Fattorelli, Anna Martinez-Muriana, Emma Davis, Leen
   Wolfs, Johanna Van Den Daele, Ivana Geric, Pranav Preman, Lutgarde Serneels, Suresh
   Poovathingal, Sriram Balusu, Catherine Verfaille, Mark Fiers, Bart De Strooper
-datatype: raw_counts
+datatype: integrated_features
 de_meta:
   cell.state__CRM1:
     name: cell.state__CRM1
@@ -29,27 +29,24 @@ de_meta:
     obs_field: cell.state
   injection__oAbvsScr:
     name: injection__oAbvsScr
-    obs_field: injection
+    obs_field: oAbvsScr
   mouse.genotype__NLGFvsWT:
     name: mouse.genotype__NLGFvsWT
-    obs_field: mouse.genotype
+    obs_field: NLGFvsWT
   xMG.genotype__APOE44vsAPOE33:
     name: xMG.genotype__APOE44vsAPOE33
-    obs_field: xMG.genotype
+    obs_field: APOE
   xMG.genotype__TREM2KOvsWT:
     name: xMG.genotype__TREM2KOvsWT
-    obs_field: xMG.genotype
+    obs_field: TREM2
   xMG.genotype__TREM2R47HvsWT:
     name: xMG.genotype__TREM2R47HvsWT
-    obs_field: xMG.genotype
+    obs_field: TREM2
 description: "Human microglia xenografted in APP-WT/APP-NLGF/APP-NLGFApoeKO mice display\
   \ a multi-pronged response to A\u03B2 pathology. APOE22/33/44 and TREM2-R47H/KO/WT\
   \ xenografted microglia allow study of microglial reponse under different genetic\
   \ constraints."
 obs_meta:
-  all:
-    dtype: skip
-    name: Mouse Info
   cell.state:
     dtype: categorical
     name: Cell State
@@ -70,45 +67,69 @@ obs_meta:
         name: Ribosomal response (RM)
       Transitioning CRM:
         name: Transitioning CRM
-  cell_id:
+  mouse.id:
     dtype: skip
-    name: Cell ID
-  injection:
+    name: Mouse ID
+  oAbvsScr:
     dtype: categorical
     name: Injection
     values:
-      None:
-        name: None
+      NONE:
+        name: NONE
       Scr:
         name: Scr
       oAb:
         name: oAb
-  mouse.genotype:
+  NLGFapoeKOvsNLGF:
     dtype: categorical
-    name: Mouse Genotype
+    name: NLGFapoeKOvsNLGF
     values:
+      NONE:
+        name: NONE
       APP-NLGF:
         name: APP-NLGF
-        order: 3
-        color: "#AAEEFF"
       APP-NLGF/ApoeKO:
         name: APP-NLGF/ApoeKO
-        order: 4
+  NLGFvsWT:
+    dtype: categorical
+    name: NLGFvsWT
+    values:
+      NONE:
+        name: NONE
+      APP-NLGF:
+        name: APP-NLGF
       APP-WT:
         name: APP-WT
-        order: 2
+  TREM2:
+    dtype: categorical
+    name: TREM2 Genotype
+    values:
+      NONE:
+        name: NONE
       WT:
         name: WT
-        order: 1
-  mouse.genotype_xMG.genotype_injection:
-    dtype: skip
-    name: Genotype-Injection
-  mouse.id:
-    dtype: skip
-    name: Mouse ID
-  pseudotime_12bins:
+      TREM2-R47H:
+        name: TREM2-R47H
+      TREM2-KO:
+        name: TREM2-KO
+  APOE:
     dtype: categorical
-    name: Pseudotime
+    name: APOE Genotype
+    values:
+      NONE:
+        name: NONE
+      APOE44:
+        name: APOE44
+      APOE33:
+        name: APOE33
+      APOE22:
+        name: APOE22
+  pseudotime_DAM.HLA:
+    dtype: categorical
+    name: DAM-HLA Pseudotime
+  pseudotime_CRM:
+    dtype: categorical
+    name: CRM Pseudotime
   umap_1:
     dtype: numerical
     facet_on: false
@@ -117,32 +138,6 @@ obs_meta:
     dtype: numerical
     facet_on: false
     name: UMAP_2
-  xMG.background:
-    dtype: categorical
-    name: Microglia Background
-    values:
-      H9:
-        name: H9
-      iPSC-A:
-        name: iPSC-A
-      iPSC-C:
-        name: iPSC-C
-  xMG.genotype:
-    dtype: categorical
-    name: Microglia Genotype
-    values:
-      APOE22:
-        name: APOE22
-      APOE33:
-        name: APOE33
-      APOE44:
-        name: APOE44
-      TREM2-KO:
-        name: TREM2-KO
-      TREM2-R47H:
-        name: TREM2-R47H
-      WT:
-        name: WT
 organism: human
 short_title: "Microglia response to AD A\u03B2 pathology"
 study: h.man2m.1
