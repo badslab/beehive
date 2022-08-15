@@ -240,9 +240,17 @@ def get_gene_meta_agg(dsid: str, gene: str, meta: str, nobins: int = 8):
     if metadata is None:
         return None
 
+    #in new yamls, there is sometimes names of column same as that of gene
+    #e.g. in man2m.. meta = APOE, gene = APOE
+    #this ruins the concatination..
+    if genedata.columns == metadata.columns:
+        metadata.columns = [metadata.columns[0] + "_category"]
+
+    new_meta = metadata.columns[0]
+
     rv = (
         pl.concat([genedata, metadata], how="horizontal")
-        .groupby(meta)
+        .groupby(new_meta)
         .agg(
             [
                 pl.count(),
@@ -260,7 +268,7 @@ def get_gene_meta_agg(dsid: str, gene: str, meta: str, nobins: int = 8):
     )
 
     rv = rv.to_pandas()
-    rv = rv.rename(columns={meta: "cat_value"})
+    rv = rv.rename(columns={new_meta: "cat_value"})
 
     # Does the YAML have sort_order fields? If so use these
     # if False:  # if there are order fields:
