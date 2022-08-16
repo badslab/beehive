@@ -54,27 +54,35 @@ obs_meta:
       Antigen-presenting response (HLA):
         name: Antigen-presenting response (HLA)
         color: "#6FC3B9"
+        order: 7
       Cytokines response 1 (CRM-1):
         name: Cytokines response 1 (CRM-1)
         color: "#B6854D"
+        order: 3
       Cytokines response 2 (CRM-2):
         name: Cytokines response 2 (CRM-2)
         color: "#D3AE74"
+        order: 4
       Disease associated (DAM):
         name: Disease associated (DAM)
         color: "#729489"
+        order: 6
       Homeostatic (HM):
         name: Homeostatic (HM)
         color: "#E8847B"
+        order: 1
       Interferon response (IRM):
         name: Interferon response (IRM)
         color: "#9A6884"
+        order: 8
       Ribosomal response (RM):
         name: Ribosomal response (RM)
         color: "#788AA3"
+        order: 5
       Transitioning CRM:
         name: Transitioning CRM
         color: "#E29874"
+        order: 2
     legend: "Data are shown by cell state as described in Figure 1\
     \ of the manuscript. All mice (95 replicates) included in this study\
     \ were used to produce this figure."
@@ -87,12 +95,15 @@ obs_meta:
     values:
       NONE:
         name: NONE
+        order: 3
       Scr:
         name: Scr
         color: "#283618"
+        order: 1
       oAb:
         name: oAb
         color: "#FFB4A2"
+        order: 2
     legend: "Data are shown by injection: synthetic amyloid-β oligomers (13 mice)\
     \ and scrambled peptide (7 mice), as described in Figure 3g-i of the manuscript.\
     \ Data include transplanted cells from two different human genetic backgrounds i.e. UKBIO11-A and BIONi010-C.\
@@ -105,12 +116,15 @@ obs_meta:
     values:
       NONE:
         name: NONE
+        order: 3
       APP-NLGF:
         name: APP-NLGF
         color: "#3d405b"
+        order: 1
       APP-NLGF/ApoeKO:
         name: APP-NLGF/ApoeKO
         color: "#f4f1de"
+        order: 2
     legend: "Data are shown by genetic background of the transplanted mice: AppNL-G-F ApoE-/-\
     \ (with significant reduction of amyloid-β plaques, 6 mice) and AppNL-G-F (11 mice), as described\
     \ in Figure 3a-c of the manuscript. Data include transplanted cells from three different human genetic\
@@ -124,12 +138,15 @@ obs_meta:
     values:
       NONE:
         name: NONE
+        order: 3
       APP-NLGF:
         name: APP-NLGF
         color: "#3d405b"
+        order: 2
       APP-WT:
         name: APP-WT
         color: "#e07a5f"
+        order: 1
     legend: "Data are shown by genetic background of the transplanted mice: AppNL-G-F\
     \ (with progressive amyloid-b plaques accumulation from 3 months after birth, 23 mice)\
     \ and Apphu/hu mice (humanized App control mice, 10 mice), as described in Figure 2 of the manuscript.\
@@ -143,15 +160,18 @@ obs_meta:
     values:
       NONE:
         name: NONE
+        order: 4
       WT:
         name: WT
         color: "#DDA15E"
+        order: 1
       TREM2-R47H:
         name: TREM2-R47H
         color: "#8C5E58"
+        order: 3
       TREM2-KO:
         name: TREM2-KO
-        color: "#40798C"
+        color: "#4079
     legend: "Data are shown by genetic background of the human transplanted cells: H9 (2 mice), TREM2-/- (3 mice)\
     \ and TREM2-R47H (3 mice), as described in Figure 3d-f and Figure 4a-d of the manuscript. Data include isogenic\
     \ transplanted cell lines from one human genetic background i.e. H9 and in one mouse host background\
@@ -163,15 +183,19 @@ obs_meta:
     values:
       NONE:
         name: NONE
+        order: 4
       APOE44:
         name: APOE44
         color: "#ffd97d"
+        order: 3
       APOE33:
         name: APOE33
         color: "#4bc6b9"
+        order: 2
       APOE22:
         name: APOE22
         color: "#006e90"
+        order: 1
     legend: "Data are shown by genetic background of the human transplanted cells: APOE22 (6 mice), APOE33 (6 mice)\
     \ and APOE44 (6 mice), as described in Figure 4e-h of the manuscript. Data include isogenic transplanted cell\
     \ lines from two different human genetic backgrounds i.e. UKBIO11-A and BIONi010-C and in one mouse host\
