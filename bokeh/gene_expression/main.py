@@ -25,6 +25,8 @@ from bokeh.plotting import figure, curdoc
 
 from beehive import config, util, expset
 
+from bokeh.transform import jitter
+
 lg = logging.getLogger('GeneExp')
 lg.setLevel(logging.DEBUG)
 lg.info("startup")
@@ -83,7 +85,9 @@ update_sibling_options()
 
 w_gene = create_widget("gene", AutocompleteInput,
                        completions=[], default='APOE', case_sensitive=False, height = 50, width = 150)
-w_facet = create_widget("facet", Select, options=[], title="Group by",height = 50, width = 150)
+w_facet = create_widget("facet", Select, options=[], title="Group by level 1:",height = 50, width = 150)
+w_facet2 = create_widget("facet2", Select, options=[], title="Group by level 2:",height = 50, width = 150)
+# w_facet3 = create_widget("facet3", Select, options=[], title="Show class of avg expression in:",height = 50, width = 150)
 w_download = Button(label='Download', align='end', height = 50, width = 150)
 w_download_filename = Div(text="", visible=False,
                           name="download_filename")
@@ -106,12 +110,25 @@ def get_genes():
 def update_facets():
     """Update interface for a specific dataset."""
     options = expset.get_facet_options(w_dataset_id.value,only_categorical = True)
-    
+    # options_with_skip = expset.get_facet_options(w_dataset_id.value,only_categorical = True, include_skip = True)
     w_facet.options = options
+    w_facet2.options = options
+    # w_facet3.options = options_with_skip
 
     if w_facet.value not in [x[0] for x in options]:
         # set a default
         w_facet.value = options[0][0]
+
+    w_facet2.options = list(filter(lambda x: x[0] != w_facet.value,w_facet2.options))
+    if w_facet2.value not in [x[0] for x in options]:
+        # set a default
+        w_facet2.value = options[0][0]
+    
+    w_facet.options = list(filter(lambda x: x[0] != w_facet2.value,w_facet.options))
+
+    # if w_facet3.value not in [x[0] for x in options_with_skip]:
+    #     # set a default
+    #     w_facet3.value = options_with_skip[0][0]
 
 
 def facet_groups(facet):
@@ -139,6 +156,8 @@ def get_data() -> pd.DataFrame:
     dataset_id = w_dataset_id.value
     gene = w_gene.value
     facet = w_facet.value
+    facet2 = w_facet2.value
+    # facet3 = w_facet3.value
 
     # TODO get the order from here and sort the data later..
     # will also get color
@@ -150,27 +169,11 @@ def get_data() -> pd.DataFrame:
 
     lg.warning(f"!! Getting data for {dataset_id} {facet} {gene}")
 
-    data = expset.get_gene_meta_agg(
-        dsid=dataset_id,
-        gene=gene,
-        meta=facet)
 
-    # drop "NONE"
-    # calculations in tbale will not include NONE.
-    data = data[data["cat_value"] != 'NONE']
-    # Note: table calculations are based on dropping NONE now...
-    data['perc'] = 100 * data['count'] / data['count'].sum()
+    data = expset.get_gene_meta_three_facets(dataset_id,gene,facet,facet2,"mouse.id")
+    data_no_dups = data.drop_duplicates("cat_value")
 
-    # default settings for a boxplot -
-    # override if other further down
-
-    data['_segment_top'] = data['q99']
-    data['_bar_top'] = data['q75']
-    data['_bar_median'] = data['median']
-    data['_bar_bottom'] = data['q25']
-    data['_segment_bottom'] = data['q01']
-
-    return data
+    return data,data_no_dups
 
 
 def get_dataset():
@@ -185,9 +188,10 @@ def get_dataset():
 plot = figure(background_fill_color="#efefef", x_range=[],title="Plot",
               toolbar_location='right', tools="save", sizing_mode = "scale_both")
 
-data = get_data()
+data,data_no_dups = get_data()
 source = ColumnDataSource(data)
-table = DataTable(source=source,
+source_no_dups = ColumnDataSource(data_no_dups)
+table = DataTable(source=source_no_dups,
                   margin=10,
                   index_position=None,
                   sizing_mode = "scale_both",
@@ -211,13 +215,14 @@ table = DataTable(source=source,
                                   formatter=ScientificFormatter(precision=2)),
                   ])
 
-
+# meta3 = w_facet3.value
+meta3 = "mouse.id"
 # create plot elements - these are the same for boxplots as mean/std type plots
 elements = dict(
-    vbar=plot.vbar(source=source, x='cat_value', top='_bar_top',
-                   bottom='_bar_bottom', width=0.85, name="barplot",
-                   fill_color=config.colors.color6,
-                   line_color="black"),
+    vbar=plot.vbar(x="cat_value", top='_bar_top',
+                bottom='_bar_bottom', source = source, width=0.85, name="barplot",
+                fill_color=config.colors.color6,
+                line_color="black"),
     seg_v_up=plot.segment(source=source, x0='cat_value', x1='cat_value',
                           y0='_bar_top', y1='_segment_top',
                           line_color='black'),
@@ -231,6 +236,8 @@ elements = dict(
     seg_h_med=plot.rect(source=source, x='cat_value', height=0.001,
                         y='_bar_median', width=0.85, line_width=2,
                         line_color='black'),
+    jitter_points = plot.scatter(x=jitter('cat_value', width=0.4, range=plot.x_range), y=f'mean_{meta3}', size=5, alpha=0.4, source=source,legend_label = f"{meta3}")
+
 )
 
 X_AXIS_LABELS_ORIENTATION = 3.14/2
@@ -249,11 +256,14 @@ def cb_update_plot(attr, old, new):
     curdoc().hold()
     global plot, source
 
-    data = get_data()
+    data,data_no_dups = get_data()
+    update_facets()
     dataset_id, dataset = get_dataset()
     facet = w_facet.value
-    gene = w_gene.value
+    facet2 = w_facet2.value
 
+    gene = w_gene.value
+    # meta3 = w_facet3.value
     w_div_title_author.text = \
         f"""
         <ul>
@@ -265,11 +275,11 @@ def cb_update_plot(attr, old, new):
         """
 
     gene = w_gene.value
-    plot.x_range.factors = list(data['cat_value'])
+    plot.x_range.factors = sorted(list(set(data["cat_value"])),key=lambda tup: tup[0])
     w_download_filename.text = f"exp_{dataset_id}_{facet}_{gene}.tsv"
 
     source.data = data
-
+    source_no_dups.data = data_no_dups
     # plan for 5% space above & below
     yspacer = (data['_segment_top'].max() - data['_segment_bottom'].min()) / 20
 
@@ -296,6 +306,7 @@ update_plot = partial(cb_update_plot, attr=None, old=None, new=None)
 
 # run it directly to ensure there are initial values
 update_plot()
+
 
 
 def cb_dataset_change(attr, old, new):
@@ -327,6 +338,8 @@ w_dataset_id.on_change("value", cb_dataset_change)
 w_facet.on_change("value", cb_update_plot)
 w_download.js_on_click(cb_download)
 w_dataset_id.on_change("value", cb_update_plot)
+w_facet2.on_change("value",cb_update_plot)
+# w_facet3.on_change("value",cb_update_plot)
 
 #
 # Build the document
@@ -334,8 +347,10 @@ w_dataset_id.on_change("value", cb_update_plot)
 curdoc().add_root(row([
     column([
         column([
-        row([w_gene, w_facet],sizing_mode='scale_both'),
+        row([w_gene, w_facet,w_facet2],sizing_mode='scale_both'),
+        # row([w_sibling, w_download,w_facet3],sizing_mode='scale_both'),
         row([w_sibling, w_download],sizing_mode='scale_both'),
+
         ]),
         column([w_div_title_author], sizing_mode='scale_both'),
         column([w_dataset_id],sizing_mode='scale_both'),
