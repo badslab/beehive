@@ -16,15 +16,14 @@ from pprint import pprint
 import pandas as pd
 
 from bokeh.layouts import column, row
-from bokeh.models import ColumnDataSource, Range1d
-from bokeh.models import DataTable, TableColumn, ScientificFormatter
+from bokeh.models import ColumnDataSource, Range1d, Label, DataTable, TableColumn, ScientificFormatter
 from bokeh.models.callbacks import CustomJS
 from bokeh.models.widgets import (Select, TextInput, Div,
                                   Button, AutocompleteInput)
 from bokeh.plotting import figure, curdoc
 
 from beehive import config, util, expset
-
+print(expset)
 from bokeh.transform import jitter
 
 lg = logging.getLogger('GeneExp')
@@ -250,6 +249,7 @@ ymin = data['_segment_bottom'].min() - yspacer
 plot.update(y_range=Range1d(ymin, ymax))
 plot.xaxis.major_label_orientation = X_AXIS_LABELS_ORIENTATION
 
+citation = Div(text=f'{expset.get_legend_of_obs(w_dataset_id.value,w_facet.value)}')
 
 def cb_update_plot(attr, old, new):
     """Populate and update the plot."""
@@ -297,7 +297,8 @@ def cb_update_plot(attr, old, new):
                        f" - {dataset['first_author']} - {title}")
     plot.yaxis.axis_label = f"{dataset['datatype']}"
     plot.xaxis.major_label_orientation = X_AXIS_LABELS_ORIENTATION
-
+    plot.xaxis.major_label_text_font_size = "10px"
+    citation.text = f'{expset.get_legend_of_obs(dataset_id,facet)}'
     curdoc().unhold()
 
 
@@ -357,7 +358,9 @@ curdoc().add_root(row([
         column([table],sizing_mode='scale_both')
         ]),
     column([
-        column([plot], sizing_mode='scale_both')
+        column([plot], sizing_mode='scale_both'),
+        column([citation], sizing_mode='scale_both'),
+
     ])
 ], sizing_mode='scale_both')
 )
