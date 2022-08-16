@@ -136,9 +136,7 @@ def get_legend_of_obs(dsid,meta):
     for yamlfile in datadir.glob("*.yaml"):
         basename = yamlfile.name.replace(".yaml", "")
         if dsid == basename:
-            print(yamlfile.name)
             with open(yamlfile, "r") as F:
-                print(yamlfile)
                 y = yaml.load(F, Loader=yaml.SafeLoader)
                 legend = y["obs_meta"][meta]["legend"]
     return legend
@@ -259,11 +257,16 @@ def get_gene_meta_three_facets(dsid: str, gene: str, meta1: str, meta2: str, met
 
     final_rv = final_rv.rename(columns={"x": "cat_value"})
     #sort the column for colors to be displayed..
+
     final_rv[new_meta+"_y"] = sorted(final_rv[new_meta+"_y"])
 
     #note, returning factors as we need it for the x_range of the plot.
     return final_rv #returns the different degrees of freedom = factors (meta1 x meta2) and the final rv 
 
+
+##might be better to merge these two functions into one:
+#get_colors_of_obs()
+#get_order_of_obs()
 def get_colors_of_obs(dsid: str, meta: str):
     final_dict = {}
     datadir = util.get_datadir("h5ad")
@@ -272,11 +275,29 @@ def get_colors_of_obs(dsid: str, meta: str):
         if dsid == basename:
             with open(yamlfile, "r") as F:
                 y = yaml.load(F, Loader=yaml.SafeLoader)
-                for key,data in y["obs_meta"][meta]["values"].items():
-                    name = key
-                    color = data.get("color")
-                    final_dict[name] = "black" if color == None else color
+                if y["obs_meta"][meta].get("values"):
+                    for key,data in y["obs_meta"][meta]["values"].items():
+                        name = key
+                        color = data.get("color")
+                        final_dict[name] = "black" if color == None else color
     return final_dict
+
+def get_order_of_obs(dsid: str, meta: str):
+    final_dict = {}
+    datadir = util.get_datadir("h5ad")
+    for yamlfile in datadir.glob("*.yaml"):
+        basename = yamlfile.name.replace(".yaml", "")
+        if dsid == basename:
+            with open(yamlfile, "r") as F:
+                y = yaml.load(F, Loader=yaml.SafeLoader)
+                if y["obs_meta"][meta].get("values"):
+                    for key,data in y["obs_meta"][meta]["values"].items():
+                        name = key
+                        order = data.get("order")
+                        final_dict[name] = 0 if order == None else order
+    return final_dict
+
+
 
 def get_gene_meta_agg(dsid: str, gene: str, meta: str, nobins: int = 8):
     """Return gene and observation."""
