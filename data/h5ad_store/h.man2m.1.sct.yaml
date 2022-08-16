@@ -171,7 +171,8 @@ obs_meta:
         order: 3
       TREM2-KO:
         name: TREM2-KO
-        color: "#4079
+        color: "#40798C"
+        order: 2
     legend: "Data are shown by genetic background of the human transplanted cells: H9 (2 mice), TREM2-/- (3 mice)\
     \ and TREM2-R47H (3 mice), as described in Figure 3d-f and Figure 4a-d of the manuscript. Data include isogenic\
     \ transplanted cell lines from one human genetic background i.e. H9 and in one mouse host background\
