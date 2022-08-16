@@ -23,8 +23,8 @@ from bokeh.models.widgets import (Select, TextInput, Div,
 from bokeh.plotting import figure, curdoc
 
 from beehive import config, util, expset
-print(expset)
-from bokeh.transform import jitter
+
+from bokeh.transform import jitter, factor_cmap,CategoricalColorMapper
 
 lg = logging.getLogger('GeneExp')
 lg.setLevel(logging.DEBUG)
@@ -47,9 +47,12 @@ w_div_title_author = Div(text="")
 dataset_options = [(k, "{short_title}, {short_author}".format(**v))
                    for k, v in datasets.items()]
 
+# !!!!!!!!!!!!!!!!!!!!!TODO Setting it manually!!!!!!!!!!!!!!!!
+
 w_dataset_id = create_widget("dataset_id", Select, title="Dataset",
                              options=dataset_options,
-                             default=dataset_options[0][0],
+                            #  default=dataset_options[0][0],
+                             default="h.man2m.1.sct",
                              visible=True,height = 10, width = 100)
 
 w_sibling = create_widget("view", Select,
@@ -121,10 +124,10 @@ def update_facets():
     w_facet2.options = list(filter(lambda x: x[0] != w_facet.value,w_facet2.options))
     if w_facet2.value not in [x[0] for x in options]:
         # set a default
-        w_facet2.value = options[0][0]
+        w_facet2.value = w_facet2.options[0][0]
     
     w_facet.options = list(filter(lambda x: x[0] != w_facet2.value,w_facet.options))
-
+    print(w_facet.value,w_facet2.value)
     # if w_facet3.value not in [x[0] for x in options_with_skip]:
     #     # set a default
     #     w_facet3.value = options_with_skip[0][0]
@@ -156,18 +159,8 @@ def get_data() -> pd.DataFrame:
     gene = w_gene.value
     facet = w_facet.value
     facet2 = w_facet2.value
-    # facet3 = w_facet3.value
-
-    # TODO get the order from here and sort the data later..
-    # will also get color
-    # facet_groups = facet_groups(w_facet.value)
-
-    # ==> check if there is full order
-    # if yes, call get_gene_meta_agg with order = True
-    # can order with the list of orders in expset.get_gene_meta_agg before function returns
 
     lg.warning(f"!! Getting data for {dataset_id} {facet} {gene}")
-
 
     data = expset.get_gene_meta_three_facets(dataset_id,gene,facet,facet2,"mouse.id")
     data_no_dups = data.drop_duplicates("cat_value")
@@ -180,12 +173,26 @@ def get_dataset():
     dataset_id = w_dataset_id.value
     return dataset_id, datasets[dataset_id]
 
+def get_mapper():
+    dataset = w_dataset_id.value
+    meta = w_facet.value
+    dict_colors = expset.get_colors_of_obs(dataset,meta)
+    mapper = CategoricalColorMapper(palette = list(dict_colors.values()), factors=list(dict_colors.keys()))
+    return mapper
+
+def get_order():
+    dataset = w_dataset_id.value
+    meta = w_facet.value
+    dict_order = expset.get_order_of_obs(dataset,meta)
+    ordered_list = sorted(dict_order, key=dict_order.get)
+    return ordered_list
 
 #
 # Create plot
 #
 plot = figure(background_fill_color="#efefef", x_range=[],title="Plot",
               toolbar_location='right', tools="save", sizing_mode = "scale_both")
+
 
 data,data_no_dups = get_data()
 source = ColumnDataSource(data)
@@ -217,10 +224,13 @@ table = DataTable(source=source_no_dups,
 # meta3 = w_facet3.value
 meta3 = "mouse.id"
 # create plot elements - these are the same for boxplots as mean/std type plots
+mapper = get_mapper()
+
 elements = dict(
     vbar=plot.vbar(x="cat_value", top='_bar_top',
                 bottom='_bar_bottom', source = source, width=0.85, name="barplot",
-                fill_color=config.colors.color6,
+                fill_color={'field': f'{w_facet.value}_y', 'transform': mapper},
+
                 line_color="black"),
     seg_v_up=plot.segment(source=source, x0='cat_value', x1='cat_value',
                           y0='_bar_top', y1='_segment_top',
@@ -251,6 +261,14 @@ plot.xaxis.major_label_orientation = X_AXIS_LABELS_ORIENTATION
 
 citation = Div(text=f'{expset.get_legend_of_obs(w_dataset_id.value,w_facet.value)}')
 
+ordered_list = get_order()
+order = {key: i for i, key in enumerate(ordered_list)}
+
+if order:
+    plot.x_range.factors = sorted(list(set(data["cat_value"])),key = lambda d: (d[0],order[d[1]]))
+else:
+    plot.x_range.factors = sorted(list(set(data["cat_value"])),key=lambda tup: tup[0])
+
 def cb_update_plot(attr, old, new):
     """Populate and update the plot."""
     curdoc().hold()
@@ -261,9 +279,8 @@ def cb_update_plot(attr, old, new):
     dataset_id, dataset = get_dataset()
     facet = w_facet.value
     facet2 = w_facet2.value
-
     gene = w_gene.value
-    # meta3 = w_facet3.value
+
     w_div_title_author.text = \
         f"""
         <ul>
@@ -274,12 +291,23 @@ def cb_update_plot(attr, old, new):
         </ul>
         """
 
-    gene = w_gene.value
-    plot.x_range.factors = sorted(list(set(data["cat_value"])),key=lambda tup: tup[0])
-    w_download_filename.text = f"exp_{dataset_id}_{facet}_{gene}.tsv"
-
     source.data = data
     source_no_dups.data = data_no_dups
+
+    mapper = get_mapper()
+    elements["vbar"].glyph.fill_color = {'field': f'{w_facet.value}_y', 'transform': mapper}
+
+
+    ordered_list = get_order()
+    order = {key: i for i, key in enumerate(ordered_list)}
+
+    if order:
+        plot.x_range.factors = sorted(list(set(data["cat_value"])),key = lambda d:  (d[0],order[d[1]]))
+    else:
+        plot.x_range.factors = sorted(list(set(data["cat_value"])),key=lambda tup: tup[0])
+
+    w_download_filename.text = f"exp_{dataset_id}_{facet}_{gene}.tsv"
+
     # plan for 5% space above & below
     yspacer = (data['_segment_top'].max() - data['_segment_bottom'].min()) / 20
 
@@ -295,6 +323,7 @@ def cb_update_plot(attr, old, new):
     plot.title.text = (f"Boxplot of {gene} vs {facet}"
                        f" - {dataset['organism']}"
                        f" - {dataset['first_author']} - {title}")
+    print(dataset['datatype'])
     plot.yaxis.axis_label = f"{dataset['datatype']}"
     plot.xaxis.major_label_orientation = X_AXIS_LABELS_ORIENTATION
     plot.xaxis.major_label_text_font_size = "10px"
@@ -323,7 +352,11 @@ def cb_dataset_change(attr, old, new):
 def cb_sibling_change(attr, old, new):
     lg.debug("Sibling change: " + new)
     w_dataset_id.value = new
+    update_facets()
+    update_genes()
+    update_sibling_options()
     update_plot()
+
 
 
 cb_download = CustomJS(
@@ -337,9 +370,8 @@ w_gene.on_change("value", cb_update_plot)
 w_sibling.on_change("value", cb_sibling_change)
 w_dataset_id.on_change("value", cb_dataset_change)
 w_facet.on_change("value", cb_update_plot)
-w_download.js_on_click(cb_download)
-w_dataset_id.on_change("value", cb_update_plot)
 w_facet2.on_change("value",cb_update_plot)
+w_download.js_on_click(cb_download)
 # w_facet3.on_change("value",cb_update_plot)
 
 #
