@@ -5,6 +5,7 @@ from typing import Dict, List, Tuple
 
 
 import pandas as pd
+import numpy as np
 import polars as pl
 import yaml
 
@@ -84,7 +85,7 @@ def get_dataset(dsid):
 
 
 def get_facet_options(dsid: str,
-                      only_categorical: bool = False) -> List[Tuple[str, str]]:
+                      only_categorical: bool = False, include_skip = False) -> List[Tuple[str, str]]:
     """
     Return obs columns that a dataset can be facetted on.
     These have to be categorical
@@ -97,6 +98,8 @@ def get_facet_options(dsid: str,
         use = False
         if only_categorical:
             if data.get('dtype') == 'categorical':
+                use = True
+            if data.get('dtype') == 'skip' and include_skip:
                 use = True
         else:
             if data.get('dtype') == 'categorical':
@@ -147,7 +150,9 @@ def get_facet_options_numerical(dsid: str) -> List[Tuple[str, str]]:
             rv.append((key, name))
     return list(sorted(rv))
 
-
+def testing():
+    return "test"
+    
 def get_gene_meta_three_facets(dsid: str, gene: str, meta1: str, meta2: str, meta3: str = "mouse.id",nobins:int = 8):
     genedata = get_gene(dsid,gene)
     metadata = get_meta(dsid, meta1, nobins=nobins, raw = True) #facet1
@@ -160,13 +165,25 @@ def get_gene_meta_three_facets(dsid: str, gene: str, meta1: str, meta2: str, met
     we end up with means of the third metadata
     and means of (metadata1 * metadata2) groups.
     """
+
     if genedata is None or metadata is None or metadata2 is None or metadata3 is None:
         return None
+
+    if genedata.columns == metadata.columns:
+        metadata.columns = [metadata.columns[0] + "_category"]
+    if genedata.columns == metadata2.columns:
+        metadata2.columns = [metadata2.columns[0] + "_category"]
+    if genedata.columns == metadata3.columns:
+        metadata3.columns = [metadata3.columns[0] + "_category"]
+
+    new_meta = metadata.columns[0]
+    new_meta2 = metadata2.columns[0]
+    new_meta3 = metadata3.columns[0]
     
     #group on both metadatas => excluding the third
     rv_combined = (
         pl.concat([genedata, metadata,metadata2,metadata3], how="horizontal")
-        .groupby([meta1,meta2])
+        .groupby([new_meta,new_meta2])
         .agg(
             [
                 pl.count(),
@@ -186,7 +203,7 @@ def get_gene_meta_three_facets(dsid: str, gene: str, meta1: str, meta2: str, met
     #group on all => get the means of the third.
     rv_mouseid = (
         pl.concat([genedata, metadata,metadata2,metadata3], how="horizontal")
-        .groupby([meta1,meta2,meta3])
+        .groupby([new_meta,new_meta2,new_meta3])
         .agg(
             [
                 pl.count().alias("count_" + meta3), #count_mouseid
@@ -200,6 +217,13 @@ def get_gene_meta_three_facets(dsid: str, gene: str, meta1: str, meta2: str, met
     rv_mouseid = rv_mouseid.to_pandas()
 
     #need to exclude NONE here. (when yaml is updated...)
+    #waiting on reply from nico
+    #what to do when all intersected groups have NONE?
+    #resulting dataframe will not include any data at all.
+    # rv_combined = rv_combined[rv_combined[new_meta] != 'NONE']
+    # rv_combined = rv_combined[rv_combined[new_meta2] != 'NONE']
+
+    # rv_mouseid = rv_mouseid[rv_mouseid[new_meta3] != 'NONE']
 
     #calculate other measures
     rv_combined['perc'] = 100 * rv_combined['count'] / rv_combined['count'].sum()
@@ -210,22 +234,20 @@ def get_gene_meta_three_facets(dsid: str, gene: str, meta1: str, meta2: str, met
     rv_combined['_segment_bottom'] = rv_combined['q01']
 
 
-    #factors to plot... factor is based on metadata1 x metadata2 = tuples.
-    factors =  [ (x, y) for x in rv_combined[meta2].tolist() for y in rv_combined[meta1].tolist() ]
-
     #manipulation to get the ["X"] columns as the factors 
-    rv_combined["x"] = list(set(factors))
+    rv_combined["x"] = rv_combined[[new_meta2,new_meta]].apply(tuple, axis=1)
     rv_combined["x"] = sorted(rv_combined["x"],key=lambda tup: tup[0])
-    rv_mouseid["x"] = rv_mouseid[[meta2,meta1]].apply(tuple, axis=1)
+
+    rv_mouseid["x"] = rv_mouseid[[new_meta2,new_meta]].apply(tuple, axis=1)
     rv_mouseid["x"] = sorted(rv_mouseid["x"],key=lambda tup: tup[0])
 
     #merge on the just created ["X"] column
     final_rv = pd.merge(rv_combined,rv_mouseid,on="x")
     #sort..
     final_rv["x"] = sorted(final_rv["x"],key=lambda tup: tup[0])
-
+    final_rv = final_rv.rename(columns={"x": "cat_value"})
     #note, returning factors as we need it for the x_range of the plot.
-    return final_rv, factors #returns the different degrees of freedom = factors (meta1 x meta2) and the final rv 
+    return final_rv #returns the different degrees of freedom = factors (meta1 x meta2) and the final rv 
 
 
 
