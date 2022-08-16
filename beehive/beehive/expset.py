@@ -130,7 +130,18 @@ def get_facet_groups(dsid,facet):
 
     return result
 
-
+def get_legend_of_obs(dsid,meta):
+    datadir = util.get_datadir("h5ad")
+    legend = ""
+    for yamlfile in datadir.glob("*.yaml"):
+        basename = yamlfile.name.replace(".yaml", "")
+        if dsid == basename:
+            print(yamlfile.name)
+            with open(yamlfile, "r") as F:
+                print(yamlfile)
+                y = yaml.load(F, Loader=yaml.SafeLoader)
+                legend = y["obs_meta"][meta]["legend"]
+    return legend
 
 def get_facet_options_numerical(dsid: str) -> List[Tuple[str, str]]:
     """
