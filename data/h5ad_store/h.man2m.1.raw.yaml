@@ -67,6 +67,10 @@ obs_meta:
         name: Ribosomal response (RM)
       Transitioning CRM:
         name: Transitioning CRM
+    legend: "Data are shown by cell state as described in Figure 1\
+    \ of the manuscript. All mice (95 replicates) included in this study\
+    \ were used to produce this figure."
+
   mouse.id:
     dtype: skip
     name: Mouse ID
@@ -80,6 +84,12 @@ obs_meta:
         name: Scr
       oAb:
         name: oAb
+    legend: "Data are shown by injection: synthetic amyloid-β oligomers (13 mice)\
+    \ and scrambled peptide (7 mice), as described in Figure 3g-i of the manuscript.\
+    \ Data include transplanted cells from two different human genetic backgrounds i.e. UKBIO11-A and BIONi010-C.\
+    \ Only Apphu/hu mice were injected with with soluble Aβ species, mice that develop plaque pathology are not shown\
+    \ (see 'NLGFvsWT' and 'NLGFapoeKOvsNLGF' comparisons). All cell states are merged in this view, see 'cell.state' tab\
+    \ for gene expression changes across annotated clusters."
   NLGFapoeKOvsNLGF:
     dtype: categorical
     name: NLGFapoeKOvsNLGF
@@ -90,6 +100,13 @@ obs_meta:
         name: APP-NLGF
       APP-NLGF/ApoeKO:
         name: APP-NLGF/ApoeKO
+    legend: "Data are shown by genetic background of the transplanted mice: AppNL-G-F ApoE-/-\
+    \ (with significant reduction of amyloid-β plaques, 6 mice) and AppNL-G-F (11 mice), as described\
+    \ in Figure 3a-c of the manuscript. Data include transplanted cells from three different human genetic\
+    \ backgrounds i.e. UKBIO11-A, BIONi010-C and H9. Only the control cell lines are used for the comparison:\
+    \ H9 and APOE33 iPSC cells. All cell states are merged in this view, see 'cell.state' tab for gene expression\
+    \ changes across annotated clusters. Mice injected with soluble Aβ species are not shown, see 'injection' tab for\
+    \ that comparison."
   NLGFvsWT:
     dtype: categorical
     name: NLGFvsWT
@@ -100,6 +117,13 @@ obs_meta:
         name: APP-NLGF
       APP-WT:
         name: APP-WT
+    legend: "Data are shown by genetic background of the transplanted mice: AppNL-G-F\
+    \ (with progressive amyloid-b plaques accumulation from 3 months after birth, 23 mice)\
+    \ and Apphu/hu mice (humanized App control mice, 10 mice), as described in Figure 2 of the manuscript.\
+    \ Data include transplanted cells from three different human genetic backgrounds i.e. UKBIO11-A,\
+    \ BIONi010-C and H9. All cell states are merged in this view, see 'cell.state' tab for gene expression\
+    \ changes across annotated clusters. Mice injected with soluble Aβ species are not shown, see 'injection'\
+    \ tab for that comparison."
   TREM2:
     dtype: categorical
     name: TREM2 Genotype
@@ -112,6 +136,11 @@ obs_meta:
         name: TREM2-R47H
       TREM2-KO:
         name: TREM2-KO
+    legend: "Data are shown by genetic background of the human transplanted cells: H9 (2 mice), TREM2-/- (3 mice)\
+    \ and TREM2-R47H (3 mice), as described in Figure 3d-f and Figure 4a-d of the manuscript. Data include isogenic\
+    \ transplanted cell lines from one human genetic background i.e. H9 and in one mouse host background\
+    \ i.e. AppNL-G-F. All cell states are merged in this view, see 'cell.state' tab for gene expression changes across\
+    \ annotated clusters. Mice injected with soluble Aβ species are not shown, see 'injection' tab for that comparison."
   APOE:
     dtype: categorical
     name: APOE Genotype
@@ -124,12 +153,29 @@ obs_meta:
         name: APOE33
       APOE22:
         name: APOE22
+    legend: "Data are shown by genetic background of the human transplanted cells: APOE22 (6 mice), APOE33 (6 mice)\
+    \ and APOE44 (6 mice), as described in Figure 4e-h of the manuscript. Data include isogenic transplanted cell\
+    \ lines from two different human genetic backgrounds i.e. UKBIO11-A and BIONi010-C and in one mouse host\
+    \ background i.e. AppNL-G-F. All cell states are merged in this view, see 'cell.state' tab for gene expression\
+    \ changes across annotated clusters. Mice injected with soluble Aβ species are not shown, see 'injection' tab\
+    \ for that comparison."
   pseudotime_DAM.HLA:
     dtype: categorical
     name: DAM-HLA Pseudotime
+    legend: "Data are shown by pseudotime (binned in 12 intervals) as described in Figure 2c-d of the manuscript.\
+    \ Only the cell states predicted to be in the trajectory driven by plaque pathology are included in this plot:\
+    \ Homeostatic (HM), Disease associated (DAM) and Antigen-presenting response (HLA). See “pseudotime_CRM” tab\
+    \ for gene expression changes along the other main branch of the inferred trajectory driven by soluble Aβ\
+    \ species. All mice (95 replicates) included in this study were used to produce this figure."
   pseudotime_CRM:
     dtype: categorical
     name: CRM Pseudotime
+    legend: "Data are shown by pseudotime (binned in 12 intervals) as described in Figure 2c-d of the manuscript.\
+    \ Only the cell states predicted to be in the trajectory driven by soluble Aβ species are included in this plot:\
+    \ Homeostatic (HM), Transitioning CRM, Cytokines response 1 (CRM-1) and Cytokines response 2 (CRM-2).\
+    \ See “pseudotime_DAM.HLA” tab for gene expression changes along the other main branch of the inferred\
+    \ trajectory driven by plaque pathology. All mice (95 replicates) included in this study were used to produce\
+    \ this figure."
   umap_1:
     dtype: numerical
     facet_on: false
