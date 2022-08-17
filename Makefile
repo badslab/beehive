@@ -95,6 +95,8 @@ serve_dev_raghid3: fix_templates
 serve_dev_raghid4: fix_templates
 	pipenv run bokeh serve --dev --port 5009 bokeh/volcano_plot/
 
+serve_dev_raghid5: fix_templates
+	pipenv run bokeh serve --dev --port 5009 bokeh/quadrant_plot/
 
 
 .PHONY:
