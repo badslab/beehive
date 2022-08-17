@@ -127,7 +127,7 @@ def update_facets():
         w_facet2.value = w_facet2.options[0][0]
     
     w_facet.options = list(filter(lambda x: x[0] != w_facet2.value,w_facet.options))
-    print(w_facet.value,w_facet2.value)
+
     # if w_facet3.value not in [x[0] for x in options_with_skip]:
     #     # set a default
     #     w_facet3.value = options_with_skip[0][0]
@@ -163,6 +163,9 @@ def get_data() -> pd.DataFrame:
     lg.warning(f"!! Getting data for {dataset_id} {facet} {gene}")
 
     data = expset.get_gene_meta_three_facets(dataset_id,gene,facet,facet2,"mouse.id")
+    #filter NONEs
+    data = data.loc[data["cat_value"].str[0] != "NONE"]
+    data = data.loc[data["cat_value"].str[1] != "NONE"]
     data_no_dups = data.drop_duplicates("cat_value")
 
     return data,data_no_dups
@@ -195,6 +198,19 @@ plot = figure(background_fill_color="#efefef", x_range=[],title="Plot",
 
 
 data,data_no_dups = get_data()
+warning_experiment = Div(text="""<b>The selected combination of conditions was not tested in the manuscript, 
+please see experimental design and select an alternative view.</b>""",visible = False, style={'color': 'red'})
+
+#can we plot the data?
+if len(data) == 0:
+    #no..
+    warning_experiment.visible = True
+    #fix the default facets and get data again.
+    w_facet.value = w_facet.options[0][0]
+    w_facet2.value = w_facet2.options[1][0]
+    data,data_no_dups = get_data()
+
+#Plotting#
 source = ColumnDataSource(data)
 source_no_dups = ColumnDataSource(data_no_dups)
 table = DataTable(source=source_no_dups,
@@ -223,9 +239,9 @@ table = DataTable(source=source_no_dups,
 
 # meta3 = w_facet3.value
 meta3 = "mouse.id"
-# create plot elements - these are the same for boxplots as mean/std type plots
 mapper = get_mapper()
 
+# create plot elements - these are the same for boxplots as mean/std type plots
 elements = dict(
     vbar=plot.vbar(x="cat_value", top='_bar_top',
                 bottom='_bar_bottom', source = source, width=0.85, name="barplot",
@@ -249,37 +265,68 @@ elements = dict(
 
 )
 
+#to orient the legends of the x axis
 X_AXIS_LABELS_ORIENTATION = 3.14/2
+plot.xaxis.subgroup_label_orientation = X_AXIS_LABELS_ORIENTATION
+plot.xaxis.group_label_orientation = X_AXIS_LABELS_ORIENTATION
 
 yspacer = (data['_segment_top'].max() - data['_segment_bottom'].min()) / 20
 
 ymax = data['_segment_top'].max() + yspacer
 ymin = data['_segment_bottom'].min() - yspacer
-
 plot.update(y_range=Range1d(ymin, ymax))
-plot.xaxis.major_label_orientation = X_AXIS_LABELS_ORIENTATION
 
 citation = Div(text=f'{expset.get_legend_of_obs(w_dataset_id.value,w_facet.value)}')
 
+#check for metadata order
 ordered_list = get_order()
 order = {key: i for i, key in enumerate(ordered_list)}
-
 if order:
     plot.x_range.factors = sorted(list(set(data["cat_value"])),key = lambda d: (d[0],order[d[1]]))
 else:
     plot.x_range.factors = sorted(list(set(data["cat_value"])),key=lambda tup: tup[0])
 
+
 def cb_update_plot(attr, old, new):
     """Populate and update the plot."""
     curdoc().hold()
-    global plot, source
-
-    data,data_no_dups = get_data()
+    global plot, source, data, data_no_dups
     update_facets()
+
+    #keeping old data and getting new data
+    old_data = data
+    old_data_no_dups = data_no_dups
+    new_data,new_data_no_dups = get_data()
+
     dataset_id, dataset = get_dataset()
     facet = w_facet.value
     facet2 = w_facet2.value
     gene = w_gene.value
+
+    #can we plot the new data?
+    if len(new_data) == 0:
+        #no..
+        warning_experiment.visible = True
+        data = old_data
+        data_no_dups = old_data_no_dups
+        #keep the old data.
+    else:
+        #yes, update everything.
+        warning_experiment.visible = False
+        data = new_data
+        data_no_dups = new_data_no_dups
+        source.data = data
+        source_no_dups.data = data_no_dups
+
+        #mapper for color, and mapper for order. if found.
+        mapper = get_mapper()
+        elements["vbar"].glyph.fill_color = {'field': f'{w_facet.value}_y', 'transform': mapper}
+        ordered_list = get_order()
+        order = {key: i for i, key in enumerate(ordered_list)}
+        if order:
+            plot.x_range.factors = sorted(list(set(data["cat_value"])),key = lambda d:  (d[0],order[d[1]]))
+        else:
+            plot.x_range.factors = sorted(list(set(data["cat_value"])),key=lambda tup: tup[0])
 
     w_div_title_author.text = \
         f"""
@@ -291,21 +338,6 @@ def cb_update_plot(attr, old, new):
         </ul>
         """
 
-    source.data = data
-    source_no_dups.data = data_no_dups
-
-    mapper = get_mapper()
-    elements["vbar"].glyph.fill_color = {'field': f'{w_facet.value}_y', 'transform': mapper}
-
-
-    ordered_list = get_order()
-    order = {key: i for i, key in enumerate(ordered_list)}
-
-    if order:
-        plot.x_range.factors = sorted(list(set(data["cat_value"])),key = lambda d:  (d[0],order[d[1]]))
-    else:
-        plot.x_range.factors = sorted(list(set(data["cat_value"])),key=lambda tup: tup[0])
-
     w_download_filename.text = f"exp_{dataset_id}_{facet}_{gene}.tsv"
 
     # plan for 5% space above & below
@@ -314,19 +346,24 @@ def cb_update_plot(attr, old, new):
     ymax = data['_segment_top'].max() + yspacer
     ymin = data['_segment_bottom'].min() - yspacer
 
-    lg.warning(f"## Y MIN/MAX {ymin:.2g} / {ymax:.2g} ")
+    #fixing y range min max    
     plot.y_range.update(start=ymin, end=ymax)
 
+    #title of plot
     title = dataset['short_title']
     if len(title) > 80:
         title = title[:77] + '...'
     plot.title.text = (f"Boxplot of {gene} vs {facet}"
                        f" - {dataset['organism']}"
                        f" - {dataset['first_author']} - {title}")
-    print(dataset['datatype'])
+
+    ##x-axis legend
     plot.yaxis.axis_label = f"{dataset['datatype']}"
-    plot.xaxis.major_label_orientation = X_AXIS_LABELS_ORIENTATION
+    plot.xaxis.subgroup_label_orientation = X_AXIS_LABELS_ORIENTATION
+    plot.xaxis.group_label_orientation = X_AXIS_LABELS_ORIENTATION 
     plot.xaxis.major_label_text_font_size = "10px"
+
+    #adding citation if found.
     citation.text = f'{expset.get_legend_of_obs(dataset_id,facet)}'
     curdoc().unhold()
 
@@ -387,6 +424,7 @@ curdoc().add_root(row([
         ]),
         column([w_div_title_author], sizing_mode='scale_both'),
         column([w_dataset_id],sizing_mode='scale_both'),
+        column([warning_experiment],sizing_mode='scale_both'),
         column([table],sizing_mode='scale_both')
         ]),
     column([
