@@ -16,7 +16,7 @@ from bokeh.transform import factor_cmap, transform
 from bokeh.models.transforms import CustomJSTransform
 from beehive import config, util, expset
 
-lg = logging.getLogger('ScatterExpression')
+lg = logging.getLogger('VolcanoPlot')
 lg.setLevel(logging.DEBUG)
 lg.info("startup")
 
