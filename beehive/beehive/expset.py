@@ -406,6 +406,7 @@ def get_dedata(dsid, categ, genes):
     rv = rv.pivot(index="cat_value", columns="measurement", values=genes)
     return rv
 
+# TODO next two functions can  be merged into 1?
 
 def get_dedata_new(dsid, categ):
     datadir = util.get_datadir("h5ad")
@@ -428,6 +429,35 @@ def get_dedata_new(dsid, categ):
     # in new format, padjusted and lfc are already on columns, genes on rows.
     # get genes has same index as that for the rows.
     return rv
+
+
+def get_dedata_quadrant(dsid, categ1,categ2):
+    datadir = util.get_datadir("h5ad")
+
+    # TODO should be a stable name "gene" in all datasets
+    # get last column,, no way to access it just by name
+    # sometimes it's called gene, sometimes it's index__0__
+    last_col = len(pl.read_parquet(datadir / f"{dsid}.var.prq").columns)
+
+    rv1 = pl.read_parquet(datadir / f"{dsid}.var.prq", [last_col - 1])
+
+    # get logfoldchange and padjusted for one category
+    # (example injection__None)
+    rv2 = pl.read_parquet(
+        datadir / f"{dsid}.var.prq", [categ1 + "__lfc"] + [categ2 + "__lfc"] + [categ1 + "__padj"] + [categ2 + "__padj"])
+
+    rv = pl.concat([rv2, rv1], how="horizontal")
+
+    #avoid where chosen lfc's are the same ones.. 
+    rv = rv.rename({categ1 + "__lfc": categ1 + "__lfc_1",
+                   categ2 + "__lfc": categ2 + "__lfc_2",
+                   categ1 + "__padj": categ1 + "__padj_1",
+                   categ2 + "__padj": categ2 + "__padj_2"})
+    rv = rv.to_pandas()
+    # in new format, padjusted and lfc are already on columns, genes on rows.
+    # get genes has same index as that for the rows.
+    return rv
+
 
 
 def get_meta(dsid, col, raw=False, nobins=8):
