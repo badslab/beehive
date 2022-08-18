@@ -36,7 +36,7 @@ LABELS_AXIS = ["Gene", "Numerical Facet"]
 create_widget = partial(util.create_widget, curdoc=curdoc())
 
 datasets = expset.get_datasets(view_name=VIEW_NAME)
-print(len(datasets))
+
 args = curdoc().session_context.request.arguments
 
 
