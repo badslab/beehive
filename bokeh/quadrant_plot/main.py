@@ -17,17 +17,17 @@ from bokeh.models.transforms import CustomJSTransform
 from beehive import config, util, expset
 
 
-lg = logging.getLogger('VolcanoPlot')
+lg = logging.getLogger('QuadrantPlot')
 lg.setLevel(logging.DEBUG)
 lg.info("startup")
 
 curdoc().template_variables['config'] = config
-curdoc().template_variables['view_name'] = 'Volcano Plot'
+curdoc().template_variables['view_name'] = 'Quadrant Plot'
 
 
 create_widget = partial(util.create_widget, curdoc=curdoc())
 
-datasets = expset.get_datasets()
+datasets = expset.get_datasets(view_name="quadrant_plot")
 
 args = curdoc().session_context.request.arguments
 
@@ -127,19 +127,19 @@ def get_data() -> pd.DataFrame:
                                 "significant on both axes", data["highlight"])
     data["highlight"] = data.apply(lambda x: highlight_genes(x),axis = 1)
     data["color"] = data.apply(lambda x: color_genes(x),axis = 1)
-
+    data["size"] = data.apply(lambda x: size_genes(x),axis = 1)
     return data
 
 
 def color_genes(x):
-    if x["highlight"] == "significant on x axis":
+    if x["highlight"] == "highlighted genes":
+        return "purple"
+    elif x["highlight"] == "significant on x axis":
         return "red"
     elif x["highlight"] == "significant on y axis":
         return "green"
     elif x["highlight"] == "significant on both axes":
         return "blue"
-    elif x["highlight"] == "highlighted genes":
-        return "purple"
     else:
         return "gray"
        
@@ -149,6 +149,12 @@ def highlight_genes(x):
         return "highlighted genes"
     else:
         return x["highlight"]
+
+def size_genes(x):
+    if x["highlight"] == "other genes":
+        return 3
+    else:
+        return 6
 
 TOOLTIPS = [
             ('Log Fold Change on x-axis', '@x'),
@@ -178,8 +184,8 @@ source = ColumnDataSource(data)
 
 plot.scatter(x = "x", y = "y", source = source, 
 color="color",
+size = "size",
 legend_field = "highlight")
-
 
 def cb_update_plot(attr, old, new,type_change = None):
     curdoc().hold()
