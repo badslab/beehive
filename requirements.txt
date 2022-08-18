@@ -14,5 +14,4 @@ statsmodels
 typer
 pelican 
 markdown
-holoviews
 -e ./beehive
