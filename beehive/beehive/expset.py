@@ -23,7 +23,7 @@ diskcache = partial(
 
 
 @lru_cache(1)
-def get_datasets(has_de: bool = False):
+def get_datasets(has_de: bool = False,view_name: str = ""):
     """Return a dict with all dataset."""
     datadir = util.get_datadir("h5ad")
     global DATASETS
@@ -34,6 +34,8 @@ def get_datasets(has_de: bool = False):
             basename = basename.replace(".yaml", "")
             with open(yamlfile, "r") as F:
                 y = yaml.load(F, Loader=yaml.SafeLoader)
+                if view_name not in y["use_in_view"]:
+                    continue
                 authors = y["author"].split(",")
                 authors = [x.strip() for x in authors]
                 y["first_author"] = authors[0]
