@@ -16,26 +16,31 @@ lg = logging.getLogger(__name__)
 lg.setLevel(logging.DEBUG)
 
 
-DATASETS: Dict[str, Dict] = {}
+
 
 diskcache = partial(
     util.diskcache, where=util.get_datadir("cache"), refresh=True)
 
-
-@lru_cache(1)
+#NOTE:
+#datasets now depend on the view
+#if all views are active at the same time, DATASETS should not be a global variable.
+# @lru_cache(1)
 def get_datasets(has_de: bool = False,view_name: str = ""):
     """Return a dict with all dataset."""
-    datadir = util.get_datadir("h5ad")
-    global DATASETS
+    # DATASETS: Dict[str, Dict] = {}
+    DATASETS = dict()
 
+    datadir = util.get_datadir("h5ad")
+    #global DATASETS
     if len(DATASETS) == 0:
         for yamlfile in datadir.glob("*.yaml"):
+            use = True
             basename = yamlfile.name
             basename = basename.replace(".yaml", "")
             with open(yamlfile, "r") as F:
                 y = yaml.load(F, Loader=yaml.SafeLoader)
                 if view_name not in y["use_in_view"]:
-                    continue
+                    use = False
                 authors = y["author"].split(",")
                 authors = [x.strip() for x in authors]
                 y["first_author"] = authors[0]
@@ -49,8 +54,8 @@ def get_datasets(has_de: bool = False,view_name: str = ""):
                         y["short_title"] = y["title"][:57] + "..."
                     else:
                         y["short_title"] = y["title"]
-
-            DATASETS[basename] = y
+            if use == True:
+                DATASETS[basename] = y
 
     if has_de:
         # return only datasets with diffexp data
@@ -66,9 +71,9 @@ def get_datasets(has_de: bool = False,view_name: str = ""):
         return DATASETS
 
 
-def get_dataset_siblings(dsid: str) -> dict:
+def get_dataset_siblings(dsid: str,view_name: str) -> dict:
     """Return datasets with the same study_id."""
-    dsets = get_datasets()
+    dsets = get_datasets(view_name = view_name)
     dset = dsets[dsid]
     study_id = dset["study"]
     siblings = {}
@@ -78,23 +83,23 @@ def get_dataset_siblings(dsid: str) -> dict:
     return siblings
 
 
-@lru_cache(32)
-def get_dataset(dsid):
+# @lru_cache(32)
+def get_dataset(dsid,view_name):
     """Return metadata on a single dataset."""
-    rv = get_datasets()[dsid]
+    rv = get_datasets(view_name = view_name)[dsid]
     lg.info(f"Returning dataset {dsid}")
     return rv
 
 
 def get_facet_options(dsid: str,
-                      only_categorical: bool = False, include_skip = False) -> List[Tuple[str, str]]:
+                      only_categorical: bool = False, include_skip = False, view_name: str = "") -> List[Tuple[str, str]]:
     """
     Return obs columns that a dataset can be facetted on.
     These have to be categorical
 
     param dataset - dictionary as loaded from the .yaml files
     """
-    dataset = get_dataset(dsid)
+    dataset = get_dataset(dsid,view_name)
     rv = []
     for key, data in dataset.get('obs_meta', {}).items():
         use = False
@@ -116,11 +121,11 @@ def get_facet_options(dsid: str,
     return list(sorted(rv))
 
 
-def get_facet_groups(dsid,facet):
+def get_facet_groups(dsid,facet, view_name: str = ""):
     """
     Return metadata of obs column
     """
-    dataset = get_dataset(dsid)
+    dataset = get_dataset(dsid, view_name)
     result = {}
     for key, data in dataset.get('obs_meta', {}).items():
         if key == facet:
@@ -143,14 +148,14 @@ def get_legend_of_obs(dsid,meta):
                 legend = y["obs_meta"][meta]["legend"]
     return legend
 
-def get_facet_options_numerical(dsid: str) -> List[Tuple[str, str]]:
+def get_facet_options_numerical(dsid: str, view_name: str = "") -> List[Tuple[str, str]]:
     """
     Return obs columns that a dataset can be facetted on.
     These have to be categorical
 
     param dataset - dictionary as loaded from the .yaml files
     """
-    dataset = get_dataset(dsid)
+    dataset = get_dataset(dsid, view_name)
     rv = []
     for key, data in dataset.get('obs_meta', {}).items():
         use = False
@@ -354,23 +359,16 @@ def get_gene(dsid, gene):
         return None
     return rv
 
-#NOT ADDED TO VIEWS YET
-#Suggested format:
-#Views
-def get_usable_views(dsid):
-    dataset = get_dataset(dsid)
-    return
 
-
-def get_defields(dsid):
-    ds = get_dataset(dsid)
+def get_defields(dsid, view_name):
+    ds = get_dataset(dsid, view_name)
     dex = ds.get("diffexp")
     return list(dex.keys())
 
 
-def get_dedata(dsid, categ, genes):
+def get_dedata(dsid, categ, genes, view_name: str = ""):
     """Return diffexp data."""
-    ds = get_dataset(dsid)
+    ds = get_dataset(dsid, view_name)
     dex = ds.get("diffexp")
     assert categ in dex
 
@@ -439,7 +437,7 @@ def get_dedata_quadrant(dsid, categ1,categ2):
 
 
 
-def get_meta(dsid, col, raw=False, nobins=8):
+def get_meta(dsid, col, raw=False, nobins=8, view_name: str = ""):
     """Return one obs column."""
     datadir = util.get_datadir("h5ad")
     rv = pl.read_parquet(datadir / f"{dsid}.obs.prq", [col])
@@ -448,7 +446,7 @@ def get_meta(dsid, col, raw=False, nobins=8):
         # just return whatever is in the db.
         return rv
 
-    ds = get_dataset(dsid)
+    ds = get_dataset(dsid, view_name)
     dscol = ds["obs_meta"][col]
 
     if dscol["dtype"] == "categorical":
