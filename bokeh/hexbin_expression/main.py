@@ -33,7 +33,7 @@ COLOR_POSSIBILITIES = ["None", "Density (counts)","Metadata"]
 LABELS_AXIS = ["Gene", "Numerical Facet"]
 create_widget = partial(util.create_widget, curdoc=curdoc())
 
-datasets = expset.get_datasets()
+datasets = expset.get_datasets(view_name="hexbin_expression")
 
 args = curdoc().session_context.request.arguments
 
@@ -156,12 +156,16 @@ update_facets()
 def update_numerical_facets():
     """"Get and update numerical facets only. Helpful for the w_numerical_facet widget"""
     options = expset.get_facet_options_numerical(w_dataset_id.value)
+
     w_facet_numerical_1.options = options
     w_facet_numerical_2.options = options
     w_facet_numerical_3.options = options
 
     # some datasets might not have any numerical facets
     if not(options):
+        w_facet_numerical_1.value = None
+        w_facet_numerical_2.value = None
+        w_facet_numerical_3.value = None
         return
 
     if w_facet_numerical_1.value not in [x[0] for x in options]:
@@ -187,7 +191,6 @@ def get_data() -> pd.DataFrame:
     num_facet2 = w_facet_numerical_2.value
     num_facet3 = w_facet_numerical_3.value
     facet = w_facet.value
-
     geneX = None
     geneY = None
     geneZ = None
@@ -493,6 +496,7 @@ def cb_dataset_change(attr, old, new):
     curdoc().hold()
     update_facets()
     update_genes()
+    update_numerical_facets()
     update_plot()
 
 cb_download = CustomJS(
