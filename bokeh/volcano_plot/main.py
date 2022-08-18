@@ -26,7 +26,7 @@ curdoc().template_variables['view_name'] = 'Volcano Plot'
 
 create_widget = partial(util.create_widget, curdoc=curdoc())
 
-datasets = expset.get_datasets()
+datasets = expset.get_datasets(view_name="volcano_plot")
 
 args = curdoc().session_context.request.arguments
 
