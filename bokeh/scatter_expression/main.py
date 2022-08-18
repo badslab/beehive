@@ -32,7 +32,7 @@ FACET_OPTION = 1
 
 create_widget = partial(util.create_widget, curdoc=curdoc())
 
-datasets = expset.get_datasets()
+datasets = expset.get_datasets(view_name="scatter_expression")
 
 args = curdoc().session_context.request.arguments
 
