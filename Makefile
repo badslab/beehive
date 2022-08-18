@@ -74,29 +74,38 @@ serve_dev: fix_templates
 		bokeh serve --dev --port 5010 bokeh/gene_expression/ # bokeh/diffexp/
 	done
 
-serve_dev_raghid: fix_templates
-	pipenv run bokeh serve --dev --port 5009 --allow-websocket-origin=* bokeh/gene_expression/
-
+####raghid####
+#using pipenv to install requirements.txt as virtual env
 serve_dev_raghid_auth: fix_templates
 	pipenv run bokeh serve --dev --port 5009 --allow-websocket-origin=* --auth-module=beehive/beehive/auth.py bokeh/gene_expression/
 
-serve_dev_raghid_scatter_local: fix_templates
+serve_dev_raghid_auth_ssl: fix_templates
 	pipenv run bokeh serve --dev --port 5009 --allow-websocket-origin=* --auth-module=beehive/beehive/auth.py --ssl-certfile beehive/cert.pem --ssl-keyfile beehive/key.pem bokeh/scatter_expression/
 
-serve_dev_raghid_scatter_server: fix_templates
+serve_dev_raghid_server_auth: fix_templates
 	pipenv run bokeh serve --dev --port 8009 --allow-websocket-origin=* --auth-module=beehive/beehive/auth.py --ssl-certfile beehive/cert.pem --ssl-keyfile beehive/key.pem bokeh/scatter_expression/
 
-serve_dev_raghid2: fix_templates
+serve_dev_raghid_gene: fix_templates
+	pipenv run bokeh serve --dev --port 5009 --allow-websocket-origin=* bokeh/gene_expression/
+
+serve_dev_raghid_scatter: fix_templates
 	pipenv run bokeh serve --dev --port 5009 bokeh/scatter_expression/
 
-serve_dev_raghid3: fix_templates
+serve_dev_raghid_hexbin: fix_templates
 	pipenv run bokeh serve --dev --port 5009 bokeh/hexbin_expression/
 
-serve_dev_raghid4: fix_templates
+serve_dev_raghid_volcano: fix_templates
 	pipenv run bokeh serve --dev --port 5009 bokeh/volcano_plot/
 
-serve_dev_raghid5: fix_templates
+serve_dev_raghid_quadrant: fix_templates
 	pipenv run bokeh serve --dev --port 5009 bokeh/quadrant_plot/
+
+serve_dev_raghid_all: fix_templates
+	pipenv run bokeh serve --port 5009 bokeh/quadrant_plot/ \
+									bokeh/volcano_plot/ \
+									bokeh/scatter_expression/ \
+									bokeh/gene_expression/ \
+									bokeh/hexbin_expression/
 
 
 .PHONY:
