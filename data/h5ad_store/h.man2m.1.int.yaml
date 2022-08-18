@@ -1,3 +1,9 @@
+use_in_view:
+- scatter_expression
+- quadrant_plot
+- hexbin_expression
+- volcano_plot
+- gene_expression
 author: Renzo Mancuso, Nicola Fattorelli, Anna Martinez-Muriana, Emma Davis, Leen
   Wolfs, Johanna Van Den Daele, Ivana Geric, Pranav Preman, Lutgarde Serneels, Suresh
   Poovathingal, Sriram Balusu, Catherine Verfaille, Mark Fiers, Bart De Strooper

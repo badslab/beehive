@@ -1,3 +1,8 @@
+use_in_view:
+- scatter_expression
+- quadrant_plot
+- hexbin_expression
+- volcano_plot
 author: 101010 team
 datatype: log normalized ST counts
 de_data:
