@@ -35,7 +35,7 @@ curdoc().template_variables['view_name'] = 'Gene/Protein Expression'
 
 create_widget = partial(util.create_widget, curdoc=curdoc())
 
-datasets = expset.get_datasets()
+datasets = expset.get_datasets(view_name = "gene_expression")
 
 args = curdoc().session_context.request.arguments
 
@@ -47,12 +47,9 @@ w_div_title_author = Div(text="")
 dataset_options = [(k, "{short_title}, {short_author}".format(**v))
                    for k, v in datasets.items()]
 
-# !!!!!!!!!!!!!!!!!!!!!TODO Setting it manually!!!!!!!!!!!!!!!!
-
 w_dataset_id = create_widget("dataset_id", Select, title="Dataset",
                              options=dataset_options,
-                            #  default=dataset_options[0][0],
-                             default="h.man2m.1.sct",
+                             default=dataset_options[0][0],
                              visible=True,height = 10, width = 100)
 
 w_sibling = create_widget("view", Select,
@@ -267,8 +264,8 @@ elements = dict(
 
 #to orient the legends of the x axis
 X_AXIS_LABELS_ORIENTATION = 3.14/2
-plot.xaxis.subgroup_label_orientation = X_AXIS_LABELS_ORIENTATION
 plot.xaxis.group_label_orientation = X_AXIS_LABELS_ORIENTATION
+plot.xaxis.major_label_orientation = X_AXIS_LABELS_ORIENTATION
 
 yspacer = (data['_segment_top'].max() - data['_segment_bottom'].min()) / 20
 
@@ -359,8 +356,8 @@ def cb_update_plot(attr, old, new):
 
     ##x-axis legend
     plot.yaxis.axis_label = f"{dataset['datatype']}"
-    plot.xaxis.subgroup_label_orientation = X_AXIS_LABELS_ORIENTATION
     plot.xaxis.group_label_orientation = X_AXIS_LABELS_ORIENTATION 
+    plot.xaxis.major_label_orientation = X_AXIS_LABELS_ORIENTATION
     plot.xaxis.major_label_text_font_size = "10px"
 
     #adding citation if found.
