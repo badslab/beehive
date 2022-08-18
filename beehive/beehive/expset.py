@@ -177,6 +177,9 @@ def get_gene_meta_three_facets(dsid: str, gene: str, meta1: str, meta2: str, met
     if genedata is None or metadata is None or metadata2 is None or metadata3 is None:
         return None
 
+    #in new yamls, there is sometimes names of column same as that of gene
+    #e.g. in man2m.. meta = APOE, gene = APOE
+    #this ruins the concatination..
     if genedata.columns == metadata.columns:
         metadata.columns = [metadata.columns[0] + "_category"]
     if genedata.columns == metadata2.columns:
@@ -224,15 +227,6 @@ def get_gene_meta_three_facets(dsid: str, gene: str, meta1: str, meta2: str, met
     rv_combined = rv_combined.to_pandas()
     rv_mouseid = rv_mouseid.to_pandas()
 
-    #need to exclude NONE here. (when yaml is updated...)
-    #waiting on reply from nico
-    #what to do when all intersected groups have NONE?
-    #resulting dataframe will not include any data at all.
-    # rv_combined = rv_combined[rv_combined[new_meta] != 'NONE']
-    # rv_combined = rv_combined[rv_combined[new_meta2] != 'NONE']
-
-    # rv_mouseid = rv_mouseid[rv_mouseid[new_meta3] != 'NONE']
-
     #calculate other measures
     rv_combined['perc'] = 100 * rv_combined['count'] / rv_combined['count'].sum()
     rv_combined['_segment_top'] = rv_combined['q99']
@@ -262,8 +256,7 @@ def get_gene_meta_three_facets(dsid: str, gene: str, meta1: str, meta2: str, met
 
     final_rv[new_meta+"_y"] = sorted(final_rv[new_meta+"_y"])
 
-    #note, returning factors as we need it for the x_range of the plot.
-    return final_rv #returns the different degrees of freedom = factors (meta1 x meta2) and the final rv 
+    return final_rv 
 
 
 ##might be better to merge these two functions into one:
@@ -340,18 +333,7 @@ def get_gene_meta_agg(dsid: str, gene: str, meta: str, nobins: int = 8):
 
     rv = rv.to_pandas()
     rv = rv.rename(columns={new_meta: "cat_value"})
-
-    # Does the YAML have sort_order fields? If so use these
-    # if False:  # if there are order fields:
-    #     # TODO: Raghid
-    #     pass
-    # else:
-    # Otherwise - do the following:
     try:
-        # attempt a numerical sort on the cat_value
-        # try to prevent alphanumerically sorted numeric
-        # values 1 10 11 2 3
-
         rv2 = rv.copy()
         rv2['cat_value'] = rv['cat_value'].astype(float)
         rv2 = rv2.sort_values(by=['cat_value', 'mean'])
@@ -409,13 +391,10 @@ def get_dedata(dsid, categ, genes):
     return rv
 
 # TODO next two functions can  be merged into 1?
-
 def get_dedata_new(dsid, categ):
     datadir = util.get_datadir("h5ad")
 
-    # TODO should be a stable name "gene" in all datasets
-    # get last column,, no way to access it just by name
-    # sometimes it's called gene, sometimes it's index__0__
+    #to get 'gene' column
     last_col = len(pl.read_parquet(datadir / f"{dsid}.var.prq").columns)
 
     rv1 = pl.read_parquet(datadir / f"{dsid}.var.prq", [last_col - 1])
@@ -436,9 +415,7 @@ def get_dedata_new(dsid, categ):
 def get_dedata_quadrant(dsid, categ1,categ2):
     datadir = util.get_datadir("h5ad")
 
-    # TODO should be a stable name "gene" in all datasets
-    # get last column,, no way to access it just by name
-    # sometimes it's called gene, sometimes it's index__0__
+    #to get 'gene' column
     last_col = len(pl.read_parquet(datadir / f"{dsid}.var.prq").columns)
 
     rv1 = pl.read_parquet(datadir / f"{dsid}.var.prq", [last_col - 1])
