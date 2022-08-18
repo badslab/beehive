@@ -24,10 +24,11 @@ lg.info("startup")
 curdoc().template_variables['config'] = config
 curdoc().template_variables['view_name'] = 'Quadrant Plot'
 
+VIEW_NAME = "quadrant_plot"
 
 create_widget = partial(util.create_widget, curdoc=curdoc())
 
-datasets = expset.get_datasets(view_name="quadrant_plot")
+datasets = expset.get_datasets(view_name=VIEW_NAME)
 
 args = curdoc().session_context.request.arguments
 

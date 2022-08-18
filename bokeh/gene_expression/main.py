@@ -30,12 +30,14 @@ lg = logging.getLogger('GeneExp')
 lg.setLevel(logging.DEBUG)
 lg.info("startup")
 
+VIEW_NAME = "gene_expression"
+
 curdoc().template_variables['config'] = config
 curdoc().template_variables['view_name'] = 'Gene/Protein Expression'
 
 create_widget = partial(util.create_widget, curdoc=curdoc())
 
-datasets = expset.get_datasets(view_name = "gene_expression")
+datasets = expset.get_datasets(view_name = VIEW_NAME)
 
 args = curdoc().session_context.request.arguments
 
@@ -59,7 +61,7 @@ w_sibling = create_widget("view", Select,
 
 
 def update_sibling_options():
-    siblings = expset.get_dataset_siblings(w_dataset_id.value)
+    siblings = expset.get_dataset_siblings(w_dataset_id.value, view_name =  VIEW_NAME)
     sibling_options = []
     # check all organisms
     organisms = []
@@ -108,7 +110,7 @@ def get_genes():
 
 def update_facets():
     """Update interface for a specific dataset."""
-    options = expset.get_facet_options(w_dataset_id.value,only_categorical = True)
+    options = expset.get_facet_options(w_dataset_id.value,only_categorical = True,view_name = VIEW_NAME)
     # options_with_skip = expset.get_facet_options(w_dataset_id.value,only_categorical = True, include_skip = True)
     w_facet.options = options
     w_facet2.options = options
@@ -131,7 +133,7 @@ def update_facets():
 
 
 def facet_groups(facet):
-    result_dict = expset.get_facet_groups(w_dataset_id.value, facet)
+    result_dict = expset.get_facet_groups(w_dataset_id.value, facet,view_name = VIEW_NAME)
     return result_dict
 
 

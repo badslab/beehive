@@ -27,14 +27,16 @@ lg.info("startup")
 curdoc().template_variables['config'] = config
 curdoc().template_variables['view_name'] = 'Hexbin Expression'
 
+VIEW_NAME = "hexbin_expression"
+
 GENE_OPTION = 0
 FACET_OPTION = 1
 COLOR_POSSIBILITIES = ["None", "Density (counts)","Metadata"]
 LABELS_AXIS = ["Gene", "Numerical Facet"]
 create_widget = partial(util.create_widget, curdoc=curdoc())
 
-datasets = expset.get_datasets(view_name="hexbin_expression")
-
+datasets = expset.get_datasets(view_name=VIEW_NAME)
+print(len(datasets))
 args = curdoc().session_context.request.arguments
 
 
@@ -144,7 +146,7 @@ update_genes()
 
 def update_facets():
     """Update interface for a specific dataset."""
-    options = expset.get_facet_options(w_dataset_id.value)
+    options = expset.get_facet_options(w_dataset_id.value, view_name = VIEW_NAME)
     w_facet.options = options
     if w_facet.value not in [x[0] for x in options]:
         # set a default
@@ -155,7 +157,7 @@ update_facets()
 
 def update_numerical_facets():
     """"Get and update numerical facets only. Helpful for the w_numerical_facet widget"""
-    options = expset.get_facet_options_numerical(w_dataset_id.value)
+    options = expset.get_facet_options_numerical(w_dataset_id.value,  view_name = VIEW_NAME)
 
     w_facet_numerical_1.options = options
     w_facet_numerical_2.options = options
@@ -206,15 +208,15 @@ def get_data() -> pd.DataFrame:
     if x_axis == GENE_OPTION:
         geneX = expset.get_gene(dataset_id, gene1)[:, 0]
     else:
-        num_facetX = expset.get_meta(dataset_id, num_facet1, raw=True)[:, 0]
+        num_facetX = expset.get_meta(dataset_id, num_facet1, raw=True,  view_name = VIEW_NAME)[:, 0]
     if y_axis == GENE_OPTION:
         geneY = expset.get_gene(dataset_id, gene2)[:, 0]
     else:
-        num_facetY = expset.get_meta(dataset_id, num_facet2, raw=True)[:, 0]
+        num_facetY = expset.get_meta(dataset_id, num_facet2, raw=True,  view_name = VIEW_NAME)[:, 0]
 
     geneZ = expset.get_gene(dataset_id, gene3)[:, 0]
     if num_facet3:
-        num_facetZ = expset.get_meta(dataset_id, num_facet3, raw=True)[:, 0]
+        num_facetZ = expset.get_meta(dataset_id, num_facet3, raw=True,  view_name = VIEW_NAME)[:, 0]
 
     ##TODO maybe check for numerical/categorical here?
     lg.warning(f"!! Getting data for {dataset_id} {facet} {gene1}")
@@ -225,7 +227,7 @@ def get_data() -> pd.DataFrame:
         geneX = geneX,
         geneY = geneY,
         geneZ = geneZ,
-        obs=expset.get_meta(dataset_id, facet,raw=True)[:, 0],
+        obs=expset.get_meta(dataset_id, facet,raw=True,  view_name = VIEW_NAME)[:, 0],
         num_facetX = num_facetX,
         num_facetY = num_facetY,
         num_facetZ = num_facetZ,

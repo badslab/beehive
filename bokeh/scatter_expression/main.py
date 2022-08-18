@@ -29,10 +29,11 @@ curdoc().template_variables['view_name'] = 'Scatter Expression'
 
 GENE_OPTION = 0
 FACET_OPTION = 1
+VIEW_NAME = "scatter_expression"
 
 create_widget = partial(util.create_widget, curdoc=curdoc())
 
-datasets = expset.get_datasets(view_name="scatter_expression")
+datasets = expset.get_datasets(view_name=VIEW_NAME)
 
 args = curdoc().session_context.request.arguments
 
@@ -140,7 +141,7 @@ def update_genes():
 
 def update_facets():
     """Update interface for a specific dataset."""
-    options = expset.get_facet_options(w_dataset_id.value)
+    options = expset.get_facet_options(w_dataset_id.value,view_name=VIEW_NAME)
     w_facet.options = options
     if w_facet.value not in [x[0] for x in options]:
         # set a default
@@ -153,7 +154,7 @@ update_genes()
 
 def update_numerical_facets():
     """"Get and update numerical facets only. Helpful for the w_numerical_facet widget"""
-    options = expset.get_facet_options_numerical(w_dataset_id.value)
+    options = expset.get_facet_options_numerical(w_dataset_id.value,view_name=VIEW_NAME)
     w_facet_numerical_1.options = options
     w_facet_numerical_2.options = options
     w_facet_numerical_3.options = options
@@ -204,12 +205,12 @@ def get_data() -> pd.DataFrame:
     if x_axis == GENE_OPTION:
         geneX = expset.get_gene(dataset_id, gene1)[:, 0]
     else:
-        num_facetX = expset.get_meta(dataset_id, num_facet1, raw=True)[:, 0]
+        num_facetX = expset.get_meta(dataset_id, num_facet1, raw=True,view_name=VIEW_NAME)[:, 0]
 
     if y_axis == GENE_OPTION:
         geneY = expset.get_gene(dataset_id, gene2)[:, 0]
     else:
-        num_facetY = expset.get_meta(dataset_id, num_facet2, raw=True)[:, 0]
+        num_facetY = expset.get_meta(dataset_id, num_facet2, raw=True,view_name=VIEW_NAME)[:, 0]
 
     # always fetched => for the colorbar when coloring
     # with a gene expression
@@ -217,7 +218,7 @@ def get_data() -> pd.DataFrame:
         geneZ = expset.get_gene(dataset_id, gene3)[:, 0]
     
     if num_facet3:
-        num_facetZ = expset.get_meta(dataset_id, num_facet3, raw=True)[:, 0]
+        num_facetZ = expset.get_meta(dataset_id, num_facet3, raw=True,view_name=VIEW_NAME)[:, 0]
 
     lg.warning(f"!! Getting data for {dataset_id} {facet} {gene1}")
 
@@ -226,7 +227,7 @@ def get_data() -> pd.DataFrame:
     data = pd.DataFrame(dict(
         geneX=geneX,
         geneY=geneY,
-        obs=expset.get_meta(dataset_id, facet,raw=True)[:, 0],
+        obs=expset.get_meta(dataset_id, facet,raw=True,view_name=VIEW_NAME)[:, 0],
         num_facetX=num_facetX,
         num_facetY=num_facetY,
         geneZ=geneZ,
