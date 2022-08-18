@@ -222,7 +222,7 @@ def get_data() -> pd.DataFrame:
         geneX = geneX,
         geneY = geneY,
         geneZ = geneZ,
-        obs=expset.get_meta(dataset_id, facet)[:, 0],
+        obs=expset.get_meta(dataset_id, facet,raw=True)[:, 0],
         num_facetX = num_facetX,
         num_facetY = num_facetY,
         num_facetZ = num_facetZ,
