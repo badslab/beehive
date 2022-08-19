@@ -7,7 +7,7 @@ use_in_view:
 author: Renzo Mancuso, Nicola Fattorelli, Anna Martinez-Muriana, Emma Davis, Leen
   Wolfs, Johanna Van Den Daele, Ivana Geric, Pranav Preman, Lutgarde Serneels, Suresh
   Poovathingal, Sriram Balusu, Catherine Verfaille, Mark Fiers, Bart De Strooper
-datatype: integrated_features
+datatype: sct_normalized
 de_meta:
   cell.state__CRM1:
     name: cell.state__CRM1
