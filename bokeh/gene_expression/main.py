@@ -242,7 +242,7 @@ table = DataTable(source=source_no_dups,
 # meta3 = w_facet3.value
 meta3 = "mouse.id"
 mapper = get_mapper()
-print(data)
+
 # create plot elements - these are the same for boxplots as mean/std type plots
 elements = dict(
     vbar=plot.vbar(x="cat_value", top='_bar_top',
@@ -302,7 +302,6 @@ def cb_update_plot(attr, old, new):
 
     dataset_id, dataset = get_dataset()
     facet = w_facet.value
-    facet2 = w_facet2.value
     gene = w_gene.value
 
     #can we plot the new data?
@@ -377,7 +376,6 @@ update_plot = partial(cb_update_plot, attr=None, old=None, new=None)
 update_plot()
 
 
-
 def cb_dataset_change(attr, old, new):
     """Dataset change."""
     lg.info("Dataset Change to:" + new)
@@ -387,7 +385,6 @@ def cb_dataset_change(attr, old, new):
     update_sibling_options()
     update_plot()
 
-
 def cb_sibling_change(attr, old, new):
     lg.debug("Sibling change: " + new)
     w_dataset_id.value = new
@@ -396,14 +393,11 @@ def cb_sibling_change(attr, old, new):
     update_sibling_options()
     update_plot()
 
-
-
 cb_download = CustomJS(
     args=dict(data=source.data,
               columns=[x for x in source.data.keys() if not x.startswith('_')],
               filename_div=w_download_filename),
     code="exportToTsv(data, columns, filename_div.text);")
-
 
 w_gene.on_change("value", cb_update_plot)
 w_sibling.on_change("value", cb_sibling_change)
