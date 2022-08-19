@@ -1,19 +1,15 @@
 import logging
 from functools import partial
 import logging
-from pprint import pprint
 import numpy as np
 import pandas as pd
-import polars as pl
 
 from bokeh.layouts import column, row
-from bokeh.models import ColumnDataSource,MultiChoice, HoverTool, Spinner, Range1d, LabelSet
+from bokeh.models import ColumnDataSource,MultiChoice, HoverTool, Spinner
 from bokeh.models.callbacks import CustomJS
 from bokeh.models.widgets import (Select, Div,
                                   Button)
 from bokeh.plotting import figure, curdoc
-from bokeh.transform import factor_cmap, transform
-from bokeh.models.transforms import CustomJSTransform
 from beehive import config, util, expset
 
 
@@ -32,9 +28,8 @@ datasets = expset.get_datasets(view_name=VIEW_NAME)
 
 args = curdoc().session_context.request.arguments
 
-w_div_title_author = Div(text="",width = 100)
+w_div_title_author = Div(text="",width = 300)
 
-PVAL_CUTOFF = 0.0001
 
 dataset_options = [(k, "{short_title}, {short_author}".format(**v))
                    for k, v in datasets.items()]
@@ -59,6 +54,7 @@ w_download = Button(label='Download', align='end', width = 150, height = 50)
 w_download_filename = Div(text="", visible=False,
                           name="download_filename")
 
+w_spinner = create_widget("spinner",Spinner, title="p value significance", low = 0, high = 0.10, step = 0.0001, default = 0.05,value_type = float, width = 100)
 
 def get_genes():
     """Get available genes for a dataset."""
@@ -121,11 +117,16 @@ def get_data() -> pd.DataFrame:
     data["highlight"] = np.where(True, "other genes","other genes")
 
     #exclude padj == 0?
-    data["highlight"] = np.where(   (data["px"] < PVAL_CUTOFF) & (data["px"] != 0.0), "significant on x axis", data["highlight"])
-    data["highlight"] = np.where(   (data["py"] < PVAL_CUTOFF) & (data["py"] != 0.0), "significant on y axis", data["highlight"])
-    data["highlight"] = np.where((data["px"] < PVAL_CUTOFF) & (data["py"] < PVAL_CUTOFF)
-                                & (data["px"] != 0.0) & (data["py"] != 0.0), 
-                                "significant on both axes", data["highlight"])
+    # data["highlight"] = np.where(   (data["px"] < w_spinner.value) & (data["px"] != 0.0), "significant on x axis", data["highlight"])
+    # data["highlight"] = np.where(   (data["py"] < w_spinner.value) & (data["py"] != 0.0), "significant on y axis", data["highlight"])
+    # data["highlight"] = np.where((data["px"] < w_spinner.value) & (data["py"] < w_spinner.value)
+    #                             & (data["px"] != 0.0) & (data["py"] != 0.0), 
+    #                             "significant on both axes", data["highlight"])
+
+    data["highlight"] = np.where(   (data["px"] < w_spinner.value), "significant on x axis", data["highlight"])
+    data["highlight"] = np.where(   (data["py"] < w_spinner.value), "significant on y axis", data["highlight"])
+    data["highlight"] = np.where((data["px"] < w_spinner.value) & (data["py"] < w_spinner.value), "significant on both axes", data["highlight"])
+
     data["highlight"] = data.apply(lambda x: highlight_genes(x),axis = 1)
     data["color"] = data.apply(lambda x: color_genes(x),axis = 1)
     data["size"] = data.apply(lambda x: size_genes(x),axis = 1)
@@ -190,23 +191,44 @@ legend_field = "highlight")
 
 def cb_update_plot(attr, old, new,type_change = None):
     curdoc().hold()
-    global plot, source
+    global plot, source, data
+    #changed p-value, no need to get new data
+    if type_change == "p_sig":
+        data["highlight"] = np.where(   (data["px"] < w_spinner.value), "significant on x axis", data["highlight"])
+        data["highlight"] = np.where(   (data["py"] < w_spinner.value), "significant on y axis", data["highlight"])
+        data["highlight"] = np.where((data["px"] < w_spinner.value) & (data["py"] < w_spinner.value), "significant on both axes", data["highlight"])
 
-    data = get_data()
-    source.data = data
+        data["highlight"] = data.apply(lambda x: highlight_genes(x),axis = 1)
+        data["color"] = data.apply(lambda x: color_genes(x),axis = 1)
+        data["size"] = data.apply(lambda x: size_genes(x),axis = 1)
+        source.data = data
+        curdoc().unhold()
+        return
+    #rehighlighted some genes, no need to get data
+    elif type_change == "rehighlight_genes":
+        data["highlight"] = data.apply(lambda x: highlight_genes(x),axis = 1)
+        data["color"] = data.apply(lambda x: color_genes(x),axis = 1)
+        data["size"] = data.apply(lambda x: size_genes(x),axis = 1)
+        source.data = data
+        curdoc().unhold()
+        return
+    #something else..
+    else:
+        data = get_data()
+        source.data = data
 
-    w_div_title_author.text = \
-        f"""
-        <ul>
-          <li><b>Title:</b> {dataset['title']}</li>
-          <li><b>Author:</b> {dataset['author']}</li>
-          <li><b>Organism / Datatype:</b>
-              {dataset['organism']} / {dataset['datatype']}</li>
-        </ul>
-        """
+        w_div_title_author.text = \
+            f"""
+            <ul>
+            <li><b>Title:</b> {dataset['title']}</li>
+            <li><b>Author:</b> {dataset['author']}</li>
+            <li><b>Organism / Datatype:</b>
+                {dataset['organism']} / {dataset['datatype']}</li>
+            </ul>
+            """
 
 
-    curdoc().unhold()
+        curdoc().unhold()
 
 
 update_plot = partial(cb_update_plot, attr=None, old=None, new=None,type_change = None)
@@ -217,7 +239,6 @@ update_plot()
 
 def cb_update_plot_new_dataset(attr,old,new):
     curdoc().hold()
-    
     global plot, source
     
     #update the w_category widget
@@ -233,8 +254,8 @@ def cb_update_plot_new_dataset(attr,old,new):
 
 w_category1.on_change("value", partial(cb_update_plot))
 w_category2.on_change("value", partial(cb_update_plot))
-
-w_genes.on_change("value",partial(cb_update_plot))
+w_genes.on_change("value",partial(cb_update_plot, type_change="rehighlight_genes"))
+w_spinner.on_change("value",partial(cb_update_plot, type_change = "p_sig"))
 
 w_dataset_id.on_change("value",cb_update_plot_new_dataset)
 
@@ -249,19 +270,11 @@ w_download.js_on_click(cb_download)
 
 curdoc().add_root(row([
         column([
-            row([w_genes]),
+            row([w_genes, w_spinner]),
             row([w_category1,w_category2]),
             row([w_download,w_dataset_id]),
-            row([w_div_title_author],sizing_mode="scale_both"),
+            row([w_div_title_author]),
                 ]),
-        column([plot],sizing_mode="scale_both")
-        ],sizing_mode="stretch_both")
+        column([plot],sizing_mode="stretch_width")
+        ])
 )
-
-
-
-
-
-
-
-
