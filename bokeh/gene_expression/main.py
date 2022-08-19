@@ -11,20 +11,19 @@
 
 from functools import partial
 import logging
-from pprint import pprint
 
 import pandas as pd
 
 from bokeh.layouts import column, row
-from bokeh.models import ColumnDataSource, Range1d, Label, DataTable, TableColumn, ScientificFormatter
+from bokeh.models import ColumnDataSource, Range1d, DataTable, TableColumn, ScientificFormatter
 from bokeh.models.callbacks import CustomJS
-from bokeh.models.widgets import (Select, TextInput, Div,
+from bokeh.models.widgets import (Select, Div,
                                   Button, AutocompleteInput)
 from bokeh.plotting import figure, curdoc
 
 from beehive import config, util, expset
 
-from bokeh.transform import jitter, factor_cmap,CategoricalColorMapper
+from bokeh.transform import jitter, CategoricalColorMapper
 
 lg = logging.getLogger('GeneExp')
 lg.setLevel(logging.DEBUG)
@@ -154,11 +153,15 @@ update_genes()
 
 def get_data() -> pd.DataFrame:
     """Retrieve data from a dataset, gene & facet."""
+    global coloring_scheme #name of column for coloring.
     dataset_id = w_dataset_id.value
     gene = w_gene.value
     facet = w_facet.value
     facet2 = w_facet2.value
-
+    if w_facet.value == gene:
+        coloring_scheme = f'{w_facet.value}_category_y'
+    else:
+        coloring_scheme = f'{w_facet.value}_y'
     lg.warning(f"!! Getting data for {dataset_id} {facet} {gene}")
 
     data = expset.get_gene_meta_three_facets(dataset_id,gene,facet,facet2,"mouse.id")
@@ -239,12 +242,12 @@ table = DataTable(source=source_no_dups,
 # meta3 = w_facet3.value
 meta3 = "mouse.id"
 mapper = get_mapper()
-
+print(data)
 # create plot elements - these are the same for boxplots as mean/std type plots
 elements = dict(
     vbar=plot.vbar(x="cat_value", top='_bar_top',
                 bottom='_bar_bottom', source = source, width=0.85, name="barplot",
-                fill_color={'field': f'{w_facet.value}_y', 'transform': mapper},
+                fill_color={'field': coloring_scheme, 'transform': mapper},
 
                 line_color="black"),
     seg_v_up=plot.segment(source=source, x0='cat_value', x1='cat_value',
@@ -319,7 +322,7 @@ def cb_update_plot(attr, old, new):
 
         #mapper for color, and mapper for order. if found.
         mapper = get_mapper()
-        elements["vbar"].glyph.fill_color = {'field': f'{w_facet.value}_y', 'transform': mapper}
+        elements["vbar"].glyph.fill_color = {'field': coloring_scheme, 'transform': mapper}
         ordered_list = get_order()
         order = {key: i for i, key in enumerate(ordered_list)}
         if order:
