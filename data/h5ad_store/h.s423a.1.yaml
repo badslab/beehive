@@ -18,6 +18,18 @@ de_data:
     name: ptau_bin__alz
   ptau_bin__res:
     name: ptau_bin__res
+  diffvsnon_bin__alz__lfc:
+    name: diffvsnon_bin__alz__lfc
+  neurvsnon_bin__alz__lfc:
+    name: neurvsnon_bin__alz__lfc
+  corevsnon_bin__alz__lfc:
+    name: corevsnon_bin__alz__lfc
+  diffvsnon_bin__res__lfc:
+    name: diffvsnon_bin__res__lfc
+  neurvsnon_bin__res__lfc:
+    name: neurvsnon_bin__res__lfc
+  corevsnon_bin__res__lfc:
+    name: corevsnon_bin__res__lfc
 de_meta:
   plaque_bin__all:
     name: plaque_bin__all
@@ -31,6 +43,18 @@ de_meta:
     name: ptau_bin__alz
   ptau_bin__res:
     name: ptau_bin__res
+  diffvsnon_bin__alz__lfc:
+    name: diffvsnon_bin__alz__lfc
+  neurvsnon_bin__alz__lfc:
+    name: neurvsnon_bin__alz__lfc
+  corevsnon_bin__alz__lfc:
+    name: corevsnon_bin__alz__lfc
+  diffvsnon_bin__res__lfc:
+    name: diffvsnon_bin__res__lfc
+  neurvsnon_bin__res__lfc:
+    name: neurvsnon_bin__res__lfc
+  corevsnon_bin__res__lfc:
+    name: corevsnon_bin__res__lfc
 description: spatial transcriptomics of the 101010 project
 obs_meta:
   488_Mean:
