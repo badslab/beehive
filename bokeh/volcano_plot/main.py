@@ -131,7 +131,7 @@ def modify_data():
     ##stick the outliers on the edges
     data["lfc"] = np.where(data["lfc"] < x_range_min, x_range_min + 0.1, data["lfc"])
     data["lfc"] = np.where(data["lfc"] > x_range_max, x_range_max - 0.1, data["lfc"])
-    data["padj"] = np.where(data["padj"] > y_range_max, y_range_max - 2, data["padj"])
+    data["padj"] = np.where(data["padj"] > y_range_max, y_range_max, data["padj"])
 
     #find top genes with extreme values: top 5 high lfc, top 5 low lfc
     #the highlight column now also has another value called 'toplow'
@@ -182,7 +182,7 @@ SIZES_PALETTE_1 = [SMALL_CIRCLE,0,0]
 SIZES_PALETTE_2 = [0,BIG_CIRCLE,BIG_CIRCLE]
 TEXT_SIZES = ['0px','15px','15px'] # text gene size for: [non highlighted, highlighted, toplow]
 
-Y_START_MIN = -5
+Y_START_MIN = 0
 
 #-----------------------------------------------------------------------------------------------
 
@@ -257,7 +257,7 @@ plot.add_layout(labels)
 #set up the initial x and y ranges in the widgets based on the data itself.
 w_x_range.value = round(max(data["true_lfc"]) + max(data["true_lfc"])/2,1)
 w_y_range.value = round(max(data["true_padj"]) + max(data["true_padj"])/4,1)
-plot.update(x_range = Range1d(w_x_range.value*-1, w_x_range.value), y_range = Range1d(Y_START_MIN, w_y_range.value))
+plot.update(x_range = Range1d(w_x_range.value*-1, w_x_range.value), y_range = Range1d(Y_START_MIN, w_y_range.value+max(data["true_padj"])*0.1))
 
 def cb_update_plot(attr, old, new,type_change = None):
     """Populate and update the plot."""
@@ -276,7 +276,7 @@ def cb_update_plot(attr, old, new,type_change = None):
     #update the new x and y ranges (if they got changed.)
     #if not, will be the same..
     plot.x_range.update(start = w_x_range.value*-1, end = w_x_range.value)
-    plot.y_range.update(start = Y_START_MIN, end = w_y_range.value)
+    plot.y_range.update(start = Y_START_MIN, end = w_y_range.value + max(data["true_padj"])*0.1)
 
     w_div_title_author.text = \
         f"""
@@ -307,7 +307,7 @@ def cb_update_plot_new_dataset(attr, old, new):
     w_y_range.value = max(data["true_padj"]) + max(data["true_padj"])/4
     #update the ranges on the plot.
     plot.x_range.update(start = w_x_range.value*-1, end = w_x_range.value)
-    plot.y_range.update(start = 0, end = w_y_range.value)
+    plot.y_range.update(start = 0, end = w_y_range.value + max(data["true_padj"])*0.1)
 
     curdoc().unhold()
 
