@@ -5,7 +5,7 @@ import numpy as np
 import pandas as pd
 
 from bokeh.layouts import column, row
-from bokeh.models import ColumnDataSource,MultiChoice, HoverTool, Spinner
+from bokeh.models import ColumnDataSource,MultiChoice, HoverTool, Spinner, Range1d
 from bokeh.models.callbacks import CustomJS
 from bokeh.models.widgets import (Select, Div,
                                   Button)
@@ -157,6 +157,19 @@ def size_genes(x):
         return 3
     else:
         return 6
+def get_ranges():
+    global data
+    max_x = max(data["x"])
+    min_x = min(data["x"])
+    max_y = max(data["y"])
+    min_y = min(data["y"])
+    new_max = max(max_x,max_y)
+    new_min = min(min_x,min_y)
+    if abs(new_max) > abs(new_min):
+        new_min = new_max * -1
+    else:
+        new_max = new_min * -1
+    return new_min,new_max
 
 TOOLTIPS = [
             ('Log Fold Change on x-axis', '@x'),
@@ -188,6 +201,10 @@ plot.scatter(x = "x", y = "y", source = source,
 color="color",
 size = "size",
 legend_field = "highlight")
+
+new_min, new_max = get_ranges()
+new_range = Range1d(new_min,new_max)
+plot.update(x_range = new_range, y_range = new_range)
 
 def cb_update_plot(attr, old, new,type_change = None):
     curdoc().hold()
@@ -226,6 +243,10 @@ def cb_update_plot(attr, old, new,type_change = None):
                 {dataset['organism']} / {dataset['datatype']}</li>
             </ul>
             """
+
+        new_min, new_max = get_ranges()
+        plot.x_range.update(start = new_min, end = new_max)
+        plot.y_range.update(start = new_min, end = new_max)
 
 
         curdoc().unhold()
