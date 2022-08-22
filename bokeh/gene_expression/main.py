@@ -288,6 +288,9 @@ if order:
 else:
     plot.x_range.factors = sorted(list(set(data["cat_value"])),key=lambda tup: tup[0])
 
+plot.xaxis.group_label_orientation = X_AXIS_LABELS_ORIENTATION 
+plot.xaxis.major_label_orientation = X_AXIS_LABELS_ORIENTATION
+plot.xaxis.major_label_text_font_size = "10px"
 
 def cb_update_plot(attr, old, new):
     """Populate and update the plot."""
@@ -360,9 +363,6 @@ def cb_update_plot(attr, old, new):
 
     ##x-axis legend
     plot.yaxis.axis_label = f"{dataset['datatype']}"
-    plot.xaxis.group_label_orientation = X_AXIS_LABELS_ORIENTATION 
-    plot.xaxis.major_label_orientation = X_AXIS_LABELS_ORIENTATION
-    plot.xaxis.major_label_text_font_size = "10px"
 
     #adding citation if found.
     citation.text = f'{expset.get_legend_of_obs(dataset_id,facet)}'
@@ -379,7 +379,7 @@ update_plot()
 def cb_dataset_change(attr, old, new):
     """Dataset change."""
     lg.info("Dataset Change to:" + new)
-    curdoc().hold()
+    w_dataset_id.value = new
     update_facets()
     update_genes()
     update_sibling_options()
@@ -390,7 +390,6 @@ def cb_sibling_change(attr, old, new):
     w_dataset_id.value = new
     update_facets()
     update_genes()
-    update_sibling_options()
     update_plot()
 
 cb_download = CustomJS(
