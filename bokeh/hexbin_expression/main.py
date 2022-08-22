@@ -31,7 +31,7 @@ VIEW_NAME = "hexbin_expression"
 
 GENE_OPTION = 0
 FACET_OPTION = 1
-COLOR_POSSIBILITIES = ["None", "Density (counts)","Metadata"]
+COLOR_POSSIBILITIES = ["None", "Density (counts)","Gene/Numerical Facet"]
 LABELS_AXIS = ["Gene", "Numerical Facet"]
 create_widget = partial(util.create_widget, curdoc=curdoc())
 
@@ -41,7 +41,7 @@ args = curdoc().session_context.request.arguments
 
 
 w_div_title_author = Div(text="")
-
+w_info = Div(text = "Color by:")
 #datasets with titles
 dataset_options = [(k, "{short_title}, {short_author}".format(**v))
                    for k, v in datasets.items()]
@@ -309,7 +309,9 @@ def get_mapper(feature,data,palette):
 X_AXIS = "geneX" if w_x_axis_radio.active == GENE_OPTION else "num_facetX"
 Y_AXIS = "geneY" if w_y_axis_radio.active == GENE_OPTION else "num_facetY"
 Z_AXIS = "geneZ" if w_z_axis_radio.active == GENE_OPTION else "num_facetZ"
-
+#a break, sometimes there are no numerical facets in the data
+if len(w_facet_numerical_1.options) == 0:
+    Z_AXIS = "geneZ"
 
 plot = figure(output_backend = "webgl",width = 1000)
 dataset_id, dataset = get_dataset()
@@ -352,8 +354,12 @@ elif COLOR_POSSIBILITIES[w_color_check.active] == "Density (counts)":
 else:
     plot.hex_tile(q="q",r="r",size = SIZE,source=source,
     line_color = None, 
-    color   = {'field': 'coloring_scheme', 'transform': mapper_metadata}, alpha = ALPHA)
+    color  = {'field': 'coloring_scheme', 'transform': mapper_metadata}, alpha = ALPHA)
     value_text = w_gene3.value if w_z_axis_radio.active == GENE_OPTION else w_facet_numerical_3.value
+    #a break, sometimes there are no numerical facets in the data
+    if len(w_facet_numerical_1.options) == 0:
+        value_text = w_gene3.value
+
     tick_min_text = f'{np.round(np.percentile(np.array(data["coloring_scheme"]),1),2)}'
     tick_max_text = f'{np.round(np.percentile(np.array(data["coloring_scheme"]),99),2)}'
     visibility_counts = False
@@ -403,6 +409,9 @@ def cb_update_plot(attr, old, new,type_change):
     Y_AXIS = "geneY" if w_y_axis_radio.active == GENE_OPTION else "num_facetY"
     Z_AXIS = "geneZ" if w_z_axis_radio.active == GENE_OPTION else "num_facetZ"
 
+    #a break, sometimes there are no numerical facets in the data
+    if len(w_facet_numerical_1.options) == 0:
+        Z_AXIS = "geneZ"
 
     data,hex_full = modify_data()
     # get_unique_obs(data)
@@ -446,6 +455,9 @@ def cb_update_plot(attr, old, new,type_change):
             line_color = None, 
             color   = {'field': 'coloring_scheme', 'transform': mapper_metadata}, alpha = ALPHA)
             colorbar_text.text = w_gene3.value if w_z_axis_radio.active == GENE_OPTION else w_facet_numerical_3.value
+            #a break, sometimes there are no numerical facets in the data
+            if len(w_facet_numerical_1.options) == 0:
+                colorbar_text.text = w_gene3.value
             tick_min.text = f'{np.round(np.percentile(np.array(data["coloring_scheme"]),1),2)}'
             tick_max.text = f'{np.round(np.percentile(np.array(data["coloring_scheme"]),99),2)}'
             color_bar_meta.visible = True
@@ -548,14 +560,14 @@ w_download.js_on_click(cb_download)
 #         row([w_dataset_id, w_download_filename],),
 #     ], sizing_mode='stretch_width')
 # )
-
+print(data)
 curdoc().add_root(row([
             column([
                 row([w_gene1,w_gene2]),
                 row([w_facet_numerical_1,w_facet_numerical_2]),
                 row([w_x_axis_radio,w_y_axis_radio]),
-                row([w_gene3,w_facet_numerical_3]),
-                row([w_z_axis_radio,w_color_check]),
+                row([w_gene3,w_facet_numerical_3,w_z_axis_radio]),
+                row([w_info,w_color_check]),
                 row([w_size_slider,w_download]),
                 row([w_facet,w_subset_select]),
                 row([w_div_title_author]),
