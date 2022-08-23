@@ -120,23 +120,6 @@ def get_facet_options(dsid: str,
             rv.append((key, name))
     return list(sorted(rv))
 
-
-def get_facet_groups(dsid,facet, view_name: str = ""):
-    """
-    Return metadata of obs column
-    """
-    dataset = get_dataset(dsid, view_name)
-    result = {}
-    for key, data in dataset.get('obs_meta', {}).items():
-        if key == facet:
-            for group in data.get("values",{}).items():
-                name = str(group[1].get("name"))
-                order = group[1].get("order") #will default to none if not existing
-                color = group[1].get("color") #will default to none if not existing
-                result[name] = {'order': order,'color': color}
-
-    return result
-
 def get_legend_of_obs(dsid,meta):
     datadir = util.get_datadir("h5ad")
     legend = ""
@@ -145,7 +128,10 @@ def get_legend_of_obs(dsid,meta):
         if dsid == basename:
             with open(yamlfile, "r") as F:
                 y = yaml.load(F, Loader=yaml.SafeLoader)
-                legend = y["obs_meta"][meta]["legend"]
+                try:
+                    legend = y["obs_meta"][meta]["legend"]
+                except:
+                    continue
     return legend
 
 def get_facet_options_numerical(dsid: str, view_name: str = "") -> List[Tuple[str, str]]:
@@ -166,11 +152,17 @@ def get_facet_options_numerical(dsid: str, view_name: str = "") -> List[Tuple[st
             rv.append((key, name))
     return list(sorted(rv))
 
-def get_gene_meta_three_facets(dsid: str, gene: str, meta1: str, meta2: str, meta3: str = "mouse.id",nobins:int = 8):
+def get_gene_meta_three_facets(dsid: str, gene: str, meta1: str, meta2: str, meta3: str = "mouse.id",nobins:int = 8,view_name: str = ""):
     genedata = get_gene(dsid,gene)
-    metadata = get_meta(dsid, meta1, nobins=nobins, raw = True) #facet1
-    metadata2 = get_meta(dsid,meta2,nobins=nobins, raw = True) #facet2
-    metadata3 = get_meta(dsid,meta3,nobins=nobins,raw = True) #most likely mouse_id
+    metadata = get_meta(dsid, meta1, nobins=nobins,view_name = view_name, raw = True) #facet1
+    metadata2 = get_meta(dsid,meta2,nobins=nobins,view_name = view_name, raw = True) #facet2
+    metadata3 = get_meta(dsid,meta3,nobins=nobins,view_name = view_name, raw = True) #most likely mouse_id
+    
+    metadata = metadata.select((pl.col(meta1)).cast(str))
+    metadata2 = metadata2.select((pl.col(meta2)).cast(str))
+    metadata3 = metadata3.select((pl.col(meta3)).cast(str))
+
+
     """"
     function to return the aggregate of 3 metadata options
     first two metadatas will be displayed in a boxplot doubled
@@ -240,7 +232,6 @@ def get_gene_meta_three_facets(dsid: str, gene: str, meta1: str, meta2: str, met
     rv_combined['_bar_bottom'] = rv_combined['q25']
     rv_combined['_segment_bottom'] = rv_combined['q01']
 
-
     #manipulation to get the ["X"] columns as the factors 
     rv_combined["x"] = rv_combined[[new_meta2,new_meta]].apply(tuple, axis=1)
     rv_combined["x"] = sorted(rv_combined["x"],key=lambda tup: tup[0])
@@ -279,7 +270,8 @@ def get_colors_of_obs(dsid: str, meta: str):
                     for key,data in y["obs_meta"][meta]["values"].items():
                         name = key
                         color = data.get("color")
-                        final_dict[name] = "black" if color == None else color
+                        #default is grey
+                        final_dict[name] = "grey" if color == None else color
     return final_dict
 
 def get_order_of_obs(dsid: str, meta: str):
@@ -294,7 +286,10 @@ def get_order_of_obs(dsid: str, meta: str):
                     for key,data in y["obs_meta"][meta]["values"].items():
                         name = key
                         order = data.get("order")
-                        final_dict[name] = 0 if order == None else order
+                        #there is no order in the yaml..
+                        if not(order):
+                            return final_dict
+                        final_dict[name] = order
     return final_dict
 
 
@@ -447,6 +442,7 @@ def get_meta(dsid, col, raw=False, nobins=8, view_name: str = ""):
         return rv
 
     ds = get_dataset(dsid, view_name)
+
     dscol = ds["obs_meta"][col]
 
     if dscol["dtype"] == "categorical":
