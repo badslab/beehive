@@ -3,6 +3,7 @@ use_in_view:
 - quadrant_plot
 - hexbin_expression
 - volcano_plot
+- gene_expression
 author: Amy F Lloyd, Anna Martinez Muriana, Pengfei Hou, Emma Davis, Renzo Mancuso,
   Alejandro J Brenes, Ivana Geric, An Snellinx, Katleen Craessaerts, Tom Theys, Mark
   Fiers, Bart De Strooper, Andrew JM Howden
