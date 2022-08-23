@@ -87,7 +87,7 @@ w_gene = create_widget("gene", AutocompleteInput,
                        completions=[], default='APOE', case_sensitive=False, height = 50, width = 150)
 w_facet = create_widget("facet", Select, options=[], title="Group by level 1:",height = 50, width = 150)
 w_facet2 = create_widget("facet2", Select, options=[], title="Group by level 2:",height = 50, width = 150)
-# w_facet3 = create_widget("facet3", Select, options=[], title="Show class of avg expression in:",height = 50, width = 150)
+w_facet3 = create_widget("facet3", Select, options=[], title="Jitter points Average:",height = 50, width = 150)
 w_download = Button(label='Download', align='end', height = 50, width = 150)
 w_download_filename = Div(text="", visible=False,
                           name="download_filename")
@@ -110,31 +110,32 @@ def get_genes():
 def update_facets():
     """Update interface for a specific dataset."""
     options = expset.get_facet_options(w_dataset_id.value,only_categorical = True,view_name = VIEW_NAME)
-    # options_with_skip = expset.get_facet_options(w_dataset_id.value,only_categorical = True, include_skip = True)
+    options_with_skip = expset.get_facet_options(w_dataset_id.value,only_categorical = True, include_skip = True,view_name = VIEW_NAME)
     w_facet.options = options
     w_facet2.options = options
-    # w_facet3.options = options_with_skip
+    w_facet3.options = options_with_skip
 
-    if w_facet.value not in [x[0] for x in options]:
+    if w_facet.value not in [x[0] for x in w_facet.options]:
         # set a default
-        w_facet.value = options[0][0]
+        w_facet.value = w_facet.options[0][0]
+
 
     w_facet2.options = list(filter(lambda x: x[0] != w_facet.value,w_facet2.options))
-    if w_facet2.value not in [x[0] for x in options]:
+    if w_facet2.value not in [x[0] for x in w_facet2.options]:
         # set a default
         w_facet2.value = w_facet2.options[0][0]
-    
+
     w_facet.options = list(filter(lambda x: x[0] != w_facet2.value,w_facet.options))
 
-    # if w_facet3.value not in [x[0] for x in options_with_skip]:
-    #     # set a default
-    #     w_facet3.value = options_with_skip[0][0]
+    w_facet3.options = list(filter(lambda x: x[0] != w_facet.value,w_facet3.options))
+    w_facet3.options = list(filter(lambda x: x[0] != w_facet2.value,w_facet3.options))
 
+    if w_facet3.value not in [x[0] for x in w_facet3.options]:
+        # set a default
+        w_facet3.value =  w_facet3.options[0][0]
 
-def facet_groups(facet):
-    result_dict = expset.get_facet_groups(w_dataset_id.value, facet,view_name = VIEW_NAME)
-    return result_dict
-
+    w_facet2.options = list(filter(lambda x: x[0] != w_facet3.value,w_facet2.options))
+    w_facet.options = list(filter(lambda x: x[0] != w_facet3.value,w_facet.options))
 
 def update_genes():
     """Update genes widget for a dataset."""
@@ -150,7 +151,6 @@ def update_genes():
 update_facets()
 update_genes()
 
-
 def get_data() -> pd.DataFrame:
     """Retrieve data from a dataset, gene & facet."""
     global coloring_scheme #name of column for coloring.
@@ -158,18 +158,21 @@ def get_data() -> pd.DataFrame:
     gene = w_gene.value
     facet = w_facet.value
     facet2 = w_facet2.value
+    facet3 = w_facet3.value
+
     if w_facet.value == gene:
         coloring_scheme = f'{w_facet.value}_category_y'
     else:
         coloring_scheme = f'{w_facet.value}_y'
     lg.warning(f"!! Getting data for {dataset_id} {facet} {gene}")
 
-    data = expset.get_gene_meta_three_facets(dataset_id,gene,facet,facet2,"mouse.id")
+    data = expset.get_gene_meta_three_facets(dataset_id,gene,facet,facet2,facet3,view_name = VIEW_NAME)
     #filter NONEs
     data = data.loc[data["cat_value"].str[0] != "NONE"]
     data = data.loc[data["cat_value"].str[1] != "NONE"]
     data_no_dups = data.drop_duplicates("cat_value")
-
+    #rename jitter points column
+    data = data.rename(columns={f'mean_{facet3}': "jitter"})
     return data,data_no_dups
 
 
@@ -240,7 +243,7 @@ table = DataTable(source=source_no_dups,
                   ])
 
 # meta3 = w_facet3.value
-meta3 = "mouse.id"
+# meta3 = w_facet3.value
 mapper = get_mapper()
 
 # create plot elements - these are the same for boxplots as mean/std type plots
@@ -263,7 +266,8 @@ elements = dict(
     seg_h_med=plot.rect(source=source, x='cat_value', height=0.001,
                         y='_bar_median', width=0.85, line_width=2,
                         line_color='black'),
-    jitter_points = plot.scatter(x=jitter('cat_value', width=0.4, range=plot.x_range), y=f'mean_{meta3}', size=5, alpha=0.4, source=source,legend_label = f"{meta3}")
+    # jitter_points = plot.scatter(x=jitter('cat_value', width=0.4, range=plot.x_range), y=f'mean_{meta3}', size=5, alpha=0.4, source=source,legend_label = f"{meta3}")
+    jitter_points = plot.scatter(x=jitter('cat_value', width=0.4, range=plot.x_range), y="jitter", size=5, alpha=0.4, source=source)
 
 )
 
@@ -283,6 +287,7 @@ citation = Div(text=f'{expset.get_legend_of_obs(w_dataset_id.value,w_facet.value
 #check for metadata order
 ordered_list = get_order()
 order = {key: i for i, key in enumerate(ordered_list)}
+
 if order:
     plot.x_range.factors = sorted(list(set(data["cat_value"])),key = lambda d: (d[0],order[d[1]]))
 else:
@@ -404,17 +409,18 @@ w_dataset_id.on_change("value", cb_dataset_change)
 w_facet.on_change("value", cb_update_plot)
 w_facet2.on_change("value",cb_update_plot)
 w_download.js_on_click(cb_download)
-# w_facet3.on_change("value",cb_update_plot)
+w_facet3.on_change("value",cb_update_plot)
 
 #
 # Build the document
 #
+
 curdoc().add_root(row([
     column([
         column([
         row([w_gene, w_facet,w_facet2],sizing_mode='scale_both'),
-        # row([w_sibling, w_download,w_facet3],sizing_mode='scale_both'),
-        row([w_sibling, w_download],sizing_mode='scale_both'),
+        row([w_facet3,w_sibling, w_download],sizing_mode='scale_both'),
+        # row([w_sibling, w_download],sizing_mode='scale_both'),
 
         ]),
         column([w_div_title_author], sizing_mode='scale_both'),
