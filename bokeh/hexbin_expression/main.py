@@ -140,7 +140,7 @@ update_genes()
 
 def update_facets():
     """Update interface for a specific dataset."""
-    options = expset.get_facet_options(w_dataset_id.value, view_name = VIEW_NAME)
+    options = expset.get_facet_options(w_dataset_id.value, view_name = VIEW_NAME,only_categorical=True)
     w_facet.options = options
     if w_facet.value not in [x[0] for x in options]:
         # set a default
@@ -288,6 +288,7 @@ def modify_data():
 
     final_result = pd.DataFrame(dicts)
     data_full = pd.DataFrame(dict(r=r_full,q=q_full))
+
     return final_result, data_full
 
 
@@ -529,32 +530,7 @@ w_color_check.on_change("active",partial(cb_update_plot,type_change = None))
 w_dataset_id.on_change("value", cb_dataset_change)
 w_download.js_on_click(cb_download)
 
-# curdoc().add_root(
-#     column([
-#         row([
-#             column([
-#                 row([w_gene1,w_gene2,w_gene3], 
-#                     sizing_mode='stretch_width'),
-#                 row([w_facet_numerical_1,w_facet_numerical_2,w_facet_numerical_3],
-#                     sizing_mode='stretch_width'),
-#                 row([w_x_axis_radio,w_y_axis_radio,w_z_axis_radio],
-#                     sizing_mode='stretch_width'),
-#                 row([w_facet,w_subset_select,w_size_slider, w_download],
-#                     sizing_mode='stretch_both'),
-#                 row([w_color_check],
-#                     sizing_mode='stretch_width')],   
-#                 sizing_mode='stretch_width')],
-#             sizing_mode='stretch_width'),
-#         row([w_div_title_author],
-#             sizing_mode='stretch_width'),
-#         row([w_gene_not_found],
-#             sizing_mode='stretch_width'),
-#         row([plot],
-#             sizing_mode='stretch_width'),
-#         row([w_dataset_id, w_download_filename],),
-#     ], sizing_mode='stretch_width')
-# )
-print(data)
+
 curdoc().add_root(row([
             column([
                 row([w_gene1,w_gene2]),
