@@ -1,11 +1,10 @@
-from ctypes import sizeof
-from enum import unique
 import logging
 from functools import partial
 import logging
 import pandas as pd
 from scipy import stats
 import numpy as np
+
 from bokeh.layouts import column, row
 from bokeh.models import (ColumnDataSource, CheckboxGroup, RadioGroup, LinearColorMapper, ColorBar, Label,Slider)
 from bokeh.models.callbacks import CustomJS
@@ -47,9 +46,9 @@ w_div_title_author = Div(text="")
 # datasets with titles
 
 # Dataset
-dataset_options = [(k, "{short_title}, {short_author}".format(**v))
+dataset_options = [(k, "{short_title}, {short_author}, {datatype}".format(**v))
                    for k, v in datasets.items()]
-
+                   
 # TODO setting manually
 DATASET_NUMBER = 0
 
