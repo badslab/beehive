@@ -1,24 +1,19 @@
 import logging
 from functools import partial
 import logging
-from pyexpat.errors import XML_ERROR_INCOMPLETE_PE
-from venv import create
 import pandas as pd
 import numpy as np
+
 from bokeh.layouts import column, row
-from bokeh.models import (ColumnDataSource, RadioGroup, CheckboxGroup, Slider,MultiSelect, 
-                            LinearColorMapper, ColorBar, Label,LinearAxis, Range1d)
+from bokeh.models import (ColumnDataSource, RadioGroup, Slider,MultiSelect, 
+                            LinearColorMapper, ColorBar, Label)
 from bokeh.models.callbacks import CustomJS
 from bokeh.models.widgets import (Select, Div,
                                   Button, AutocompleteInput)
 from bokeh.plotting import figure, curdoc
-from bokeh.models.transforms import CustomJSTransform
-from bokeh.transform import transform
-
 from beehive import config, util, expset
 from bokeh.util.hex import cartesian_to_axial
 from bokeh.palettes import Viridis256,Magma256
-from beehive.util import diskcache
 
 lg = logging.getLogger('ScatterExpression')
 lg.setLevel(logging.DEBUG)
@@ -47,9 +42,8 @@ dataset_options = [(k, "{short_title}, {short_author}".format(**v))
                    for k, v in datasets.items()]
 
 # Dataset
-dataset_options = [(k, "{short_title}, {short_author}".format(**v))
+dataset_options = [(k, "{short_title}, {short_author}, {datatype}".format(**v))
                    for k, v in datasets.items()]
-
 
 w_dataset_id = create_widget("dataset_id", Select, title="Dataset",
                              options=dataset_options,
