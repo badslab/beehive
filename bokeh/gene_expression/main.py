@@ -1,14 +1,3 @@
-"""Simple boxplot gene expression visualization."""
-
-# Notes:
-#
-# I removed the plottype for the time being - mean/std plots
-# are strange when the min value is not zero - some sets
-# have negative (log) values - discuss if we can fix this
-# - or simply do not show mean/std plots? - solution for now.
-#
-
-
 from functools import partial
 import logging
 
@@ -20,9 +9,7 @@ from bokeh.models.callbacks import CustomJS
 from bokeh.models.widgets import (Select, Div,
                                   Button, AutocompleteInput)
 from bokeh.plotting import figure, curdoc
-
 from beehive import config, util, expset
-
 from bokeh.transform import jitter, CategoricalColorMapper
 
 lg = logging.getLogger('GeneExp')
@@ -45,7 +32,7 @@ w_div_title_author = Div(text="")
 
 # Dataset
 
-dataset_options = [(k, "{short_title}, {short_author}".format(**v))
+dataset_options = [(k, "{short_title}, {short_author}, {datatype}".format(**v))
                    for k, v in datasets.items()]
 
 w_dataset_id = create_widget("dataset_id", Select, title="Dataset",
@@ -115,6 +102,9 @@ def update_facets():
     w_facet2.options = options
     w_facet3.options = options_with_skip
 
+    w_facet2.options = w_facet2.options + [("--","--")]
+    w_facet3.options = w_facet3.options + [("--","--")]
+
     if w_facet.value not in [x[0] for x in w_facet.options]:
         # set a default
         w_facet.value = w_facet.options[0][0]
@@ -128,14 +118,18 @@ def update_facets():
     w_facet.options = list(filter(lambda x: x[0] != w_facet2.value,w_facet.options))
 
     w_facet3.options = list(filter(lambda x: x[0] != w_facet.value,w_facet3.options))
-    w_facet3.options = list(filter(lambda x: x[0] != w_facet2.value,w_facet3.options))
+    w_facet3.options = list(filter(lambda x: x[0] != w_facet2.value or x[0] == "--" ,w_facet3.options))
 
     if w_facet3.value not in [x[0] for x in w_facet3.options]:
         # set a default
         w_facet3.value =  w_facet3.options[0][0]
 
-    w_facet2.options = list(filter(lambda x: x[0] != w_facet3.value,w_facet2.options))
+    w_facet2.options = list(filter(lambda x: x[0] != w_facet3.value or x[0] == "--",w_facet2.options))
     w_facet.options = list(filter(lambda x: x[0] != w_facet3.value,w_facet.options))
+
+
+    # w_facet2.value = "--"
+    # w_facet3.value = "--"
 
 def update_genes():
     """Update genes widget for a dataset."""
@@ -163,16 +157,25 @@ def get_data() -> pd.DataFrame:
     if w_facet.value == gene:
         coloring_scheme = f'{w_facet.value}_category_y'
     else:
-        coloring_scheme = f'{w_facet.value}_y'
+        coloring_scheme = f'{w_facet.value}_x'
+    if w_facet2.value == "--":
+        coloring_scheme = "cat_value"
+        
     lg.warning(f"!! Getting data for {dataset_id} {facet} {gene}")
 
     data = expset.get_gene_meta_three_facets(dataset_id,gene,facet,facet2,facet3,view_name = VIEW_NAME)
+
     #filter NONEs
     data = data.loc[data["cat_value"].str[0] != "NONE"]
     data = data.loc[data["cat_value"].str[1] != "NONE"]
+    data = data.loc[data["cat_value"] != "NONE"]
+
+    #for table
     data_no_dups = data.drop_duplicates("cat_value")
+
     #rename jitter points column
     data = data.rename(columns={f'mean_{facet3}': "jitter"})
+
     return data,data_no_dups
 
 
@@ -185,6 +188,8 @@ def get_mapper():
     dataset = w_dataset_id.value
     meta = w_facet.value
     dict_colors = expset.get_colors_of_obs(dataset,meta)
+    print(dict_colors.keys())
+    print(dict_colors.values())
     mapper = CategoricalColorMapper(palette = list(dict_colors.values()), factors=list(dict_colors.keys()))
     return mapper
 
@@ -247,11 +252,12 @@ table = DataTable(source=source_no_dups,
 mapper = get_mapper()
 
 # create plot elements - these are the same for boxplots as mean/std type plots
+
+print(coloring_scheme)
 elements = dict(
     vbar=plot.vbar(x="cat_value", top='_bar_top',
                 bottom='_bar_bottom', source = source, width=0.85, name="barplot",
                 fill_color={'field': coloring_scheme, 'transform': mapper},
-
                 line_color="black"),
     seg_v_up=plot.segment(source=source, x0='cat_value', x1='cat_value',
                           y0='_bar_top', y1='_segment_top',
@@ -288,7 +294,7 @@ citation = Div(text=f'{expset.get_legend_of_obs(w_dataset_id.value,w_facet.value
 ordered_list = get_order()
 order = {key: i for i, key in enumerate(ordered_list)}
 
-if order:
+if order and w_facet2.value != "--":
     plot.x_range.factors = sorted(list(set(data["cat_value"])),key = lambda d: (d[0],order[d[1]]))
 else:
     plot.x_range.factors = sorted(list(set(data["cat_value"])),key=lambda tup: tup[0])
@@ -302,7 +308,6 @@ def cb_update_plot(attr, old, new):
     curdoc().hold()
     global plot, source, data, data_no_dups
     update_facets()
-
     #keeping old data and getting new data
     old_data = data
     old_data_no_dups = data_no_dups
@@ -332,7 +337,7 @@ def cb_update_plot(attr, old, new):
         elements["vbar"].glyph.fill_color = {'field': coloring_scheme, 'transform': mapper}
         ordered_list = get_order()
         order = {key: i for i, key in enumerate(ordered_list)}
-        if order:
+        if order and w_facet2.value != "--":
             plot.x_range.factors = sorted(list(set(data["cat_value"])),key = lambda d:  (d[0],order[d[1]]))
         else:
             plot.x_range.factors = sorted(list(set(data["cat_value"])),key=lambda tup: tup[0])
