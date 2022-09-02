@@ -1,5 +1,6 @@
 from ast import Pass
 from functools import partial, lru_cache
+from itertools import groupby
 import logging
 from typing import Dict, List, Tuple
 
@@ -153,16 +154,6 @@ def get_facet_options_numerical(dsid: str, view_name: str = "") -> List[Tuple[st
     return list(sorted(rv))
 
 def get_gene_meta_three_facets(dsid: str, gene: str, meta1: str, meta2: str, meta3: str = "mouse.id",nobins:int = 8,view_name: str = ""):
-    genedata = get_gene(dsid,gene)
-    metadata = get_meta(dsid, meta1, nobins=nobins,view_name = view_name, raw = True) #facet1
-    metadata2 = get_meta(dsid,meta2,nobins=nobins,view_name = view_name, raw = True) #facet2
-    metadata3 = get_meta(dsid,meta3,nobins=nobins,view_name = view_name, raw = True) #most likely mouse_id
-    
-    metadata = metadata.select((pl.col(meta1)).cast(str))
-    metadata2 = metadata2.select((pl.col(meta2)).cast(str))
-    metadata3 = metadata3.select((pl.col(meta3)).cast(str))
-
-
     """"
     function to return the aggregate of 3 metadata options
     first two metadatas will be displayed in a boxplot doubled
@@ -170,28 +161,56 @@ def get_gene_meta_three_facets(dsid: str, gene: str, meta1: str, meta2: str, met
     we end up with means of the third metadata
     and means of (metadata1 * metadata2) groups.
     """
+    emptyDF = False
+
+    genedata = get_gene(dsid,gene)
+    metadata = get_meta(dsid, meta1, nobins=nobins,view_name = view_name, raw = True) #facet1
+    metadata = metadata.select((pl.col(meta1)).cast(str))
+
+    if genedata.columns == metadata.columns:
+        metadata.columns = [metadata.columns[0] + "_category"]
+        new_meta = metadata.columns[0]
+    else:
+        new_meta = meta1
+
+    groupby_columns1 = [new_meta]
+    groupby_columns2 = [new_meta]
+
+    if meta2 == "--":
+        metadata2 = pl.DataFrame([])
+        new_meta2 = meta2
+        emptyDF = True
+
+    else:
+        metadata2 = get_meta(dsid,meta2,nobins=nobins,view_name = view_name, raw = True) #facet2
+        metadata2 = metadata2.select((pl.col(meta2)).cast(str))
+        if genedata.columns == metadata2.columns:
+            metadata2.columns = [metadata2.columns[0] + "_category"]
+        new_meta2 = metadata2.columns[0]
+
+    if meta3 == "--":
+        metadata3 = pl.DataFrame([])
+        new_meta3 = meta3
+    else:
+        metadata3 = get_meta(dsid,meta3,nobins=nobins,view_name = view_name, raw = True) #most likely mouse_id
+        metadata3 = metadata3.select((pl.col(meta3)).cast(str))
+        if genedata.columns == metadata3.columns:
+            metadata3.columns = [metadata3.columns[0] + "_category"]
+        new_meta3 = metadata3.columns[0]
+
+    if new_meta2 != "--":
+        groupby_columns1 = groupby_columns1 + [new_meta2]
+        groupby_columns2 = groupby_columns2 + [new_meta2]
+    if new_meta3 != "--":
+        groupby_columns2 = groupby_columns2 + [new_meta3]
+
 
     if genedata is None or metadata is None or metadata2 is None or metadata3 is None:
         return None
-
-    #in new yamls, there is sometimes names of column same as that of gene
-    #e.g. in man2m.. meta = APOE, gene = APOE
-    #this ruins the concatination..
-    if genedata.columns == metadata.columns:
-        metadata.columns = [metadata.columns[0] + "_category"]
-    if genedata.columns == metadata2.columns:
-        metadata2.columns = [metadata2.columns[0] + "_category"]
-    if genedata.columns == metadata3.columns:
-        metadata3.columns = [metadata3.columns[0] + "_category"]
-
-    new_meta = metadata.columns[0]
-    new_meta2 = metadata2.columns[0]
-    new_meta3 = metadata3.columns[0]
     
-    #group on both metadatas => excluding the third
     rv_combined = (
         pl.concat([genedata, metadata,metadata2,metadata3], how="horizontal")
-        .groupby([new_meta,new_meta2])
+        .groupby(groupby_columns1)
         .agg(
             [
                 pl.count(),
@@ -207,15 +226,13 @@ def get_gene_meta_three_facets(dsid: str, gene: str, meta1: str, meta2: str, met
             ]
         )
     )
-
-    #group on all => get the means of the third.
     rv_mouseid = (
         pl.concat([genedata, metadata,metadata2,metadata3], how="horizontal")
-        .groupby([new_meta,new_meta2,new_meta3])
+        .groupby(groupby_columns2)
         .agg(
             [
-                pl.count().alias("count_" + meta3), #count_mouseid
-                pl.mean(gene).alias("mean_" + meta3), #mean_mouseid
+                pl.count().alias("count_" + new_meta3), #count_mouseid
+                pl.mean(gene).alias("mean_" + new_meta3), #mean_mouseid
             ]
         )
     )
@@ -233,24 +250,28 @@ def get_gene_meta_three_facets(dsid: str, gene: str, meta1: str, meta2: str, met
     rv_combined['_segment_bottom'] = rv_combined['q01']
 
     #manipulation to get the ["X"] columns as the factors 
-    rv_combined["x"] = rv_combined[[new_meta2,new_meta]].apply(tuple, axis=1)
-    rv_combined["x"] = sorted(rv_combined["x"],key=lambda tup: tup[0])
-    rv_combined["x"] = sorted(rv_combined["x"],key=lambda tup: tup[1])
+    if not(emptyDF):
+        rv_combined["x"] = rv_combined[[new_meta2,new_meta]].apply(tuple, axis=1)
+        rv_combined.sort_values(by = "x",key=lambda col: col.str[0],inplace = True)
+        rv_combined.sort_values(by = "x",key=lambda col: col.str[1],inplace = True)
 
-    rv_mouseid["x"] = rv_mouseid[[new_meta2,new_meta]].apply(tuple, axis=1)
-    rv_mouseid["x"] = sorted(rv_mouseid["x"],key=lambda tup: tup[0])
-    rv_mouseid["x"] = sorted(rv_mouseid["x"],key=lambda tup: tup[1])
+        rv_mouseid["x"] = rv_mouseid[[new_meta2,new_meta]].apply(tuple, axis=1)
+        rv_mouseid.sort_values(by = "x",key=lambda col: col.str[0],inplace = True)
+        rv_mouseid.sort_values(by = "x",key=lambda col: col.str[1],inplace = True)
 
     #merge on the just created ["X"] column
-    final_rv = pd.merge(rv_combined,rv_mouseid,on="x")
-    #sort..
-    final_rv["x"] = sorted(final_rv["x"],key=lambda tup: tup[0])
-    final_rv["x"] = sorted(final_rv["x"],key=lambda tup: tup[1])
+        final_rv = pd.merge(rv_combined,rv_mouseid,on="x")
+        #sort..
+        final_rv.sort_values(by = "x",key=lambda col: col.str[0],inplace = True)
+        final_rv.sort_values(by = "x",key=lambda col: col.str[1],inplace = True)
 
-    final_rv = final_rv.rename(columns={"x": "cat_value"})
-    #sort the column for colors to be displayed..
-
-    final_rv[new_meta+"_y"] = sorted(final_rv[new_meta+"_y"])
+        final_rv = final_rv.rename(columns={"x": "cat_value"})
+        
+        #sort the column for colors to be displayed..
+        final_rv.sort_values(by = f'{new_meta}_y',inplace = True)
+    else:
+        final_rv = pd.merge(rv_combined,rv_mouseid,on=new_meta)
+        final_rv = final_rv.rename(columns={new_meta: "cat_value"})
 
     return final_rv 
 
