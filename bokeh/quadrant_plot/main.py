@@ -5,12 +5,14 @@ import numpy as np
 import pandas as pd
 
 from bokeh.layouts import column, row
-from bokeh.models import ColumnDataSource,MultiChoice, HoverTool, Spinner, Range1d
+from bokeh.models import ColumnDataSource,MultiChoice, HoverTool, Spinner, Range1d, LabelSet
 from bokeh.models.callbacks import CustomJS
 from bokeh.models.widgets import (Select, Div,
                                   Button)
 from bokeh.plotting import figure, curdoc
 from beehive import config, util, expset
+from bokeh.models.transforms import CustomJSTransform
+from bokeh.transform import transform
 
 
 lg = logging.getLogger('QuadrantPlot')
@@ -31,9 +33,8 @@ args = curdoc().session_context.request.arguments
 w_div_title_author = Div(text="",width = 300)
 
 
-dataset_options = [(k, "{short_title}, {short_author}".format(**v))
+dataset_options = [(k, "{short_title}, {short_author}, {datatype}".format(**v))
                    for k, v in datasets.items()]
-
 DATASET_NUMBER = 0
 
 w_dataset_id = create_widget("dataset_id", Select, title="Dataset",
@@ -192,7 +193,6 @@ categ2 = w_category2.value
 source = ColumnDataSource(data)
 
 # COLOR_PALETTE = ["red","green","blue","purple", "grey"]
-# HIGHLIGHTED_OPTIONS = ["significant on x axis","significant on y axis","significant on both axes","highlighted genes","other genes"]
 # plot.scatter(x = "x", y = "y", source = source, 
 # color=factor_cmap('highlight', palette = COLOR_PALETTE, factors = HIGHLIGHTED_OPTIONS),
 # legend_group = "highlight")
@@ -205,7 +205,29 @@ legend_field = "highlight")
 new_min, new_max = get_ranges()
 new_range = Range1d(new_min,new_max)
 plot.update(x_range = new_range, y_range = new_range)
+plot.xaxis.axis_label = categ1
+plot.yaxis.axis_label = categ2
 
+v_func_text_size  = """
+var new_xs = new Array(xs.length)
+for(var i = 0; i < xs.length; i++) {
+    new_xs[i] = text_sizes_map[xs[i]]
+}
+return new_xs
+"""
+HIGHLIGHTED_OPTIONS = ["significant on x axis","significant on y axis","significant on both axes","highlighted genes","other genes"]
+TEXT_SIZES = ['0px','0px','0px','15px','0px'] 
+
+text_size_map = dict(zip(HIGHLIGHTED_OPTIONS,TEXT_SIZES))
+
+categorical_text_size_transformer = CustomJSTransform(args={"text_sizes_map": text_size_map}, v_func = v_func_text_size)
+
+labels = LabelSet(x='x', y='y', text='gene',
+              x_offset=0, y_offset=5, source=source,
+              text_font_size = transform('highlight',categorical_text_size_transformer),
+              text_font_style = "bold")
+
+plot.add_layout(labels)
 def cb_update_plot(attr, old, new,type_change = None):
     curdoc().hold()
     global plot, source, data
@@ -233,6 +255,8 @@ def cb_update_plot(attr, old, new,type_change = None):
     else:
         data = get_data()
         source.data = data
+        categ1 = w_category1.value
+        categ2 = w_category2.value
 
         w_div_title_author.text = \
             f"""
@@ -248,6 +272,8 @@ def cb_update_plot(attr, old, new,type_change = None):
         plot.x_range.update(start = new_min, end = new_max)
         plot.y_range.update(start = new_min, end = new_max)
 
+        plot.xaxis.axis_label = categ1
+        plot.yaxis.axis_label = categ2
 
         curdoc().unhold()
 
