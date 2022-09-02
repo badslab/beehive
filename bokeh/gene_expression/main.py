@@ -38,7 +38,7 @@ dataset_options = [(k, "{short_title}, {short_author}, {datatype}".format(**v))
 w_dataset_id = create_widget("dataset_id", Select, title="Dataset",
                              options=dataset_options,
                              default=dataset_options[0][0],
-                             visible=True,height = 10, width = 100)
+                             visible=True,height = 30, width = 400)
 
 w_sibling = create_widget("view", Select,
                           options=[],
@@ -160,7 +160,7 @@ def get_data() -> pd.DataFrame:
         coloring_scheme = f'{w_facet.value}_x'
     if w_facet2.value == "--":
         coloring_scheme = "cat_value"
-        
+
     lg.warning(f"!! Getting data for {dataset_id} {facet} {gene}")
 
     data = expset.get_gene_meta_three_facets(dataset_id,gene,facet,facet2,facet3,view_name = VIEW_NAME)
@@ -188,8 +188,6 @@ def get_mapper():
     dataset = w_dataset_id.value
     meta = w_facet.value
     dict_colors = expset.get_colors_of_obs(dataset,meta)
-    print(dict_colors.keys())
-    print(dict_colors.values())
     mapper = CategoricalColorMapper(palette = list(dict_colors.values()), factors=list(dict_colors.keys()))
     return mapper
 
@@ -204,7 +202,7 @@ def get_order():
 # Create plot
 #
 plot = figure(background_fill_color="#efefef", x_range=[],title="Plot",
-              toolbar_location='right', tools="save", sizing_mode = "scale_both")
+              toolbar_location='right', tools="save", sizing_mode = "fixed", width = 800, height = 600)
 
 
 data,data_no_dups = get_data()
@@ -226,7 +224,8 @@ source_no_dups = ColumnDataSource(data_no_dups)
 table = DataTable(source=source_no_dups,
                   margin=10,
                   index_position=None,
-                  sizing_mode = "scale_both",
+                  sizing_mode = "fixed",
+                  width = 500,
                   columns=[
                       TableColumn(field='cat_value', title='Category'),
                       TableColumn(field='count', title='No Samples/Cells',
@@ -253,7 +252,7 @@ mapper = get_mapper()
 
 # create plot elements - these are the same for boxplots as mean/std type plots
 
-print(coloring_scheme)
+
 elements = dict(
     vbar=plot.vbar(x="cat_value", top='_bar_top',
                 bottom='_bar_bottom', source = source, width=0.85, name="barplot",
@@ -425,13 +424,11 @@ curdoc().add_root(row([
         column([
         row([w_gene, w_facet,w_facet2],sizing_mode='scale_both'),
         row([w_facet3,w_sibling, w_download],sizing_mode='scale_both'),
-        # row([w_sibling, w_download],sizing_mode='scale_both'),
-
         ]),
-        column([w_div_title_author], sizing_mode='scale_both'),
-        column([w_dataset_id],sizing_mode='scale_both'),
+        column([w_div_title_author], sizing_mode='fixed'),
+        column([w_dataset_id],sizing_mode='fixed'),
         column([warning_experiment],sizing_mode='scale_both'),
-        column([table],sizing_mode='scale_both')
+        column([table],sizing_mode='fixed')
         ]),
     column([
         column([plot], sizing_mode='scale_both'),
