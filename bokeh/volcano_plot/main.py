@@ -1,10 +1,8 @@
 import logging
 from functools import partial
 import logging
-from pprint import pprint
 import numpy as np
 import pandas as pd
-import polars as pl
 
 from bokeh.layouts import column, row
 from bokeh.models import ColumnDataSource,MultiChoice, HoverTool, Spinner, Range1d, LabelSet
@@ -33,7 +31,7 @@ args = curdoc().session_context.request.arguments
 
 w_div_title_author = Div(text="")
 
-dataset_options = [(k, "{short_title}, {short_author}".format(**v))
+dataset_options = [(k, "{short_title}, {short_author}, {datatype}".format(**v))
                    for k, v in datasets.items()]
 
 DATASET_NUMBER = 0
@@ -180,7 +178,7 @@ BIG_CIRCLE = 10 #how big should the highlighted gene be?
 SMALL_CIRCLE = 2 #how small should the non highlighted gene be?
 SIZES_PALETTE_1 = [SMALL_CIRCLE,0,0]
 SIZES_PALETTE_2 = [0,BIG_CIRCLE,BIG_CIRCLE]
-TEXT_SIZES = ['0px','15px','15px'] # text gene size for: [non highlighted, highlighted, toplow]
+TEXT_SIZES = ['0px','15px','8px'] # text gene size for: [non highlighted, highlighted, toplow]
 
 Y_START_MIN = 0
 
