@@ -28,7 +28,7 @@ datasets = expset.get_datasets(view_name = VIEW_NAME)
 args = curdoc().session_context.request.arguments
 
 # WIDGETS
-w_div_title_author = Div(text="")
+w_div_title_author = Div(text="", width = 400,height = 200)
 
 # Dataset
 
@@ -224,8 +224,9 @@ source_no_dups = ColumnDataSource(data_no_dups)
 table = DataTable(source=source_no_dups,
                   margin=10,
                   index_position=None,
-                  sizing_mode = "fixed",
+                #   sizing_mode = "fixed",
                   width = 500,
+                  height = 600,
                   columns=[
                       TableColumn(field='cat_value', title='Category'),
                       TableColumn(field='count', title='No Samples/Cells',
@@ -425,10 +426,10 @@ curdoc().add_root(row([
         row([w_gene, w_facet,w_facet2],sizing_mode='scale_both'),
         row([w_facet3,w_sibling, w_download],sizing_mode='scale_both'),
         ]),
-        column([w_div_title_author], sizing_mode='fixed'),
-        column([w_dataset_id],sizing_mode='fixed'),
+        column([w_div_title_author]),
+        column([w_dataset_id]),
         column([warning_experiment],sizing_mode='scale_both'),
-        column([table],sizing_mode='fixed')
+        column([table])
         ]),
     column([
         column([plot], sizing_mode='scale_both'),
