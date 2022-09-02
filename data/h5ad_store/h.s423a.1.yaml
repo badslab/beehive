@@ -84,8 +84,8 @@ obs_meta:
         name: B100
       gfs 1:
         name: gfs 1
-      'gfs 2 ':
-        name: 'gfs 2 '
+      gfs 2:
+        name: gfs 2
       gfs 3:
         name: gfs 3
       gfs 4:
