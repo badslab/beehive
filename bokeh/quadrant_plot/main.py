@@ -42,8 +42,7 @@ w_dataset_id = create_widget("dataset_id", Select, title="Dataset",
                              default=dataset_options[DATASET_NUMBER][0],
                              visible=True, width = 300)
 
-w_genes = create_widget("genes",MultiChoice,default = ["TREM2","APOE"],options = [], title="Select genes to highlight",value_type = list,  
-height = 100, width = 300)
+w_genes = create_widget("genes",MultiChoice,default = ["TREM2","APOE"],options = [], title="Select genes to highlight",value_type = list,  height_policy = "fit")
 
 w_category1 = create_widget("category1",Select, 
                     options=[], title="Select First Category", width = 150, height = 50)
