@@ -451,6 +451,23 @@ def get_dedata_quadrant(dsid, categ1,categ2):
     # get genes has same index as that for the rows.
     return rv
 
+def get_dedata_abundance(dsid,categ):
+    datadir = util.get_datadir("h5ad")
+
+    #to get 'gene' column
+    last_col = len(pl.read_parquet(datadir / f"{dsid}.var.prq").columns)
+
+    rv1 = pl.read_parquet(datadir / f"{dsid}.var.prq", [last_col - 1])
+
+    rv2 = pl.read_parquet(
+        datadir / f"{dsid}.var.prq", [categ + "__lfc"] + [categ + "__padj"] + [categ + "__lcpm"])
+    
+    rv = pl.concat([rv2, rv1], how="horizontal")
+    rv = rv.to_pandas()
+
+    return rv
+
+
 
 
 def get_meta(dsid, col, raw=False, nobins=8, view_name: str = ""):
