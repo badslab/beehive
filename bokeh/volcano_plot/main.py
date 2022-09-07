@@ -52,7 +52,7 @@ w_download_filename = Div(text="", visible=False,
                           name="download_filename")
 
 #genes that can be highlighted
-w_genes = create_widget("genes",MultiChoice,default = ["TREM2","APOE"],options = [], title="Select genes to highlight",value_type = list)
+w_genes = create_widget("genes",MultiChoice,default = ["TREM2","APOE"],options = [], title="Select genes to highlight",value_type = list, height_policy = "fit")
 #adjustable x and y range sliders
 w_x_range = create_widget("x_range",Spinner,title = "Select Min & Max Absolute X-range",low=0, high = 30,step=0.1,default=2,value_type = float)
 w_y_range = create_widget("y_range",Spinner,title = "Select Max Y-range",low=0, high = 300,step=1,default=100,value_type = float)
