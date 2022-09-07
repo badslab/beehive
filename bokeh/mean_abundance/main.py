@@ -108,11 +108,12 @@ def size_genes(x):
         return 6
     else:
         return 3
+#default 1 alpha, not being used currently
 def fill_alpha_genes(x):
     if x["highlight"] == "user_highlighted":
         return 1
     else:
-        return 0.2
+        return 1
 
 def get_data() -> pd.DataFrame:
     """Get data of lfc on y axis and abundance on y axis and gene names associated with that var"""
