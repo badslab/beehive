@@ -100,6 +100,9 @@ serve_dev_raghid_volcano: fix_templates
 serve_dev_raghid_quadrant: fix_templates
 	pipenv run bokeh serve --dev --port 5009 bokeh/quadrant_plot/
 
+serve_dev_raghid_abundance: fix_templates
+	pipenv run bokeh serve --dev --port 5009 bokeh/mean_abundance/
+
 serve_dev_raghid_all: fix_templates
 	pipenv run bokeh serve --port 5009 bokeh/quadrant_plot/ \
 									bokeh/volcano_plot/ \
