@@ -4,6 +4,7 @@ use_in_view:
 - hexbin_expression
 - volcano_plot
 - gene_expression
+- mean_abundance
 author: 101010 team
 datatype: log normalized ST counts
 de_data:
