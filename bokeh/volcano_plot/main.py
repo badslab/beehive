@@ -75,7 +75,7 @@ def update_vars():
     vars = expset.get_varfields(w_dataset_id.value)
     #drop last column,, the one for genes.
     vars = vars[:-1]
-    unique_vars = list(set([x.replace("__lfc","").replace("__padj","") for x in vars]))
+    unique_vars = list(set([x.replace("__lfc","").replace("__padj","").replace("__lcpm","") for x in vars]))
     vars_options = [(x,x) for x in unique_vars]
     options = vars_options
     w_category.options = options
