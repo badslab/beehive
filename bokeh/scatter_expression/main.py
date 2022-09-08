@@ -36,11 +36,6 @@ datasets = expset.get_datasets(view_name=VIEW_NAME)
 
 args = curdoc().session_context.request.arguments
 
-
-# TODO
-# clear cookies for user/password? ==> in auth not here..
-# print(curdoc().session_context.request.cookies)
-
 w_div_title_author = Div(text="")
 
 # datasets with titles
@@ -140,7 +135,7 @@ def update_genes():
 
 def update_facets():
     """Update interface for a specific dataset."""
-    options = expset.get_facet_options(w_dataset_id.value,view_name=VIEW_NAME)
+    options = expset.get_facet_options(w_dataset_id.value,view_name=VIEW_NAME,only_categorical=True)
     w_facet.options = options
     if w_facet.value not in [x[0] for x in options]:
         # set a default
@@ -185,7 +180,6 @@ def get_data() -> pd.DataFrame:
     num_facet1 = w_facet_numerical_1.value
     num_facet2 = w_facet_numerical_2.value
     num_facet3 = w_facet_numerical_3.value
-
     # all data will have 6 columns
     # initially set at None.
     geneX = None
