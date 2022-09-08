@@ -4,7 +4,6 @@ use_in_view:
 - hexbin_expression
 - volcano_plot
 - gene_expression
-- mean_abundance
 author: 101010 team
 datatype: log normalized ST counts
 de_data:
@@ -32,6 +31,18 @@ de_data:
     name: neurvsnon_bin__res__lfc
   corevsnon_bin__res__lfc:
     name: corevsnon_bin__res__lfc
+  diffvsnon_bin__alz__lcpm:
+    name: diffvsnon_bin__alz__lcpm
+  neurvsnon_bin__alz__lcpm:
+    name: neurvsnon_bin__alz__lcpm
+  corevsnon_bin__alz__lcpm:
+    name: corevsnon_bin__alz__lcpm
+  diffvsnon_bin__res__lcpm:
+    name: diffvsnon_bin__res__lcpm
+  neurvsnon_bin__res__lcpm:
+    name: neurvsnon_bin__res__lcpm
+  corevsnon_bin__res__lcpm:
+    name: corevsnon_bin__res__lcpm
 de_meta:
   plaque_bin__all:
     name: plaque_bin__all
@@ -57,6 +68,18 @@ de_meta:
     name: neurvsnon_bin__res__lfc
   corevsnon_bin__res__lfc:
     name: corevsnon_bin__res__lfc
+  diffvsnon_bin__alz__lcpm:
+    name: diffvsnon_bin__alz__lcpm
+  neurvsnon_bin__alz__lcpm:
+    name: neurvsnon_bin__alz__lcpm
+  corevsnon_bin__alz__lcpm:
+    name: corevsnon_bin__alz__lcpm
+  diffvsnon_bin__res__lcpm:
+    name: diffvsnon_bin__res__lcpm
+  neurvsnon_bin__res__lcpm:
+    name: neurvsnon_bin__res__lcpm
+  corevsnon_bin__res__lcpm:
+    name: corevsnon_bin__res__lcpm
 description: spatial transcriptomics of the 101010 project
 obs_meta:
   488_Mean:
