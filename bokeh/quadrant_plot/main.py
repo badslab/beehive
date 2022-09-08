@@ -76,7 +76,7 @@ def update_vars():
     vars = list(filter(lambda x: "__padj" not in x,vars))
 
     #filter and keep only lfcs..
-    unique_vars = list(set([x.replace("__lfc","") for x in vars]))
+    unique_vars = list(set([x.replace("__lfc","").replace("__lcpm","") for x in vars]))
 
     vars_options = [(x,x) for x in unique_vars]
     
