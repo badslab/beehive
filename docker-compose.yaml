@@ -1,0 +1,14 @@
+version: "3.9"
+services:
+  bokeh_serve_all:
+    build: .
+    volumes:
+      - "../data:/beehive/data"
+    ports: 
+      - "5009:5009"
+    command: "bokeh serve --port 5009 bokeh/quadrant_plot/ \
+                   bokeh/volcano_plot/ \
+                   bokeh/scatter_expression/ \
+                   bokeh/gene_expression/ \
+                   bokeh/hexbin_expression/"
+    
