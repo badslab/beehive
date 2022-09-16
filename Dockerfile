@@ -8,3 +8,5 @@ RUN pip install -r ./requirements.txt --default-timeout=1000
 COPY ./Makefile ./Makefile
 EXPOSE 5009
 RUN make fix_templates
+RUN ["chmod", "+x", "./entrypoint.sh"]
+ENTRYPOINT ["./entrypoint.sh"]
