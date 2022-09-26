@@ -1,0 +1,2 @@
+[console_scripts]
+beehive = beehive.cli:run

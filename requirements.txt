@@ -1,0 +1,17 @@
+bokeh
+colorcet
+jedi
+matplotlib
+numpy
+pandas
+polars
+pyarrow
+pyyaml
+scanpy[leiden]
+scikit-learn
+scipy 
+statsmodels
+typer
+pelican 
+markdown
+-e ./beehive
