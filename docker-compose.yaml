@@ -1,0 +1,22 @@
+version: "3.9"
+services:  
+  git:
+    restart: always
+    image: rbsat/beehive
+    build: .
+    command:  git clone git@github.com:badslab/beehive.git
+    volumes:
+      - ./beehive:/beehive
+  install_dependencies:
+    depends_on:
+      - git
+    restart: always
+    image: rbsat/beehive
+    build: . 
+    command: pip install -r beehive/requirements.txt --default-timeout=1000
+  startapp:
+    depends_on:
+      - install_dependencies
+    image: rbsat/beehive
+    build: .
+    command: bash -c "beehive/entrypoint.sh"
