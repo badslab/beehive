@@ -185,7 +185,8 @@ def set_defaults():
             w_alpha_slider.value = def_vals.get("opacity")
     return
 
-set_defaults()
+if curdoc().session_context.request.arguments == {}:
+    set_defaults()
 
 def update_numerical_facets():
     """"Get and update numerical facets only. Helpful for the w_numerical_facet widget"""

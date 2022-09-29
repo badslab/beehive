@@ -363,7 +363,8 @@ def set_defaults():
             w_subset_select.value = def_vals.get("subset_categs")
     return
 
-set_defaults()
+if curdoc().session_context.request.arguments == {}:
+    set_defaults()
 
 def get_mapper(feature,data,palette):
     return  LinearColorMapper(

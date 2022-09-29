@@ -29,8 +29,6 @@ create_widget = partial(util.create_widget, curdoc=curdoc())
 
 datasets = expset.get_datasets(view_name=VIEW_NAME)
 
-args = curdoc().session_context.request.arguments
-
 w_div_title_author = Div(text="",width = 300)
 
 
@@ -184,9 +182,8 @@ def set_defaults():
             w_spinner.value =  float(def_vals.get("spinner"))
     return
 
-set_defaults()
-
-
+if curdoc().session_context.request.arguments == {}:
+    set_defaults()
 
 TOOLTIPS = [
             ('Log Fold Change on x-axis', '@x'),
@@ -236,7 +233,7 @@ for(var i = 0; i < xs.length; i++) {
 return new_xs
 """
 HIGHLIGHTED_OPTIONS = ["significant on x axis","significant on y axis","significant on both axes","highlighted genes","other genes"]
-TEXT_SIZES = ['0px','0px','0px','15px','0px'] 
+TEXT_SIZES = ["0px","0px","0px","15px","0px"]
 
 text_size_map = dict(zip(HIGHLIGHTED_OPTIONS,TEXT_SIZES))
 
@@ -289,7 +286,6 @@ def cb_update_plot(attr, old, new,type_change = None):
         plot.xaxis.axis_label = categ1
         plot.yaxis.axis_label = categ2
         w_download_filename.text = f"exp_{dataset_id}_{categ1}_{categ2}.csv"
-
         curdoc().unhold()
 
 
