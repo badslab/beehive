@@ -2,6 +2,7 @@ from ast import Pass
 from functools import partial, lru_cache
 from itertools import groupby
 import logging
+from ssl import VERIFY_X509_TRUSTED_FIRST
 from typing import Dict, List, Tuple
 
 
@@ -11,6 +12,7 @@ import polars as pl
 import yaml
 
 from beehive import util
+
 
 
 lg = logging.getLogger(__name__)
@@ -467,7 +469,22 @@ def get_dedata_abundance(dsid,categ):
 
     return rv
 
-
+def get_defaults(dsid,view_name: str = ""):
+    final_dict = {}
+    datadir = util.get_datadir("h5ad")
+    for yamlfile in datadir.glob("*.yaml"):
+        basename = yamlfile.name.replace(".yaml", "")
+        if dsid == basename:
+            with open(yamlfile, "r") as F:
+                y = yaml.load(F, Loader=yaml.SafeLoader)
+                #find which view_name:
+                try:
+                    for viewidx in range(len(y["defaults"])):
+                        if view_name == list(y["defaults"][viewidx].keys())[0]:
+                            final_dict = y["defaults"][viewidx]
+                except:
+                    return final_dict
+    return final_dict
 
 
 def get_meta(dsid, col, raw=False, nobins=8, view_name: str = ""):
@@ -539,3 +556,19 @@ def get_varfields(dsid):
     datadir = util.get_datadir("h5ad")
     X = pl.scan_parquet(datadir / f"{dsid}.var.prq")
     return X.columns
+
+
+def units_of_gene_expression(dsid):
+    datadir = util.get_datadir("h5ad")
+    for yamlfile in datadir.glob("*.yaml"):
+        basename = yamlfile.name.replace(".yaml", "")
+        if dsid == basename:
+            with open(yamlfile, "r") as F:
+                y = yaml.load(F, Loader=yaml.SafeLoader)
+                #find which view_name:
+                try:
+                    units = y["unit_gene_expression"]
+                except:
+                    return ""
+
+    return units
