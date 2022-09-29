@@ -14,6 +14,7 @@ from bokeh.plotting import figure, curdoc
 from beehive import config, util, expset
 from bokeh.util.hex import cartesian_to_axial
 from bokeh.palettes import Viridis256,Magma256
+from os.path import dirname, join
 
 lg = logging.getLogger('ScatterExpression')
 lg.setLevel(logging.DEBUG)
@@ -97,6 +98,7 @@ w_facet = create_widget("facet", Select, options=[],
 
 #download button..
 w_download = Button(label='Download', align='end',width = 100)
+w_remove_subsets = Button(label='Reset categories', align='end',width = 100)
 
 w_download_filename = Div(text="", visible=False,
                           name="download_filename")
@@ -238,7 +240,9 @@ def get_unique_obs(data):
     """Fetch the unique facets from the data"""
     global w_subset_select
     unique_obs = pd.DataFrame(data)['obs'].unique()
-    w_subset_select.options = unique_obs.tolist()
+    final_result =  [str(x) for x in unique_obs]
+    w_subset_select.options = final_result.tolist()
+    return unique_obs
 
 # @diskcache(where="./.cache/simple_disk_cache/", refresh= False)
 def calculate_hexes(hexsize, aspect_scale,x,y,orientation):
@@ -247,10 +251,18 @@ def calculate_hexes(hexsize, aspect_scale,x,y,orientation):
 
 def modify_data():
     data = get_data()
+    #remove NONE values
+
+    data = data[data.obs != "NONE"]
+    data = data.reset_index()
+    data_copy = data.copy(deep = True)
+
     global unique_obs, X_AXIS, Y_AXIS
 
     unique_obs = get_unique_obs(data)
+
     categories = w_subset_select.value
+
     NO_BINS = w_size_slider.value
     xmin = data[X_AXIS].min()
     xmax = data[X_AXIS].max()
@@ -279,18 +291,79 @@ def modify_data():
     ###assign axial coordinates to get average gene expression###
     #need to che
 
+
+    # full_groups = pd.DataFrame(dict(r_full=r,q=q_full,avg_exp = None))
+
     for key,val in groups.groups.items():
         q,r = key
         counts = len(val)
-
-        coloring_scheme = data[Z_AXIS].loc[groups.groups.get((q,r))].mean()
+        coloring_scheme = data[Z_AXIS].loc[groups.groups.get((q,r))].mean()    
+        # coloring_scheme = (data[Z_AXIS].loc[groups.groups.get((q,r))]).mean()/(data_copy[Z_AXIS]).mean()
         dicts = dicts + [{"q" : q,"r" : r,"counts" : counts, "coloring_scheme" :coloring_scheme,"index_list":val}]
 
+    df_full = pd.DataFrame(dict(r=r_full,q=q_full,avg_exp = None))
+
+    groups_full = df_full.groupby(["q","r"])
+    dicts_full = []
+    for key,val in groups_full.groups.items():
+        q,r = key
+        counts = len(val)
+        coloring_scheme = data_copy[Z_AXIS].loc[groups_full.groups.get((q,r))].mean()    
+        # coloring_scheme = (data[Z_AXIS].loc[groups.groups.get((q,r))]).mean()/(data_copy[Z_AXIS]).mean()
+        dicts_full = dicts_full + [{"q" : q,"r" : r,"counts" : counts, "coloring_scheme" :coloring_scheme,"index_list":val}]
+
+
     final_result = pd.DataFrame(dicts)
+    final_result_full = pd.DataFrame(dicts_full)
     data_full = pd.DataFrame(dict(r=r_full,q=q_full))
 
-    return final_result, data_full
+    return final_result, data_full,final_result_full
 
+
+def set_defaults():
+    defaults_dict = expset.get_defaults(w_dataset_id.value,VIEW_NAME)
+    if defaults_dict == {}:
+        return
+    for def_vals in defaults_dict[VIEW_NAME]:
+        if def_vals.get("dataset"):
+            default_dsid = def_vals.get("dataset")
+            for i in range(len(w_dataset_id.options)):
+                if default_dsid == w_dataset_id.options[i][0]:
+                    w_dataset_id.value = w_dataset_id.options[i][0]
+    
+    update_facets()
+    update_genes()
+    update_numerical_facets()
+    for def_vals in defaults_dict[VIEW_NAME]:
+        if def_vals.get("gene1"):
+            w_gene1.value =  def_vals.get("gene1")
+        if def_vals.get("gene2"):
+            w_gene2.value =  def_vals.get("gene2")
+        if def_vals.get("num_facet1"):
+            w_facet_numerical_1.value =  def_vals.get("num_facet1")
+        if def_vals.get("num_facet2"):
+            w_facet_numerical_2.value =  def_vals.get("num_facet2")
+        if def_vals.get("x_axis"):
+            w_x_axis_radio.active =  def_vals.get("x_axis")
+        if def_vals.get("y_axis"):
+            w_y_axis_radio.active =  def_vals.get("y_axis")
+        if def_vals.get("z_axis"):
+            w_z_axis_radio.active =  def_vals.get("z_axis")
+        if def_vals.get("group_gene"):
+            w_gene3.value =  def_vals.get("group_gene")
+        if def_vals.get("num_facet3"):
+            w_facet_numerical_3.value = def_vals.get("num_facet3")
+        if def_vals.get("color_by"):
+            w_color_check.active = def_vals.get("color_by")
+        if def_vals.get("bins"):
+            w_size_slider.value = def_vals.get("bins")
+        if def_vals.get("subset"):
+            w_facet.value = def_vals.get("subset")
+        if def_vals.get("subset_categs"):
+            w_subset_select.value = def_vals.get("subset_categs")
+    return
+
+set_defaults()
 
 def get_mapper(feature,data,palette):
     return  LinearColorMapper(
@@ -310,9 +383,9 @@ if len(w_facet_numerical_1.options) == 0:
 
 plot = figure(output_backend = "webgl",width = 1000)
 dataset_id, dataset = get_dataset()
-data,hex_full = modify_data()
-mapper_metadata = get_mapper("coloring_scheme", data, [x for x in Magma256][::-1])
-mapper_counts = get_mapper("counts",data,[x for x in Viridis256][::-1])
+data,hex_full,data_full = modify_data()
+mapper_metadata = get_mapper("coloring_scheme", data_full, [x for x in Magma256][::-1])
+mapper_counts = get_mapper("counts",data_full,[x for x in Viridis256][::-1])
 
 source = ColumnDataSource(data)
 source_full = ColumnDataSource(hex_full)
@@ -340,8 +413,8 @@ elif COLOR_POSSIBILITIES[w_color_check.active] == "Density (counts)":
     line_color = None, 
     color   = {'field': 'counts', 'transform': mapper_counts} , alpha = ALPHA)
     value_text = "counts"
-    tick_min_text = f'{np.round(np.percentile(np.array(data["counts"]),1),2)}'
-    tick_max_text = f'{np.round(np.percentile(np.array(data["counts"]),99),2)}'
+    tick_min_text = f'{np.round(np.percentile(np.array(data_full["counts"]),1),2)}'
+    tick_max_text = f'{np.round(np.percentile(np.array(data_full["counts"]),99),2)}'
     visibility_counts = True
     visibility_metadata = False
 
@@ -355,8 +428,8 @@ else:
     if len(w_facet_numerical_1.options) == 0:
         value_text = w_gene3.value
 
-    tick_min_text = f'{np.round(np.percentile(np.array(data["coloring_scheme"]),1),2)}'
-    tick_max_text = f'{np.round(np.percentile(np.array(data["coloring_scheme"]),99),2)}'
+    tick_min_text = f'{np.round(np.percentile(np.array(data_full["coloring_scheme"]),1),2)}'
+    tick_max_text = f'{np.round(np.percentile(np.array(data_full["coloring_scheme"]),99),2)}'
     visibility_counts = False
     visibility_metadata = True
 
@@ -393,13 +466,16 @@ if COLOR_POSSIBILITIES[w_color_check.active] == "None":
 
 x_label = ""
 y_label = ""
+def get_units():
+    units = expset.units_of_gene_expression(w_dataset_id.value)
+    return units
 
 def cb_update_plot(attr, old, new,type_change):
     """Populate and update the plot."""
     curdoc().hold()
-    global plot,source, X_AXIS, Y_AXIS, Z_AXIS, SIZE, ALPHA, widget_axes,x_label,y_label,color_bar, colorbar_text, tick_max,tick_min
-
-
+    global plot,source, X_AXIS, Y_AXIS, Z_AXIS, SIZE, ALPHA, widget_axes,x_label,y_label,color_bar, colorbar_text, tick_max,tick_min, w_subset_select
+    if type_change == "change_of_facets":
+        w_subset_select.value = []
     X_AXIS = "geneX" if w_x_axis_radio.active == GENE_OPTION else "num_facetX"
     Y_AXIS = "geneY" if w_y_axis_radio.active == GENE_OPTION else "num_facetY"
     Z_AXIS = "geneZ" if w_z_axis_radio.active == GENE_OPTION else "num_facetZ"
@@ -408,12 +484,14 @@ def cb_update_plot(attr, old, new,type_change):
     if len(w_facet_numerical_1.options) == 0:
         Z_AXIS = "geneZ"
 
-    data,hex_full = modify_data()
+    data,hex_full,data_full = modify_data()
+
     # get_unique_obs(data)
     dataset_id, dataset = get_dataset()
 
     facet = w_facet.value
-    source = ColumnDataSource(data)
+    # source = ColumnDataSource(data)
+    source.data = data
     source_full = ColumnDataSource(hex_full)
     SIZE = w_size_slider.value
 
@@ -426,8 +504,8 @@ def cb_update_plot(attr, old, new,type_change):
     #update plot now
     plot.renderers = []
 
-    mapper_metadata = get_mapper("coloring_scheme", data, [x for x in Magma256][::-1])
-    mapper_counts = get_mapper("counts",data,[x for x in Viridis256][::-1])
+    mapper_metadata = get_mapper("coloring_scheme", data_full, [x for x in Magma256][::-1])
+    mapper_counts = get_mapper("counts",data_full,[x for x in Viridis256][::-1])
 
     plot.hex_tile(q="q",r="r",size = SIZE,source=source_full,
         color  = "#D3D3D3",line_color = None, alpha = ALPHA) #grey plot all
@@ -441,8 +519,8 @@ def cb_update_plot(attr, old, new,type_change):
             line_color = None, 
             color   = {'field': 'counts', 'transform': mapper_counts}, alpha = ALPHA)
             colorbar_text.text = "counts"
-            tick_min.text = f'{np.round(np.percentile(np.array(data["counts"]),1),2)}'
-            tick_max.text = f'{np.round(np.percentile(np.array(data["counts"]),99),2)}'
+            tick_min.text = f'{np.round(np.percentile(np.array(data_full["counts"]),1),2)}'
+            tick_max.text = f'{np.round(np.percentile(np.array(data_full["counts"]),99),2)}'
             color_bar_counts.visible = True
 
         else:
@@ -453,8 +531,8 @@ def cb_update_plot(attr, old, new,type_change):
             #a break, sometimes there are no numerical facets in the data
             if len(w_facet_numerical_1.options) == 0:
                 colorbar_text.text = w_gene3.value
-            tick_min.text = f'{np.round(np.percentile(np.array(data["coloring_scheme"]),1),2)}'
-            tick_max.text = f'{np.round(np.percentile(np.array(data["coloring_scheme"]),99),2)}'
+            tick_min.text = f'{np.round(np.percentile(np.array(data_full["coloring_scheme"]),1),2)}'
+            tick_max.text = f'{np.round(np.percentile(np.array(data_full["coloring_scheme"]),99),2)}'
             color_bar_meta.visible = True
 
         # make them visible again
@@ -480,14 +558,22 @@ def cb_update_plot(attr, old, new,type_change):
         if Y_AXIS in widget.name:
             y_label = widget_axes[ind].value
 
-    plot.title.text = (f"{x_label} vs {y_label} - "
+    if X_AXIS == "geneX":
+        x_units = get_units()
+    else: 
+        x_units = ""
+    if Y_AXIS == "geneY":
+        y_units = get_units()
+    else:
+        y_units = ""
+    plot.title.text = (f"{x_label} {x_units} vs {y_label} {y_units} - "
                        f"({dataset_id}) {title}...")
 
     #only change main x and y axes labels...
     plot.xaxis[0].axis_label = f"{x_label}"
     plot.yaxis[0].axis_label = f"{y_label}"
 
-    w_download_filename.text = f"exp_{dataset_id}_{facet}_{x_label}_{y_label}.tsv"
+    w_download_filename.text = f"exp_{dataset_id}_{facet}_{x_label}_{y_label}.csv"
     
     curdoc().unhold()
 
@@ -508,16 +594,11 @@ def cb_dataset_change(attr, old, new):
     update_numerical_facets()
     update_plot()
 
-cb_download = CustomJS(
-    args=dict(data=source.data,
-              columns=[x for x in source.data.keys() if not x.startswith('_')],
-              filename_div=w_download_filename),
-    code="exportToTsv(data, columns, filename_div.text);")
 
 w_gene1.on_change("value",partial(cb_update_plot,type_change = None))
 w_gene2.on_change("value", partial(cb_update_plot,type_change=None))
 w_gene3.on_change("value",partial(cb_update_plot,type_change=None))
-w_facet.on_change("value", partial(cb_update_plot,type_change=None))
+w_facet.on_change("value", partial(cb_update_plot,type_change="change_of_facets"))
 w_facet_numerical_1.on_change("value", partial(cb_update_plot,type_change=None))
 w_facet_numerical_2.on_change("value", partial(cb_update_plot,type_change=None))
 w_facet_numerical_3.on_change("value", partial(cb_update_plot,type_change=None))
@@ -528,8 +609,13 @@ w_y_axis_radio.on_change("active",partial(cb_update_plot,type_change = None))
 w_z_axis_radio.on_change("active",partial(cb_update_plot,type_change = None))
 w_color_check.on_change("active",partial(cb_update_plot,type_change = None))
 w_dataset_id.on_change("value", cb_dataset_change)
-w_download.js_on_click(cb_download)
+w_download.js_on_event("button_click", CustomJS(args=dict(source=source, file_name = w_download_filename),
+                        code=open(join(dirname(__file__), "templates/download_hexbin_expression.js")).read()))
+def reset_subsets(new):
+    w_subset_select.value = []
+    return
 
+w_remove_subsets.on_click(reset_subsets)
 
 curdoc().add_root(row([
             column([
@@ -540,6 +626,7 @@ curdoc().add_root(row([
                 row([w_info,w_color_check]),
                 row([w_size_slider,w_download]),
                 row([w_facet,w_subset_select]),
+                row ([w_remove_subsets]),
                 row([w_div_title_author]),
                 row([w_dataset_id]),
             ]),

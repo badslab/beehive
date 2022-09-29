@@ -13,6 +13,7 @@ from bokeh.plotting import figure, curdoc
 from bokeh.transform import factor_cmap, transform
 from bokeh.models.transforms import CustomJSTransform
 from beehive import config, util, expset
+from os.path import dirname, join
 
 lg = logging.getLogger('VolcanoPlot')
 lg.setLevel(logging.DEBUG)
@@ -30,7 +31,7 @@ datasets = expset.get_datasets(view_name=VIEW_NAME)
 args = curdoc().session_context.request.arguments
 
 w_div_title_author = Div(text="")
-
+w_color_coding= Div(text="The top 5 and low 5 differentially expressed genes with the highest and lowest LFC are highlighted in green respectively.")
 dataset_options = [(k, "{short_title}, {short_author}, {datatype}".format(**v))
                    for k, v in datasets.items()]
 
@@ -101,9 +102,9 @@ def get_data() -> pd.DataFrame:
 def highlight_genes(x):
     """"Helper function to label genes as Yes or No in the highlight column"""
     if x["gene"] in w_genes.value:
-        return "Yes"
+        return "highlighted"
     else:
-        return "No"
+        return ""
 
 def modify_data():
     """"Helper function called after getting the data that will help in plotting:"""
@@ -115,8 +116,9 @@ def modify_data():
     data["true_padj"] = data["padj"]
     data["true_lfc"] = data["lfc"]
     #adjust p-value scale, for those that are 0 => assign them y_range_max.
-    data["padj"] = np.where(data["padj"] == 0, y_range_max,data["padj"])
     data["padj"] = np.log10(data["padj"])*-1
+    data["padj"] = np.where(data["true_padj"] == 0, y_range_max,data["padj"])
+
     #make a new column of genes that are highlighted and those that are not. (Yes No)
     data["highlight"] = data.apply(lambda x: highlight_genes(x),axis = 1)
     #store the true padj and true lfc values for hover tool
@@ -136,8 +138,8 @@ def modify_data():
     #these toplow will be colored in green, while highlighted in red, and non highlighted in blue.
     top5 = data.nlargest(5,'lfc')
     low5 = data.nsmallest(5,'lfc')
-    data.loc[top5.index,"highlight"] = "toplow"
-    data.loc[low5.index,"highlight"] = "toplow"
+    data.loc[top5.index,"highlight"] = "Five Top and low differentially expressed genes"
+    data.loc[low5.index,"highlight"] = "Five Top and low differentially expressed genes"
 
     return data
 
@@ -170,7 +172,7 @@ source = ColumnDataSource(data)
 
 # ----------------------------------- adjust design options: -----------------------------------
 #These will help us create the transform palettes/ transform alphas/ transform sizes etc..
-HIGHLIGHTED_OPTIONS = ["No","Yes","toplow"]
+HIGHLIGHTED_OPTIONS = ["","highlighted","Five Top and low differentially expressed genes"]
 PALETTE = ["blue","red","green"] #colors for: [non highlighted, highlighted, toplow]
 ALPHAS_PALETTE = [0.01,1,1] # alphas for: [non highlighted, highlighted, toplow]
 
@@ -180,7 +182,7 @@ SIZES_PALETTE_1 = [SMALL_CIRCLE,0,0]
 SIZES_PALETTE_2 = [0,BIG_CIRCLE,BIG_CIRCLE]
 TEXT_SIZES = ['0px','15px','8px'] # text gene size for: [non highlighted, highlighted, toplow]
 
-Y_START_MIN = 0
+Y_START_MIN = -2
 
 #-----------------------------------------------------------------------------------------------
 
@@ -287,6 +289,8 @@ def cb_update_plot(attr, old, new,type_change = None):
         """
     curdoc().unhold()
 
+w_download_filename.text = f"exp_{dataset_id}_{w_category.value}.csv"
+
 def cb_update_plot_new_dataset(attr, old, new):
     """"Update the plot along with widgets values if dataset is different"""
     curdoc().hold()
@@ -305,7 +309,8 @@ def cb_update_plot_new_dataset(attr, old, new):
     w_y_range.value = max(data["true_padj"]) + max(data["true_padj"])/4
     #update the ranges on the plot.
     plot.x_range.update(start = w_x_range.value*-1, end = w_x_range.value)
-    plot.y_range.update(start = 0, end = w_y_range.value + max(data["true_padj"])*0.1)
+    plot.y_range.update(start = Y_START_MIN, end = w_y_range.value + max(data["true_padj"])*0.1)
+    w_download_filename.text = f"exp_{dataset_id}_{w_category.value}.csv"
 
     curdoc().unhold()
 
@@ -322,31 +327,9 @@ w_x_range.on_change("value",partial(cb_update_plot,type_change = None))
 w_y_range.on_change("value",partial(cb_update_plot,type_change = None))
 w_dataset_id.on_change("value",cb_update_plot_new_dataset)
 
-cb_download = CustomJS(
-    args=dict(data=source.data,
-              columns=[x for x in source.data.keys() if not x.startswith('_')],
-              filename_div=w_download_filename),
-    code="exportToTsv(data, columns, filename_div.text);")
 
-w_download.js_on_click(cb_download)
-
-# curdoc().add_root(
-#     column([
-#         row([
-#             column([
-#                 row([w_genes], 
-#                     sizing_mode='stretch_width'),
-#                 row([w_category],
-#                     sizing_mode='stretch_width'),
-#                 row([w_x_range,w_y_range,w_download,w_dataset_id],
-#                     sizing_mode='stretch_width')],   
-#                 sizing_mode='stretch_width')],
-#             sizing_mode='stretch_width'),
-#         row([w_div_title_author],
-#             sizing_mode='stretch_width'),
-#         row([plot],
-#             sizing_mode='stretch_width')])
-# )
+w_download.js_on_event("button_click", CustomJS(args=dict(source=source, file_name = w_download_filename),
+                            code=open(join(dirname(__file__), "templates/download_volcano_plot.js")).read()))
 
 curdoc().add_root(row([
         column([
@@ -354,6 +337,7 @@ curdoc().add_root(row([
             row([w_x_range,w_y_range]),
             row([w_download,w_dataset_id]),
             row([w_div_title_author],sizing_mode="stretch_width"),
+            row([w_color_coding],sizing_mode="stretch_width"),
                 ]),
         column([plot],sizing_mode="stretch_both")
         ],sizing_mode="stretch_both")

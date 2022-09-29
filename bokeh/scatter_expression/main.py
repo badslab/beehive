@@ -13,6 +13,7 @@ from bokeh.models.widgets import (Select, Div,
 from bokeh.plotting import figure, curdoc
 from bokeh.transform import factor_cmap
 from bokeh.palettes import Category20
+from os.path import dirname, join
 
 
 from beehive import config, util, expset
@@ -146,6 +147,46 @@ update_facets()
 update_genes()
 
 
+def set_defaults():
+    defaults_dict = expset.get_defaults(w_dataset_id.value,VIEW_NAME)
+    if defaults_dict == {}:
+        return
+    for def_vals in defaults_dict[VIEW_NAME]:
+        if def_vals.get("dataset"):
+            default_dsid = def_vals.get("dataset")
+            for i in range(len(w_dataset_id.options)):
+                if default_dsid == w_dataset_id.options[i][0]:
+                    w_dataset_id.value = w_dataset_id.options[i][0]
+    
+    update_facets()
+    update_genes()
+    for def_vals in defaults_dict[VIEW_NAME]:
+        if def_vals.get("gene1"):
+            w_gene1.value =  def_vals.get("gene1")
+        if def_vals.get("gene2"):
+            w_gene2.value =  def_vals.get("gene2")
+        if def_vals.get("num_facet1"):
+            w_facet_numerical_1.value =  def_vals.get("num_facet1")
+        if def_vals.get("num_facet2"):
+            w_facet_numerical_2.value =  def_vals.get("num_facet2")
+        if def_vals.get("group_gene"):
+            w_gene3.value =  def_vals.get("group_gene")
+        if def_vals.get("group_categ"):
+            w_facet.value =  def_vals.get("group_categ")
+        if def_vals.get("group_option"):
+            w_category_radio.active =  def_vals.get("group_option")
+        if def_vals.get("x_axis"):
+            w_x_axis_radio.active = def_vals.get("x_axis")
+        if def_vals.get("y_axis"):
+            w_y_axis_radio.active = def_vals.get("y_axis")
+        if def_vals.get("points_size"):
+            w_size_slider.value = def_vals.get("points_size")
+        if def_vals.get("opacity"):
+            w_alpha_slider.value = def_vals.get("opacity")
+    return
+
+set_defaults()
+
 def update_numerical_facets():
     """"Get and update numerical facets only. Helpful for the w_numerical_facet widget"""
     options = expset.get_facet_options_numerical(w_dataset_id.value,view_name=VIEW_NAME)
@@ -241,7 +282,8 @@ def get_dataset():
 def get_unique_obs(data):
     """Fetch the unique facets from the data"""
     unique_obs = pd.DataFrame(data)['obs'].unique()
-    return unique_obs
+    final_result =  [str(x) for x in unique_obs]
+    return final_result
 
 
 def get_mapper():
@@ -269,9 +311,9 @@ plot = figure(output_backend="webgl",width=1000)
 
 data = get_data()
 
-unique_obs = get_unique_obs(data)
+unique_obs = [str(x) for x in get_unique_obs(data)]
 dataset_id, dataset = get_dataset()
-
+print(unique_obs)
 # palette for the categorical obs
 if len(unique_obs) < 3:
     palette = ["blue","red"]
@@ -289,10 +331,11 @@ Z_AXIS = LABELS_GROUPING[w_category_radio.active]
 mapper = get_mapper()
 ALPHA = w_alpha_slider.value
 SIZE = w_size_slider.value
-
+download_z_axis = ""
 # Are we plotting the coloring with obs categorical or with obs numerical?
 if Z_AXIS == "categorical facet":
     # Plot multiple glyphs, each glyph is for 1 unique obs group
+    download_z_axis = "obs"
     for index, obs in enumerate(unique_obs):
 
         new_source = ColumnDataSource(data.loc[(data.obs == obs)])
@@ -302,11 +345,18 @@ if Z_AXIS == "categorical facet":
     plot.legend.location = "top_right"
     plot.legend.click_policy = "hide"
 elif Z_AXIS == "gene":
+    download_z_axis = "geneZ"
     plot.scatter(x=X_AXIS, y=Y_AXIS, source=ColumnDataSource(data),
                  fill_alpha=ALPHA, size=SIZE, width=0, fill_color={'field': 'geneZ', 'transform': mapper})
 else:
+    download_z_axis = "num_facetZ"
     plot.scatter(x=X_AXIS, y=Y_AXIS, source=ColumnDataSource(data),
                  fill_alpha=ALPHA, size=ALPHA, width=0, fill_color={'field': 'num_facetZ', 'transform': mapper})
+
+
+source_download = ColumnDataSource(data[[X_AXIS,Y_AXIS,download_z_axis,"obs"]])
+
+
 
 # Colorbar###:
 # 4 components:
@@ -386,6 +436,10 @@ def remove_spinner():
     div_spinner.visible = False
     plot.visible = True
 
+def get_units():
+    units = expset.units_of_gene_expression(w_dataset_id.value)
+    return units
+
 def cb_update_plot(attr, old, new, type_change):
     """Populate and update the plot."""
     curdoc().hold()
@@ -394,7 +448,7 @@ def cb_update_plot(attr, old, new, type_change):
     # if type_change not in ["XYAXIS", "regression", "categorical", "geneX", "geneY", "num_facetX", "num_facetY","num_facetZ"]:
     #     curdoc().unhold()
     #     return
-    
+  
     div_spinner.visible = True
     plot.visible = False
     if type_change == "cosmetics":
@@ -408,7 +462,6 @@ def cb_update_plot(attr, old, new, type_change):
 
     data = get_data()
     #no numerical facets. => need to add which views have numerical and which dont : updates widgets
-
     dataset_id, dataset = get_dataset()
 
     facet = w_facet.value
@@ -440,9 +493,13 @@ def cb_update_plot(attr, old, new, type_change):
     SIZE = w_size_slider.value
     # plot again:
     if Z_AXIS == "categorical facet":
-        for index, obs in enumerate(unique_obs):
+        download_z_axis = "obs"
+        source_download.data = data[[X_AXIS,Y_AXIS,download_z_axis,"obs"]]
 
-            new_source = ColumnDataSource(data.loc[(data.obs == obs)])
+        for index, obs in enumerate(unique_obs):
+            new_data = data.loc[(data.obs == obs)]
+            # new_data.sort_values("num_facetZ",inplace = True)
+            new_source = ColumnDataSource(new_data)
 
             if len(w_regression.active) == 1:
                 # plot.update(output_backend = "canvas")
@@ -454,12 +511,17 @@ def cb_update_plot(attr, old, new, type_change):
                 plot.line(new_source.data[X_AXIS], np.array(y_predicted), color=index_cmap["transform"].palette[index],
                           legend_label=f"{obs}: y={str(round(slope,2))}x+{str(round(intercept,2))}, p-value={'{:e}'.format(p_value)}, r-value={str(round(r_value,2))}")
             else:
+
                 plot.scatter(x=X_AXIS, y=Y_AXIS, source=new_source,  legend_label=obs,
                              fill_alpha=ALPHA, size=SIZE, width=0, fill_color=index_cmap["transform"].palette[index])
         plot.legend.location = "top_right"
         plot.legend.click_policy = "hide"
     elif Z_AXIS == "gene":
+        download_z_axis = "geneZ"
+        source_download.data = data[[X_AXIS,Y_AXIS,download_z_axis,"obs"]]
+
         mapper = get_mapper()
+        data.sort_values("geneZ",inplace = True)
         plot.scatter(x=X_AXIS, y=Y_AXIS, source=ColumnDataSource(data),
                      fill_alpha=ALPHA, size=SIZE, width=0, fill_color={'field': 'geneZ', 'transform': mapper})
 
@@ -474,6 +536,9 @@ def cb_update_plot(attr, old, new, type_change):
         tick_min.visible = True
         tick_max.visible = True
     else:
+        download_z_axis = "num_facetZ"
+        source_download.data = data[[X_AXIS,Y_AXIS,download_z_axis,"obs"]]
+
         mapper = get_mapper()
         plot.scatter(x=X_AXIS, y=Y_AXIS, source=ColumnDataSource(data),
                      fill_alpha=ALPHA, size=SIZE, width=0, fill_color={'field': 'num_facetZ', 'transform': mapper})
@@ -501,8 +566,16 @@ def cb_update_plot(attr, old, new, type_change):
         """
 
     title = dataset['title'][:60]
-
-    plot.title.text = (f"{x_label} vs {y_label} - "
+    
+    if X_AXIS == "geneX":
+        x_units = get_units()
+    else: 
+        x_units = ""
+    if Y_AXIS == "geneY":
+        y_units = get_units()
+    else:
+        y_units = ""
+    plot.title.text = (f"{x_label} {x_units} vs {y_label} {y_units} - "
                        f"({dataset_id}) {title}...")
 
     # fetch the name of the x axis label and y axis label from the widget value.
@@ -538,14 +611,6 @@ def cb_dataset_change(attr, old, new):
     update_numerical_facets()
     update_plot()
 
-
-cb_download = CustomJS(
-    args=dict(data=ColumnDataSource(data).data,
-              columns=[x for x in ColumnDataSource(
-                  data).data.keys() if not x.startswith('_')],
-              filename_div=w_download_filename),
-    code="exportToTsv(data, columns, filename_div.text);")
-
 # not active for now. removed from root()
 w_regression.on_change("active", partial(
     cb_update_plot, type_change="regression"))
@@ -572,7 +637,11 @@ w_alpha_slider.on_change("value", partial(cb_update_plot, type_change="cosmetics
 w_size_slider.on_change("value", partial(cb_update_plot, type_change="cosmetics"))
 
 w_dataset_id.on_change("value", cb_dataset_change)
-w_download.js_on_click(cb_download)
+
+w_download.js_on_event("button_click", CustomJS(args=dict(source=source_download, file_name = w_download_filename, geneX = w_gene1, 
+geneY = w_gene2, geneZ = w_gene3, num_facet1 = w_facet_numerical_1, num_facet2 = w_facet_numerical_2, 
+num_facet3 = w_facet_numerical_3, obs = w_facet),
+                        code=open(join(dirname(__file__), "templates/download_scatter_expression.js")).read()))
 
 cb = CustomJS(args=dict(div_spinner=div_spinner)
               ,code='''

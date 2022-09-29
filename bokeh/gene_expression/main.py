@@ -11,6 +11,7 @@ from bokeh.models.widgets import (Select, Div,
 from bokeh.plotting import figure, curdoc
 from beehive import config, util, expset
 from bokeh.transform import jitter, CategoricalColorMapper
+from os.path import dirname, join
 
 lg = logging.getLogger('GeneExp')
 lg.setLevel(logging.DEBUG)
@@ -145,6 +146,33 @@ def update_genes():
 update_facets()
 update_genes()
 
+def set_defaults():
+    defaults_dict = expset.get_defaults(w_dataset_id.value,VIEW_NAME)
+    if defaults_dict == {}:
+        return
+    for def_vals in defaults_dict[VIEW_NAME]:
+        if def_vals.get("dataset"):
+            default_dsid = def_vals.get("dataset")
+            for i in range(len(w_dataset_id.options)):
+                if default_dsid == w_dataset_id.options[i][0]:
+                    w_dataset_id.value = w_dataset_id.options[i][0]
+    
+    update_facets()
+    update_genes()
+    update_sibling_options()
+    for def_vals in defaults_dict[VIEW_NAME]:
+        if def_vals.get("gene"):
+            w_gene.value =  def_vals.get("gene")
+        if def_vals.get("meta1"):
+            w_facet.value = def_vals.get("meta1")
+        if def_vals.get("meta2"):
+            w_facet2.value = def_vals.get("meta2")
+        if def_vals.get("jitter"):
+            w_facet3.value = def_vals.get("jitter")
+    return
+
+set_defaults()
+
 def get_data() -> pd.DataFrame:
     """Retrieve data from a dataset, gene & facet."""
     global coloring_scheme #name of column for coloring.
@@ -229,7 +257,7 @@ table = DataTable(source=source_no_dups,
                   height = 600,
                   columns=[
                       TableColumn(field='cat_value', title='Category'),
-                      TableColumn(field='count', title='No Samples/Cells',
+                      TableColumn(field='count', title='Number of Cells',
                                   formatter=ScientificFormatter(precision=0)),
                       TableColumn(field='perc', title='% Samples/Cells',
                                   formatter=ScientificFormatter(precision=1)),
@@ -294,10 +322,27 @@ citation = Div(text=f'{expset.get_legend_of_obs(w_dataset_id.value,w_facet.value
 ordered_list = get_order()
 order = {key: i for i, key in enumerate(ordered_list)}
 
-if order and w_facet2.value != "--":
-    plot.x_range.factors = sorted(list(set(data["cat_value"])),key = lambda d: (d[0],order[d[1]]))
-else:
-    plot.x_range.factors = sorted(list(set(data["cat_value"])),key=lambda tup: tup[0])
+try:
+    xvals = data["cat_value"]
+    int_vals =  int(xvals[0])
+    int_vals_sorted = sorted(list(set([int(x) for x in xvals])))
+    int_vals_sorted = [str(x) for x in int_vals_sorted]
+    plot.x_range.factors = int_vals_sorted
+except:
+    xrangelist = list(set(data["cat_value"]))
+    tupleval = xrangelist[0]
+    #check which is int
+    xrangelist = sorted(list(set(data["cat_value"])),key=lambda tup: tup[0])
+    if tupleval[0].isdigit():
+        xrangelist = sorted(xrangelist,key=lambda x: int(x[0]))
+    else:
+        xrangelist = sorted(xrangelist,key=lambda x: x[0])
+    if tupleval[1].isdigit():
+        xrangelist = sorted(xrangelist,key=lambda x: int(x[1]))
+    else:
+        xrangelist = sorted(xrangelist,key=lambda x: x[1])  
+
+    plot.x_range.factors = xrangelist
 
 plot.xaxis.group_label_orientation = X_AXIS_LABELS_ORIENTATION 
 plot.xaxis.major_label_orientation = X_AXIS_LABELS_ORIENTATION
@@ -306,7 +351,7 @@ plot.xaxis.major_label_text_font_size = "10px"
 def cb_update_plot(attr, old, new):
     """Populate and update the plot."""
     curdoc().hold()
-    global plot, source, data, data_no_dups
+    global plot, source, data, data_no_dups, w_download_filename
     update_facets()
     #keeping old data and getting new data
     old_data = data
@@ -331,16 +376,33 @@ def cb_update_plot(attr, old, new):
         data_no_dups = new_data_no_dups
         source.data = data
         source_no_dups.data = data_no_dups
-
         #mapper for color, and mapper for order. if found.
         mapper = get_mapper()
         elements["vbar"].glyph.fill_color = {'field': coloring_scheme, 'transform': mapper}
         ordered_list = get_order()
         order = {key: i for i, key in enumerate(ordered_list)}
-        if order and w_facet2.value != "--":
-            plot.x_range.factors = sorted(list(set(data["cat_value"])),key = lambda d:  (d[0],order[d[1]]))
-        else:
-            plot.x_range.factors = sorted(list(set(data["cat_value"])),key=lambda tup: tup[0])
+        try:
+            xvals = data["cat_value"]
+            int_vals =  int(xvals[0])
+            int_vals_sorted = sorted(list(set([int(x) for x in xvals])))
+            int_vals_sorted = [str(x) for x in int_vals_sorted]
+            plot.x_range.factors = int_vals_sorted
+        except:
+            xrangelist = list(set(data["cat_value"]))
+            tupleval = xrangelist[0]
+            #check which is int
+            xrangelist = sorted(list(set(data["cat_value"])),key=lambda tup: tup[0])
+            if tupleval[0].isdigit():
+                xrangelist = sorted(xrangelist,key=lambda x: int(x[0]))
+            else:
+                xrangelist = sorted(xrangelist,key=lambda x: x[0])
+            if tupleval[1].isdigit():
+                xrangelist = sorted(xrangelist,key=lambda x: int(x[1]))
+            else:
+                xrangelist = sorted(xrangelist,key=lambda x: x[1])  
+
+            plot.x_range.factors = xrangelist
+
 
     w_div_title_author.text = \
         f"""
@@ -352,7 +414,7 @@ def cb_update_plot(attr, old, new):
         </ul>
         """
 
-    w_download_filename.text = f"exp_{dataset_id}_{facet}_{gene}.tsv"
+    w_download_filename.text = f"exp_{dataset_id}_{facet}_{gene}.csv"
 
     # plan for 5% space above & below
     yspacer = (data['_segment_top'].max() - data['_segment_bottom'].min()) / 20
@@ -373,11 +435,12 @@ def cb_update_plot(attr, old, new):
 
     ##x-axis legend
     plot.yaxis.axis_label = f"{dataset['datatype']}"
-
     #adding citation if found.
-    citation.text = f'{expset.get_legend_of_obs(dataset_id,facet)}'
-    curdoc().unhold()
 
+
+    citation.text = f'{expset.get_legend_of_obs(dataset_id,facet)}. Number of mice shown was adapted to the selected combination of groups'
+    curdoc().unhold()
+    return 
 
 # convenience shortcut
 update_plot = partial(cb_update_plot, attr=None, old=None, new=None)
@@ -402,24 +465,19 @@ def cb_sibling_change(attr, old, new):
     update_genes()
     update_plot()
 
-cb_download = CustomJS(
-    args=dict(data=source.data,
-              columns=[x for x in source.data.keys() if not x.startswith('_')],
-              filename_div=w_download_filename),
-    code="exportToTsv(data, columns, filename_div.text);")
-
 w_gene.on_change("value", cb_update_plot)
 w_sibling.on_change("value", cb_sibling_change)
 w_dataset_id.on_change("value", cb_dataset_change)
 w_facet.on_change("value", cb_update_plot)
 w_facet2.on_change("value",cb_update_plot)
-w_download.js_on_click(cb_download)
+w_download.js_on_event("button_click", CustomJS(args=dict(source=source, file_name = w_download_filename, jitter_name = w_facet3, facet1 = w_facet, facet2 = w_facet2),
+                            code=open(join(dirname(__file__), "templates/download_gene_expression.js")).read()))
+
 w_facet3.on_change("value",cb_update_plot)
 
 #
 # Build the document
 #
-
 curdoc().add_root(row([
     column([
         column([

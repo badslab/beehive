@@ -13,6 +13,7 @@ from bokeh.plotting import figure, curdoc
 from beehive import config, util, expset
 from bokeh.models.transforms import CustomJSTransform
 from bokeh.transform import transform
+from os.path import dirname, join
 
 
 lg = logging.getLogger('QuadrantPlot')
@@ -107,7 +108,6 @@ def get_data() -> pd.DataFrame:
     categ1 = w_category1.value
     categ2 = w_category2.value
     lg.warning(f"!! Getting data for {dataset_id} {categ1} {categ2}")
-
     data = expset.get_dedata_quadrant(dataset_id,categ1,categ2)
     data.columns = ["x","y","px","py","gene"]
     #dropping NaN values for now.
@@ -130,18 +130,19 @@ def get_data() -> pd.DataFrame:
     data["highlight"] = data.apply(lambda x: highlight_genes(x),axis = 1)
     data["color"] = data.apply(lambda x: color_genes(x),axis = 1)
     data["size"] = data.apply(lambda x: size_genes(x),axis = 1)
+    data.sort_values("color",inplace=True)
     return data
 
 
 def color_genes(x):
     if x["highlight"] == "highlighted genes":
-        return "purple"
-    elif x["highlight"] == "significant on x axis":
         return "red"
+    elif x["highlight"] == "significant on x axis":
+        return "orange"
     elif x["highlight"] == "significant on y axis":
         return "green"
     elif x["highlight"] == "significant on both axes":
-        return "blue"
+        return "cyan"
     else:
         return "gray"
        
@@ -157,19 +158,35 @@ def size_genes(x):
         return 3
     else:
         return 6
-def get_ranges():
-    global data
-    max_x = max(data["x"])
-    min_x = min(data["x"])
-    max_y = max(data["y"])
-    min_y = min(data["y"])
-    new_max = max(max_x,max_y)
-    new_min = min(min_x,min_y)
-    if abs(new_max) > abs(new_min):
-        new_min = new_max * -1
-    else:
-        new_max = new_min * -1
-    return new_min,new_max
+
+def set_defaults():
+    defaults_dict = expset.get_defaults(w_dataset_id.value,VIEW_NAME)
+    if defaults_dict == {}:
+        return
+
+    for def_vals in defaults_dict[VIEW_NAME]:
+        if def_vals.get("dataset"):
+            default_dsid = def_vals.get("dataset")
+            for i in range(len(w_dataset_id.options)):
+                if default_dsid == w_dataset_id.options[i][0]:
+                    w_dataset_id.value = w_dataset_id.options[i][0]
+    
+    update_vars()
+    update_genes()
+    for def_vals in defaults_dict[VIEW_NAME]:
+        if def_vals.get("category1"):
+            w_category1.value =  def_vals.get("category1")
+        if def_vals.get("category2"):
+            w_category2.value =  def_vals.get("category2")
+        if def_vals.get("genes"):
+            w_genes.value =  def_vals.get("genes")
+        if def_vals.get("spinner"):
+            w_spinner.value =  float(def_vals.get("spinner"))
+    return
+
+set_defaults()
+
+
 
 TOOLTIPS = [
             ('Log Fold Change on x-axis', '@x'),
@@ -182,10 +199,17 @@ TOOLTIPS = [
 plot = figure(height = 400,output_backend = "webgl")
 plot.add_tools(HoverTool(tooltips=TOOLTIPS))
 
+x_diag = [x for x in range(-10,10)]
+y_diag = x_diag
+
+plot.line(x_diag,y_diag,line_dash = "dashed",color = "black")
+
+
 data = get_data()
 dataset_id, dataset = get_dataset()
 categ1 = w_category1.value
 categ2 = w_category2.value
+w_download_filename.text = f"exp_{dataset_id}_{categ1}_{categ2}.csv"
 
 #x-axis, y-axis, both, user, none
 
@@ -201,9 +225,6 @@ color="color",
 size = "size",
 legend_field = "highlight")
 
-new_min, new_max = get_ranges()
-new_range = Range1d(new_min,new_max)
-plot.update(x_range = new_range, y_range = new_range)
 plot.xaxis.axis_label = categ1
 plot.yaxis.axis_label = categ2
 
@@ -239,7 +260,6 @@ def cb_update_plot(attr, old, new,type_change = None):
         data["highlight"] = data.apply(lambda x: highlight_genes(x),axis = 1)
         data["color"] = data.apply(lambda x: color_genes(x),axis = 1)
         data["size"] = data.apply(lambda x: size_genes(x),axis = 1)
-        source.data = data
         curdoc().unhold()
         return
     #rehighlighted some genes, no need to get data
@@ -247,7 +267,6 @@ def cb_update_plot(attr, old, new,type_change = None):
         data["highlight"] = data.apply(lambda x: highlight_genes(x),axis = 1)
         data["color"] = data.apply(lambda x: color_genes(x),axis = 1)
         data["size"] = data.apply(lambda x: size_genes(x),axis = 1)
-        source.data = data
         curdoc().unhold()
         return
     #something else..
@@ -267,12 +286,9 @@ def cb_update_plot(attr, old, new,type_change = None):
             </ul>
             """
 
-        new_min, new_max = get_ranges()
-        plot.x_range.update(start = new_min, end = new_max)
-        plot.y_range.update(start = new_min, end = new_max)
-
         plot.xaxis.axis_label = categ1
         plot.yaxis.axis_label = categ2
+        w_download_filename.text = f"exp_{dataset_id}_{categ1}_{categ2}.csv"
 
         curdoc().unhold()
 
@@ -305,13 +321,9 @@ w_spinner.on_change("value",partial(cb_update_plot, type_change = "p_sig"))
 
 w_dataset_id.on_change("value",cb_update_plot_new_dataset)
 
-cb_download = CustomJS(
-    args=dict(data=source.data,
-              columns=[x for x in source.data.keys() if not x.startswith('_')],
-              filename_div=w_download_filename),
-    code="exportToTsv(data, columns, filename_div.text);")
 
-w_download.js_on_click(cb_download)
+w_download.js_on_event("button_click", CustomJS(args=dict(source=source, file_name = w_download_filename),
+                            code=open(join(dirname(__file__), "templates/download_general.js")).read()))
 
 
 curdoc().add_root(row([
