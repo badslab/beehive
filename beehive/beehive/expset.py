@@ -12,6 +12,7 @@ import polars as pl
 import yaml
 
 from beehive import util
+from beehive.util import find_prq
 
 lg = logging.getLogger(__name__)
 
@@ -386,9 +387,9 @@ def get_gene_meta_agg(dsid: str, gene: str, meta: str, nobins: int = 8):
 
 def get_gene(dsid, gene):
     """Return expression values for this dataset."""
-    datadir = util.get_datadir("h5ad")
+
     try:
-        rv = pl.read_parquet(datadir / f"{dsid}.X.prq", [gene])
+        rv = pl.read_parquet(find_prq(dsid, 'X'), [gene])
     except pl.exceptions.SchemaError:
         return None
     return rv
@@ -409,8 +410,7 @@ def get_dedata(dsid, categ, genes, view_name: str = ""):
     if isinstance(genes, str):
         genes = [genes]
 
-    datadir = util.get_datadir("h5ad")
-    rv = pl.read_parquet(datadir / f"{dsid}.var.prq", ["field"] + genes)
+    rv = pl.read_parquet(find_prq(dsid, 'var'), ["field"] + genes)
     rv = rv.to_pandas()
     rvx = rv["field"].str.split("__", expand=True)
     rvx.columns = ["categ", "cat_value", "measurement"]
@@ -429,14 +429,14 @@ def get_dedata_new(dsid, categ):
     datadir = util.get_datadir("h5ad")
 
     # to get 'gene' column
-    last_col = len(pl.read_parquet(datadir / f"{dsid}.var.prq").columns)
+    last_col = len(pl.read_parquet(find_prq(dsid, 'var')).columns)
 
-    rv1 = pl.read_parquet(datadir / f"{dsid}.var.prq", [last_col - 1])
+    rv1 = pl.read_parquet(find_prq(dsid, 'var'), [last_col - 1])
 
     # get logfoldchange and padjusted for one category
     # (example injection__None)
-    rv2 = pl.read_parquet(
-        datadir / f"{dsid}.var.prq", [categ + "__lfc"] + [categ + "__padj"])
+    rv2 = pl.read_parquet(find_prq(dsid, 'var'),
+                          [categ + "__lfc"] + [categ + "__padj"])
 
     rv = pl.concat([rv2, rv1], how="horizontal")
 
@@ -447,17 +447,17 @@ def get_dedata_new(dsid, categ):
 
 
 def get_dedata_quadrant(dsid, categ1, categ2):
-    datadir = util.get_datadir("h5ad")
 
     # to get 'gene' column
-    last_col = len(pl.read_parquet(datadir / f"{dsid}.var.prq").columns)
+    last_col = len(pl.read_parquet(find_prq(dsid, 'var')).columns)
 
-    rv1 = pl.read_parquet(datadir / f"{dsid}.var.prq", [last_col - 1])
+    rv1 = pl.read_parquet(find_prq(dsid, 'var'), [last_col - 1])
 
     # get logfoldchange and padjusted for one category
     # (example injection__None)
     rv2 = pl.read_parquet(
-        datadir / f"{dsid}.var.prq", [categ1 + "__lfc"] + [categ2 + "__lfc"] + [categ1 + "__padj"] + [categ2 + "__padj"])
+        find_prq(dsid, 'var')
+        [categ1 + "__lfc"] + [categ2 + "__lfc"] + [categ1 + "__padj"] + [categ2 + "__padj"])
 
     rv = pl.concat([rv2, rv1], how="horizontal")
 
@@ -476,12 +476,13 @@ def get_dedata_abundance(dsid, categ):
     datadir = util.get_datadir("h5ad")
 
     # to get 'gene' column
-    last_col = len(pl.read_parquet(datadir / f"{dsid}.var.prq").columns)
+    last_col = len(pl.read_parquet(find_prq(dsid, 'var')).columns)
 
-    rv1 = pl.read_parquet(datadir / f"{dsid}.var.prq", [last_col - 1])
+    rv1 = pl.read_parquet(find_prq(dsid, 'var'), [last_col - 1])
 
     rv2 = pl.read_parquet(
-        datadir / f"{dsid}.var.prq", [categ + "__lfc"] + [categ + "__padj"] + [categ + "__lcpm"])
+        find_prq(dsid, 'var'),
+        [categ + "__lfc"] + [categ + "__padj"] + [categ + "__lcpm"])
 
     rv = pl.concat([rv2, rv1], how="horizontal")
     rv = rv.to_pandas()
@@ -510,7 +511,7 @@ def get_defaults(dsid, view_name: str = ""):
 def get_meta(dsid, col, raw=False, nobins=8, view_name: str = ""):
     """Return one obs column."""
     datadir = util.get_datadir("h5ad")
-    rv = pl.read_parquet(datadir / f"{dsid}.obs.prq", [col])
+    rv = pl.read_parquet(find_prq(dsid, 'obs'), [col])
 
     if raw:
         # just return whatever is in the db.
@@ -552,9 +553,7 @@ def get_meta(dsid, col, raw=False, nobins=8, view_name: str = ""):
 # @diskcache()
 def get_genes(dsid):
     """Return a list fo genes for this datset."""
-    datadir = util.get_datadir("h5ad")
-    lg.info("getting genes from " + str(datadir / f"{dsid}.X.prq"))
-    X = pl.scan_parquet(datadir / f"{dsid}.X.prq")
+    X = pl.scan_parquet(find_prq(dsid, 'X'))
     return X.columns
 
 
@@ -566,15 +565,13 @@ def obslist(dsid):
 
 def get_obsfields(dsid):
     """Return a list of obs columns for this datset."""
-    datadir = util.get_datadir("h5ad")
-    X = pl.scan_parquet(datadir / f"{dsid}.obs.prq")
+    X = pl.scan_parquet(find_prq(dsid, 'obs'))
     return X.columns
 
 
 def get_varfields(dsid):
     """Return a list of var columns for this datset."""
-    datadir = util.get_datadir("h5ad")
-    X = pl.scan_parquet(datadir / f"{dsid}.var.prq")
+    X = pl.scan_parquet(find_prq(dsid, 'obs'))
     return X.columns
 
 

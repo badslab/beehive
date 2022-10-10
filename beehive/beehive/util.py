@@ -2,10 +2,14 @@
 import subprocess as sp
 import hashlib
 import time
+import logging
 from typing import List
 import pandas as pd
 import beehive
 import numpy as np
+
+lg = logging.getLogger(__name__)
+
 
 def dict_set(data, *args, overwrite=False):
     """Careful dict value setter
@@ -46,6 +50,30 @@ def timer(func):
         print(f'Function run {1000*(t2-t1):.2f}ms.')
         return res
     return wrapper
+
+
+def find_prq(dsid, ptype):
+    """Find parquet file based on dataset id and parquet type"""
+    assert ptype in ['X', 'obs', 'var']
+    name = f"{dsid}.{ptype}.prq"
+    prq_file = beehive.BASEDIR / 'prq' / name
+    if prq_file.exists():
+        return prq_file
+    prq_file = beehive.BASEDIR / 'data' / 'h5ad' / name
+    if prq_file.exists():
+        return prq_file
+    raise FileNotFoundError(f'Cannot find prq file {name}')
+
+
+def find_parquet_file(name):
+    """Find parquet file"""
+    prq_file = beehive.BASEDIR / 'prq' / name
+    if prq_file.exists():
+        return prq_file
+    prq_file = beehive.BASEDIR / 'data' / 'h5ad' / name
+    if prq_file.exists():
+        return prq_file
+    raise FileNotFoundError(f'Cannot find prq file {name}')
 
 
 def get_datadir(name):
@@ -110,16 +138,15 @@ def create_widget(name: str,
     if widget == RadioGroup:
         new_widget = widget(name=name, **kwargs)
         new_widget.active = getarg(args, param_name, default, dtype=value_type)
-        
+
         if update_url:
             new_widget.js_on_change("active", js_onchange_active)
         return new_widget
 
-    else:        
-        new_widget = widget(name=name,title = title, **kwargs)
+    else:
+        new_widget = widget(name=name, title=title, **kwargs)
 
-
-    if (value_type == list) and not(type(getarg(args, param_name, default)) == list):
+    if (value_type == list) and not (type(getarg(args, param_name, default)) == list):
         new_widget.value = getarg(args, param_name, default).split(",")
         if new_widget.value == [""]:
             new_widget.value = []
@@ -164,13 +191,13 @@ def make_hashable(o):
 def UID(*args, length=7):
     chs = hashlib.sha512()
     for a in args:
-        if isinstance(a, int) or isinstance(a,float) or isinstance(a,np.float32):
+        if isinstance(a, int) or isinstance(a, float) or isinstance(a, np.float32):
             chs.update(str(a).encode())
         elif isinstance(a, str):
             chs.update(str(a).lower().encode())
         elif isinstance(a, bytes):
             chs.update(a)
-        elif isinstance(a,pd.Series):
+        elif isinstance(a, pd.Series):
             chs.update(str(a).encode())
         else:
             raise Exception("Invalid type to generate UID")
