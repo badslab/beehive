@@ -13,28 +13,28 @@ import yaml
 
 from beehive import util
 
-
-
 lg = logging.getLogger(__name__)
+
 lg.setLevel(logging.DEBUG)
-
-
 
 
 diskcache = partial(
     util.diskcache, where=util.get_datadir("cache"), refresh=True)
 
-#NOTE:
-#datasets now depend on the view
-#if all views are active at the same time, DATASETS should not be a global variable.
+# NOTE:
+# datasets now depend on the view
+# if all views are active at the same time, DATASETS should not be a global
+# variable.
 # @lru_cache(1)
-def get_datasets(has_de: bool = False,view_name: str = ""):
+
+
+def get_datasets(has_de: bool = False, view_name: str = ""):
     """Return a dict with all dataset."""
     # DATASETS: Dict[str, Dict] = {}
     DATASETS = dict()
 
     datadir = util.get_datadir("h5ad")
-    #global DATASETS
+    # global DATASETS
     if len(DATASETS) == 0:
         for yamlfile in datadir.glob("*.yaml"):
             use = True
@@ -57,7 +57,7 @@ def get_datasets(has_de: bool = False,view_name: str = ""):
                         y["short_title"] = y["title"][:57] + "..."
                     else:
                         y["short_title"] = y["title"]
-            if use == True:
+            if use is True:
                 DATASETS[basename] = y
 
     if has_de:
@@ -74,9 +74,9 @@ def get_datasets(has_de: bool = False,view_name: str = ""):
         return DATASETS
 
 
-def get_dataset_siblings(dsid: str,view_name: str) -> dict:
+def get_dataset_siblings(dsid: str, view_name: str) -> dict:
     """Return datasets with the same study_id."""
-    dsets = get_datasets(view_name = view_name)
+    dsets = get_datasets(view_name=view_name)
     dset = dsets[dsid]
     study_id = dset["study"]
     siblings = {}
@@ -87,22 +87,22 @@ def get_dataset_siblings(dsid: str,view_name: str) -> dict:
 
 
 # @lru_cache(32)
-def get_dataset(dsid,view_name):
+def get_dataset(dsid, view_name):
     """Return metadata on a single dataset."""
-    rv = get_datasets(view_name = view_name)[dsid]
+    rv = get_datasets(view_name=view_name)[dsid]
     lg.info(f"Returning dataset {dsid}")
     return rv
 
 
 def get_facet_options(dsid: str,
-                      only_categorical: bool = False, include_skip = False, view_name: str = "") -> List[Tuple[str, str]]:
+                      only_categorical: bool = False, include_skip=False, view_name: str = "") -> List[Tuple[str, str]]:
     """
     Return obs columns that a dataset can be facetted on.
     These have to be categorical
 
     param dataset - dictionary as loaded from the .yaml files
     """
-    dataset = get_dataset(dsid,view_name)
+    dataset = get_dataset(dsid, view_name)
     rv = []
     for key, data in dataset.get('obs_meta', {}).items():
         use = False
@@ -123,7 +123,8 @@ def get_facet_options(dsid: str,
             rv.append((key, name))
     return list(sorted(rv))
 
-def get_legend_of_obs(dsid,meta):
+
+def get_legend_of_obs(dsid, meta):
     datadir = util.get_datadir("h5ad")
     legend = ""
     for yamlfile in datadir.glob("*.yaml"):
@@ -133,11 +134,13 @@ def get_legend_of_obs(dsid,meta):
                 y = yaml.load(F, Loader=yaml.SafeLoader)
                 try:
                     legend = y["obs_meta"][meta]["legend"]
-                except:
+                except:  # noqa: E722
                     continue
     return legend
 
-def get_facet_options_numerical(dsid: str, view_name: str = "") -> List[Tuple[str, str]]:
+
+def get_facet_options_numerical(dsid: str, view_name: str = "") \
+        -> List[Tuple[str, str]]:
     """
     Return obs columns that a dataset can be facetted on.
     These have to be categorical
@@ -155,7 +158,8 @@ def get_facet_options_numerical(dsid: str, view_name: str = "") -> List[Tuple[st
             rv.append((key, name))
     return list(sorted(rv))
 
-def get_gene_meta_three_facets(dsid: str, gene: str, meta1: str, meta2: str, meta3: str = "mouse.id",nobins:int = 8,view_name: str = ""):
+
+def get_gene_meta_three_facets(dsid: str, gene: str, meta1: str, meta2: str, meta3: str = "mouse.id", nobins: int = 8, view_name: str = ""):
     """"
     function to return the aggregate of 3 metadata options
     first two metadatas will be displayed in a boxplot doubled
@@ -165,8 +169,9 @@ def get_gene_meta_three_facets(dsid: str, gene: str, meta1: str, meta2: str, met
     """
     emptyDF = False
 
-    genedata = get_gene(dsid,gene)
-    metadata = get_meta(dsid, meta1, nobins=nobins,view_name = view_name, raw = True) #facet1
+    genedata = get_gene(dsid, gene)
+    metadata = get_meta(dsid, meta1, nobins=nobins,
+                        view_name=view_name, raw=True)  # facet1
     metadata = metadata.select((pl.col(meta1)).cast(str))
 
     if genedata.columns == metadata.columns:
@@ -184,7 +189,8 @@ def get_gene_meta_three_facets(dsid: str, gene: str, meta1: str, meta2: str, met
         emptyDF = True
 
     else:
-        metadata2 = get_meta(dsid,meta2,nobins=nobins,view_name = view_name, raw = True) #facet2
+        metadata2 = get_meta(dsid, meta2, nobins=nobins,
+                             view_name=view_name, raw=True)  # facet2
         metadata2 = metadata2.select((pl.col(meta2)).cast(str))
         if genedata.columns == metadata2.columns:
             metadata2.columns = [metadata2.columns[0] + "_category"]
@@ -194,7 +200,9 @@ def get_gene_meta_three_facets(dsid: str, gene: str, meta1: str, meta2: str, met
         metadata3 = pl.DataFrame([])
         new_meta3 = meta3
     else:
-        metadata3 = get_meta(dsid,meta3,nobins=nobins,view_name = view_name, raw = True) #most likely mouse_id
+        # most likely mouse_id
+        metadata3 = get_meta(dsid, meta3, nobins=nobins,
+                             view_name=view_name, raw=True)
         metadata3 = metadata3.select((pl.col(meta3)).cast(str))
         if genedata.columns == metadata3.columns:
             metadata3.columns = [metadata3.columns[0] + "_category"]
@@ -206,12 +214,13 @@ def get_gene_meta_three_facets(dsid: str, gene: str, meta1: str, meta2: str, met
     if new_meta3 != "--":
         groupby_columns2 = groupby_columns2 + [new_meta3]
 
-
-    if genedata is None or metadata is None or metadata2 is None or metadata3 is None:
+    if genedata is None or metadata is None \
+            or metadata2 is None \
+            or metadata3 is None:
         return None
-    
+
     rv_combined = (
-        pl.concat([genedata, metadata,metadata2,metadata3], how="horizontal")
+        pl.concat([genedata, metadata, metadata2, metadata3], how="horizontal")
         .groupby(groupby_columns1)
         .agg(
             [
@@ -229,58 +238,65 @@ def get_gene_meta_three_facets(dsid: str, gene: str, meta1: str, meta2: str, met
         )
     )
     rv_mouseid = (
-        pl.concat([genedata, metadata,metadata2,metadata3], how="horizontal")
+        pl.concat([genedata, metadata, metadata2, metadata3], how="horizontal")
         .groupby(groupby_columns2)
         .agg(
             [
-                pl.count().alias("count_" + new_meta3), #count_mouseid
-                pl.mean(gene).alias("mean_" + new_meta3), #mean_mouseid
+                pl.count().alias("count_" + new_meta3),  # count_mouseid
+                pl.mean(gene).alias("mean_" + new_meta3),  # mean_mouseid
             ]
         )
     )
 
-    #switch to dfs
+    # switch to dfs
     rv_combined = rv_combined.to_pandas()
     rv_mouseid = rv_mouseid.to_pandas()
 
-    #calculate other measures
-    rv_combined['perc'] = 100 * rv_combined['count'] / rv_combined['count'].sum()
+    # calculate other measures
+    rv_combined['perc'] = 100 * rv_combined['count'] / \
+        rv_combined['count'].sum()
     rv_combined['_segment_top'] = rv_combined['q99']
     rv_combined['_bar_top'] = rv_combined['q75']
     rv_combined['_bar_median'] = rv_combined['median']
     rv_combined['_bar_bottom'] = rv_combined['q25']
     rv_combined['_segment_bottom'] = rv_combined['q01']
 
-    #manipulation to get the ["X"] columns as the factors 
-    if not(emptyDF):
-        rv_combined["x"] = rv_combined[[new_meta2,new_meta]].apply(tuple, axis=1)
-        rv_combined.sort_values(by = "x",key=lambda col: col.str[0],inplace = True)
-        rv_combined.sort_values(by = "x",key=lambda col: col.str[1],inplace = True)
+    # manipulation to get the ["X"] columns as the factors
+    if not (emptyDF):
+        rv_combined["x"] = rv_combined[[
+            new_meta2, new_meta]].apply(tuple, axis=1)
+        rv_combined.sort_values(
+            by="x", key=lambda col: col.str[0], inplace=True)
+        rv_combined.sort_values(
+            by="x", key=lambda col: col.str[1], inplace=True)
 
-        rv_mouseid["x"] = rv_mouseid[[new_meta2,new_meta]].apply(tuple, axis=1)
-        rv_mouseid.sort_values(by = "x",key=lambda col: col.str[0],inplace = True)
-        rv_mouseid.sort_values(by = "x",key=lambda col: col.str[1],inplace = True)
+        rv_mouseid["x"] = rv_mouseid[[
+            new_meta2, new_meta]].apply(tuple, axis=1)
+        rv_mouseid.sort_values(
+            by="x", key=lambda col: col.str[0], inplace=True)
+        rv_mouseid.sort_values(
+            by="x", key=lambda col: col.str[1], inplace=True)
 
-    #merge on the just created ["X"] column
-        final_rv = pd.merge(rv_combined,rv_mouseid,on="x")
-        #sort..
-        final_rv.sort_values(by = "x",key=lambda col: col.str[0],inplace = True)
-        final_rv.sort_values(by = "x",key=lambda col: col.str[1],inplace = True)
+    # merge on the just created ["X"] column
+        final_rv = pd.merge(rv_combined, rv_mouseid, on="x")
+        # sort..
+        final_rv.sort_values(by="x", key=lambda col: col.str[0], inplace=True)
+        final_rv.sort_values(by="x", key=lambda col: col.str[1], inplace=True)
 
         final_rv = final_rv.rename(columns={"x": "cat_value"})
-        
-        #sort the column for colors to be displayed..
-        final_rv.sort_values(by = f'{new_meta}_y',inplace = True)
+
+        # sort the column for colors to be displayed..
+        final_rv.sort_values(by=f'{new_meta}_y', inplace=True)
     else:
-        final_rv = pd.merge(rv_combined,rv_mouseid,on=new_meta)
+        final_rv = pd.merge(rv_combined, rv_mouseid, on=new_meta)
         final_rv = final_rv.rename(columns={new_meta: "cat_value"})
 
-    return final_rv 
+    return final_rv
 
 
-##might be better to merge these two functions into one:
-#get_colors_of_obs()
-#get_order_of_obs()
+# might be better to merge these two functions into one:
+# get_colors_of_obs()
+# get_order_of_obs()
 def get_colors_of_obs(dsid: str, meta: str):
     final_dict = {}
     datadir = util.get_datadir("h5ad")
@@ -290,12 +306,13 @@ def get_colors_of_obs(dsid: str, meta: str):
             with open(yamlfile, "r") as F:
                 y = yaml.load(F, Loader=yaml.SafeLoader)
                 if y["obs_meta"][meta].get("values"):
-                    for key,data in y["obs_meta"][meta]["values"].items():
+                    for key, data in y["obs_meta"][meta]["values"].items():
                         name = key
                         color = data.get("color")
-                        #default is grey
-                        final_dict[name] = "grey" if color == None else color
+                        # default is grey
+                        final_dict[name] = "grey" if color is None else color
     return final_dict
+
 
 def get_order_of_obs(dsid: str, meta: str):
     final_dict = {}
@@ -306,30 +323,29 @@ def get_order_of_obs(dsid: str, meta: str):
             with open(yamlfile, "r") as F:
                 y = yaml.load(F, Loader=yaml.SafeLoader)
                 if y["obs_meta"][meta].get("values"):
-                    for key,data in y["obs_meta"][meta]["values"].items():
+                    for key, data in y["obs_meta"][meta]["values"].items():
                         name = key
                         order = data.get("order")
-                        #there is no order in the yaml..
-                        if not(order):
+                        # there is no order in the yaml..
+                        if not (order):
                             return final_dict
                         final_dict[name] = order
     return final_dict
-
 
 
 def get_gene_meta_agg(dsid: str, gene: str, meta: str, nobins: int = 8):
     """Return gene and observation."""
     genedata = get_gene(dsid, gene)
     metadata = get_meta(dsid, meta, nobins=nobins)
-    
+
     if genedata is None:
         return None
     if metadata is None:
         return None
 
-    #in new yamls, there is sometimes names of column same as that of gene
-    #e.g. in man2m.. meta = APOE, gene = APOE
-    #this ruins the concatination..
+    # in new yamls, there is sometimes names of column same as that of gene
+    # e.g. in man2m.. meta = APOE, gene = APOE
+    # this ruins the concatination..
     if genedata.columns == metadata.columns:
         metadata.columns = [metadata.columns[0] + "_category"]
 
@@ -407,10 +423,12 @@ def get_dedata(dsid, categ, genes, view_name: str = ""):
     return rv
 
 # TODO next two functions can  be merged into 1?
+
+
 def get_dedata_new(dsid, categ):
     datadir = util.get_datadir("h5ad")
 
-    #to get 'gene' column
+    # to get 'gene' column
     last_col = len(pl.read_parquet(datadir / f"{dsid}.var.prq").columns)
 
     rv1 = pl.read_parquet(datadir / f"{dsid}.var.prq", [last_col - 1])
@@ -428,10 +446,10 @@ def get_dedata_new(dsid, categ):
     return rv
 
 
-def get_dedata_quadrant(dsid, categ1,categ2):
+def get_dedata_quadrant(dsid, categ1, categ2):
     datadir = util.get_datadir("h5ad")
 
-    #to get 'gene' column
+    # to get 'gene' column
     last_col = len(pl.read_parquet(datadir / f"{dsid}.var.prq").columns)
 
     rv1 = pl.read_parquet(datadir / f"{dsid}.var.prq", [last_col - 1])
@@ -443,7 +461,7 @@ def get_dedata_quadrant(dsid, categ1,categ2):
 
     rv = pl.concat([rv2, rv1], how="horizontal")
 
-    #avoid where chosen lfc's are the same ones.. 
+    # avoid where chosen lfc's are the same ones..
     rv = rv.rename({categ1 + "__lfc": categ1 + "__lfc_1",
                    categ2 + "__lfc": categ2 + "__lfc_2",
                    categ1 + "__padj": categ1 + "__padj_1",
@@ -453,23 +471,25 @@ def get_dedata_quadrant(dsid, categ1,categ2):
     # get genes has same index as that for the rows.
     return rv
 
-def get_dedata_abundance(dsid,categ):
+
+def get_dedata_abundance(dsid, categ):
     datadir = util.get_datadir("h5ad")
 
-    #to get 'gene' column
+    # to get 'gene' column
     last_col = len(pl.read_parquet(datadir / f"{dsid}.var.prq").columns)
 
     rv1 = pl.read_parquet(datadir / f"{dsid}.var.prq", [last_col - 1])
 
     rv2 = pl.read_parquet(
         datadir / f"{dsid}.var.prq", [categ + "__lfc"] + [categ + "__padj"] + [categ + "__lcpm"])
-    
+
     rv = pl.concat([rv2, rv1], how="horizontal")
     rv = rv.to_pandas()
 
     return rv
 
-def get_defaults(dsid,view_name: str = ""):
+
+def get_defaults(dsid, view_name: str = ""):
     final_dict = {}
     datadir = util.get_datadir("h5ad")
     for yamlfile in datadir.glob("*.yaml"):
@@ -477,12 +497,12 @@ def get_defaults(dsid,view_name: str = ""):
         if dsid == basename:
             with open(yamlfile, "r") as F:
                 y = yaml.load(F, Loader=yaml.SafeLoader)
-                #find which view_name:
+                # find which view_name:
                 try:
                     for viewidx in range(len(y["defaults"])):
                         if view_name == list(y["defaults"][viewidx].keys())[0]:
                             final_dict = y["defaults"][viewidx]
-                except:
+                except:  # noqa: E722
                     return final_dict
     return final_dict
 
@@ -565,7 +585,7 @@ def units_of_gene_expression(dsid):
         if dsid == basename:
             with open(yamlfile, "r") as F:
                 y = yaml.load(F, Loader=yaml.SafeLoader)
-                #find which view_name:
+                # find which view_name:
                 try:
                     units = y["unit_gene_expression"]
                 except:
