@@ -1,0 +1,4 @@
+
+
+class GeneNotFoundException(Exception):
+    pass
