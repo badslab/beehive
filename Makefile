@@ -74,6 +74,13 @@ serve_dev: fix_templates
 		bokeh serve --dev --port 5010 bokeh/gene_expression/ # bokeh/diffexp/
 	done
 
+#### Mark 
+
+.ONESHELL: 
+serve_mark_gene_expression:
+	BEEHIVE_BASEDIR=/Users/u0089478/data/beehive/lab-data-visualization bokeh serve --dev --port 5009 --allow-websocket-origin=*  bokeh/gene_expression/
+
+
 ####raghid####
 #using pipenv to install requirements.txt as virtual env
 serve_dev_raghid_auth: fix_templates
