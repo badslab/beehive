@@ -233,13 +233,14 @@ def create_db(
 def import_geneset(
         base_folder: Path = typer.Argument(
             ..., file_okay=False, dir_okay=True, exists=True),
-        output_folder: Path = typer.Argument(
-            ..., file_okay=False, dir_okay=True, exists=True,
-            help="output folder for prepped geneset lists"),
         rank_cutoff: int = typer.Option(
             250, "--rank_cutoff", "-r")):
 
     lg.info(f"processing {base_folder}")
+
+    output_folder = beehive.BASEDIR / 'geneset' / 'prep'
+    if not output_folder.exists():
+        output_folder.mkdir(parents=True)
 
     for study_folder in Path(base_folder).glob('*'):
         if not study_folder.is_dir():
