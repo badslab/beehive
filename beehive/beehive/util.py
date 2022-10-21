@@ -7,6 +7,7 @@ from typing import List
 import pandas as pd
 import beehive
 import numpy as np
+import pymed
 
 lg = logging.getLogger(__name__)
 
@@ -52,28 +53,22 @@ def timer(func):
     return wrapper
 
 
-def find_prq(dsid, ptype):
-    """Find parquet file based on dataset id and parquet type"""
-    assert ptype in ['X', 'obs', 'var']
+def find_prq(dsid, ptype, check_exists=True):
+    """ Find parquet file based on dataset id 
+        and parquet type"""
+
+    assert ptype in ['X', 'obs', 'var', 'gsea']
     name = f"{dsid}.{ptype}.prq"
     prq_file = beehive.BASEDIR / 'prq' / name
-    if prq_file.exists():
-        return prq_file
-    prq_file = beehive.BASEDIR / 'data' / 'h5ad' / name
-    if prq_file.exists():
-        return prq_file
-    raise FileNotFoundError(f'Cannot find prq file {name}')
 
+    if prq_file.exists():
+        return prq_file
 
-def find_parquet_file(name):
-    """Find parquet file"""
-    prq_file = beehive.BASEDIR / 'prq' / name
-    if prq_file.exists():
-        return prq_file
     prq_file = beehive.BASEDIR / 'data' / 'h5ad' / name
-    if prq_file.exists():
+    if (not prq_file.exists()) and check_exists:
+        raise FileNotFoundError(f'Cannot find prq file {name}')
+    else:
         return prq_file
-    raise FileNotFoundError(f'Cannot find prq file {name}')
 
 
 def get_datadir(name):
@@ -195,12 +190,23 @@ def UID(*args, length=7):
             chs.update(str(a).encode())
         elif isinstance(a, str):
             chs.update(str(a).lower().encode())
+        elif isinstance(a, tuple):
+            for x in a:
+                chs.update(str(x).encode())
         elif isinstance(a, bytes):
             chs.update(a)
+        elif isinstance(a, dict):
+            for k, v in sorted(list(a.items())):
+                chs.update(str(k).encode())
+                chs.update(str(v).encode())
         elif isinstance(a, pd.Series):
-            chs.update(str(a).encode())
+            chs.update(a.values.tobytes())
+        elif isinstance(a, pd.DataFrame):
+            chs.update(a.values.tobytes())
         else:
-            raise Exception("Invalid type to generate UID")
+            ft = str(type(a))
+            raise Exception(f"Invalid type to generate UID {ft}")
+
     chs_hex = chs.hexdigest()
     return chs_hex[:length]
 
@@ -226,7 +232,7 @@ def sizeof_fmt(num, suffix='B'):
     return "%.1f%s%s" % (num, 'Yi', suffix)
 
 
-def diskcache(where='~/.cache/simple_disk_cache/', refresh=False):
+def diskcache(where='~/.cache/simple_disk_cache/', refresh=False, verbose=False):
     from pathlib import Path
     import inspect
     import pickle
@@ -244,9 +250,15 @@ def diskcache(where='~/.cache/simple_disk_cache/', refresh=False):
             cachefile = cachedir / uid
 
             if cachefile.exists() and not refresh:
+                if verbose:
+                    lg.info(f"return from cache - {uid}")
+
                 with open(cachefile, 'rb') as F:
                     rv = pickle.load(F)
             else:
+                if verbose:
+                    lg.info(f"not in cache - {uid}")
+
                 rv = func(*args, **kwargs)
                 if not cachedir.exists():
                     cachedir.mkdir(parents=True)
@@ -278,3 +290,25 @@ def profiler(title, runs):
             return rv
         return wrapper
     return p2
+
+
+@diskcache()
+def query_pubmed(pubmed_id):
+    from pymed import PubMed
+    pubmed = PubMed(
+        tool="Beehive", email="mark.fiers@vib.be")
+    results = list(
+        pubmed.query(f"{pubmed_id} [PMID]", max_results=100))
+    r = results[0]
+
+    rv = {}
+    afs = "{firstname} {lastname}"
+    if len(r.authors) == 1:
+        rv['author'] = afs.format(**r.authors[0])
+    else:
+        rv['author'] = (afs.format(**r.authors[0])
+                        + ", " + afs.format(**r.authors[-1]))
+    rv['title'] = r.title
+    rv['doi'] = r.doi
+    rv['year'] = r.publication_date.year
+    return rv
