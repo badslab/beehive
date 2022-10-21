@@ -1,26 +1,30 @@
 """helpers for the gene expression app."""
 
 from functools import partial
-from genericpath import isdir, isfile
-import logging
-import hashlib
 import copy
-import sqlite3
-import pandas as pd
+import hashlib
+import logging
 import os
+import pickle
+import sqlite3
 import time
+
+import pandas as pd
 from pathlib import Path
 from pprint import pprint
+import gseapy as gp
+import polars as pl
 import shutil
+import yaml
 
 import typer
 from typer import echo
 from typing import List, Optional, Dict
-import yaml
 
 import beehive
 from beehive import util, expset
-from beehive.util import dict_set, query_pubmed
+from beehive.util import dict_set, diskcache, query_pubmed
+
 
 app = typer.Typer()
 
@@ -44,6 +48,144 @@ def get_hash(*args, **kwargs):
         h.update(str(k).lower().encode())
         h.update(str(v).lower().encode())
     return h.hexdigest()
+
+
+def get_geneset_db():
+    geneset_db_folder = beehive.DATADIR / 'geneset_db'
+
+    if not geneset_db_folder.exists():
+        geneset_db_folder.mkdir(parents=True)
+
+    return sqlite3.connect(
+        geneset_db_folder / 'geneset_db.sqlite')
+
+
+def get_geneset_groups():
+    gsdb = get_geneset_db()
+    groups = pd.read_sql('SELECT * FROM groups', gsdb)
+    yield from groups.iterrows()
+
+
+def get_geneset_genes(group_hash):
+    gsdb = get_geneset_db()
+    gsets = pd.read_sql(
+        f'''SELECT * FROM genesets
+            WHERE group_hash = '{group_hash}'
+        ''', gsdb)
+    return gsets
+
+
+def run_one_gsea(args):
+
+    group_hash, lfc_col, rnk, genedict = args
+
+    results = gp.prerank(
+        rnk=rnk, gene_sets=genedict,
+        threads=3, min_size=5,
+        max_size=1000, permutation_num=5000,
+        outdir=None, seed=6,
+        verbose=True)
+
+    res2 = results.res2d[['Term', 'NES', 'FDR q-val']]
+    res2.columns = ['group_hash', 'nes', 'fdr']
+    res2.set_index('group_hash')
+
+    return group_hash, lfc_col, res2
+
+
+def run_one_gsea_cached(args):
+    uid = util.UID(*args, length=12)
+    cache_folder = beehive.DATADIR / 'cache'
+    if not cache_folder.exists():
+        try:
+            cache_folder.mkdir()
+        except FileExistsError:
+            pass
+
+    cache_file = cache_folder / uid
+
+    if cache_file.exists():
+        with open(cache_file, 'rb') as F:
+            lg.debug(f"loading from cache: {uid}")
+            rv = pickle.load(F)
+    else:
+        rv = run_one_gsea(args)
+        lg.debug(f"saving to cache: {uid}")
+        with open(cache_file, 'wb') as F:
+            pickle.dump(rv, F)
+
+    # fix columns ...
+    return rv
+
+
+def get_geneset_dicts() -> dict:
+    """Return a dict of dictionaries
+    """
+
+    rv = {}
+
+    for _, g in get_geneset_groups():
+        gsets = get_geneset_genes(g['group_hash'])
+        lg.debug(
+            f"    | {g['study_title'][:40]} "
+            f"| {g['group_title'][:40]}")
+
+        def gg(x):
+            return list(set(x.split()))
+
+        genedict = {
+            row['geneset_hash']: list(sorted(gg(row['genes'])))
+            for (_, row) in gsets.iterrows()}
+
+        rv[g['group_hash']] = genedict
+
+    return rv
+
+
+@ app.command('gsea')
+def gsea(dsid: str = typer.Argument(..., help='Dataset'), ):
+
+    from multiprocessing import Pool
+
+    output_file = util.find_prq(dsid, 'gsea', check_exists=False)
+
+    lg.info(f'Run GSEA for {dsid}')
+    var_cols = expset.get_varfields(dsid)
+    lfc_cols = [x for x in var_cols if x.endswith('__lfc')]
+
+    gsdict2 = get_geneset_dicts()
+
+    runs = []
+    lg.info(f"No lfc columns: {len(lfc_cols)}")
+
+    for i, lfc_col in enumerate(lfc_cols):
+        lg.info(f"  - processing {lfc_col}")
+
+        rnk = expset.get_dedata_simple(dsid, lfc_col)
+        rnk = rnk.set_index('gene').iloc[:, 0].sort_values()
+
+        for j, (group_hash, gdict) in enumerate(gsdict2.items()):
+            runs.append((group_hash, lfc_col, rnk, gdict))
+
+    with Pool(4) as P:
+        results = P.map(run_one_gsea_cached, runs)
+
+    allres = []
+    for gh, lfc, res in sorted(results, key=lambda x: x[1]):
+        res = res.rename(
+            columns=dict(nes=lfc + '__nes',
+                         fdr=lfc + '__fdr'))
+        allres.append(
+            res.melt(id_vars='group_hash', var_name='columns'))
+
+    allres = pd.concat(allres, axis=0)
+    allres = allres.pivot(index='group_hash',
+                          columns='columns',
+                          values='value')
+
+    lg.warning(f'writing to {output_file} - shape {allres.shape}')
+    allres_pl = pl.from_pandas(allres.reset_index())
+    allres_pl.write_parquet(output_file)
 
 
 @ app.command('create_db')
@@ -71,18 +213,8 @@ def create_db(
     all_gene_data_df = pd.concat(all_gene_data, axis=0)
 
     # output...
-    output_db_folder = beehive.DATADIR / 'geneset_db'
+    geneset_db = get_geneset_db()
 
-    if not output_db_folder.exists():
-        output_db_folder.mkdir(parents=True)
-
-    geneset_db = sqlite3.connect(
-        output_db_folder / 'geneset_db.sqlite')
-
-    print(all_group_data_df.head(2).T)
-    print(all_gene_data_df.head(2).T)
-
-    lg.info(f"writing to: {output_db_folder / 'geneset_db.sqlite'}")
     all_group_data_df.to_sql('groups', geneset_db, if_exists="replace")
     all_gene_data_df.to_sql('genesets', geneset_db, if_exists="replace")
     geneset_db.execute(
@@ -90,7 +222,7 @@ def create_db(
                ON groups (group_hash, group_title, study_title) """)
 
     geneset_db.execute(
-        """CREATE INDEX IF NOT EXISTS genes_index 
+        """CREATE INDEX IF NOT EXISTS genes_index
                ON genesets (geneset_hash, group_hash, title) """)
 
     geneset_db.commit()
