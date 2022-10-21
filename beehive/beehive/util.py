@@ -59,17 +59,20 @@ def find_prq(dsid, ptype, check_exists=True):
 
     assert ptype in ['X', 'obs', 'var', 'gsea']
     name = f"{dsid}.{ptype}.prq"
-    prq_file = beehive.BASEDIR / 'prq' / name
+    prq_dir =  beehive.BASEDIR / 'prq' 
+    prq_file = prq_dir / name
 
     if prq_file.exists():
         return prq_file
 
-    prq_file = beehive.BASEDIR / 'data' / 'h5ad' / name
-    if (not prq_file.exists()) and check_exists:
+    #find alternative location:
+    prq_file_alt = beehive.BASEDIR / 'data' / 'h5ad' / name
+    if (not prq_file_alt.exists()) and check_exists:
         raise FileNotFoundError(f'Cannot find prq file {name}')
-    else:
-        return prq_file
 
+    return prq_file
+    
+    
 
 def get_datadir(name):
     """Return a bokeh view's data folder."""

@@ -51,7 +51,7 @@ def get_hash(*args, **kwargs):
 
 
 def get_geneset_db():
-    geneset_db_folder = beehive.DATADIR / 'geneset_db'
+    geneset_db_folder = beehive.BASEDIR / 'geneset'
 
     if not geneset_db_folder.exists():
         geneset_db_folder.mkdir(parents=True)
@@ -95,10 +95,11 @@ def run_one_gsea(args):
 
 def run_one_gsea_cached(args):
     uid = util.UID(*args, length=12)
-    cache_folder = beehive.DATADIR / 'cache'
+    cache_folder = beehive.BASEDIR / 'gsea' / 'cache'
+    
     if not cache_folder.exists():
         try:
-            cache_folder.mkdir()
+            cache_folder.mkdir(parents=True)
         except FileExistsError:
             pass
 
@@ -114,7 +115,6 @@ def run_one_gsea_cached(args):
         with open(cache_file, 'wb') as F:
             pickle.dump(rv, F)
 
-    # fix columns ...
     return rv
 
 
@@ -148,13 +148,14 @@ def gsea(dsid: str = typer.Argument(..., help='Dataset'), ):
     from multiprocessing import Pool
 
     output_file = util.find_prq(dsid, 'gsea', check_exists=False)
-
     lg.info(f'Run GSEA for {dsid}')
     var_cols = expset.get_varfields(dsid)
     lfc_cols = [x for x in var_cols if x.endswith('__lfc')]
 
     gsdict2 = get_geneset_dicts()
-
+    for k, v in gsdict2.items():
+        for kv, vv in v.items():
+            print(k, kv, len(vv))
     runs = []
     lg.info(f"No lfc columns: {len(lfc_cols)}")
 
@@ -167,7 +168,7 @@ def gsea(dsid: str = typer.Argument(..., help='Dataset'), ):
         for j, (group_hash, gdict) in enumerate(gsdict2.items()):
             runs.append((group_hash, lfc_col, rnk, gdict))
 
-    with Pool(4) as P:
+    with Pool() as P:
         results = P.map(run_one_gsea_cached, runs)
 
     allres = []
@@ -183,18 +184,22 @@ def gsea(dsid: str = typer.Argument(..., help='Dataset'), ):
                           columns='columns',
                           values='value')
 
+    for k, v in gsdict2.items():
+        print(k, len(v))
+        
     lg.warning(f'writing to {output_file} - shape {allres.shape}')
     allres_pl = pl.from_pandas(allres.reset_index())
     allres_pl.write_parquet(output_file)
 
 
 @ app.command('create_db')
-def create_db(
-    geneset_folder: Path = typer.Argument(
-        ..., file_okay=False, dir_okay=True, exists=True), ):
+def create_db():
 
     all_group_data = []
     all_gene_data = []
+
+    
+    geneset_folder = beehive.BASEDIR / 'geneset' / 'prep'
 
     lg.info(f"creating database from {geneset_folder}")
     for group_folder in geneset_folder.glob('*'):

@@ -15,6 +15,7 @@ from beehive import util
 from beehive.util import find_prq
 import beehive.exceptions as bex
 
+WARNED_NO_GENE_COL = False
 
 lg = logging.getLogger(__name__)
 
@@ -411,11 +412,18 @@ def get_defields(dsid, view_name):
 
 
 def get_dedata_simple(dsid, field):
-
+    global WARNED_NO_GENE_COL
     cols = get_varfields(dsid)
-    assert 'gene' in cols
-    rv = pl.read_parquet(find_prq(dsid, 'var'), ['gene', field])
-    rv = rv.to_pandas()
+    if 'gene' in cols:
+        gcol = 'gene'
+    else:
+        gcol = cols[-1]
+        if not WARNED_NO_GENE_COL:
+            lg.warning(f'Could not find a gene column, using: {gcol}')
+            WARNED_NO_GENE_COL = True
+            
+    rv = pl.read_parquet(find_prq(dsid, 'var'), [gcol, field])
+    rv = rv.to_pandas().rename(columns={gcol:'gene'})
     return rv
 
 
