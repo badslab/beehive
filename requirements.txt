@@ -14,4 +14,6 @@ statsmodels
 typer
 pelican 
 markdown
+pygsea
+pymed
 -e ./beehive
