@@ -13,6 +13,8 @@ import yaml
 
 from beehive import util
 from beehive.util import find_prq
+import beehive.exceptions as bex
+
 
 lg = logging.getLogger(__name__)
 
@@ -96,7 +98,9 @@ def get_dataset(dsid, view_name):
 
 
 def get_facet_options(dsid: str,
-                      only_categorical: bool = False, include_skip=False, view_name: str = "") -> List[Tuple[str, str]]:
+                      only_categorical: bool = False,
+                      include_skip=False, view_name: str = "") \
+        -> List[Tuple[str, str]]:
     """
     Return obs columns that a dataset can be facetted on.
     These have to be categorical
@@ -160,7 +164,9 @@ def get_facet_options_numerical(dsid: str, view_name: str = "") \
     return list(sorted(rv))
 
 
-def get_gene_meta_three_facets(dsid: str, gene: str, meta1: str, meta2: str, meta3: str = "mouse.id", nobins: int = 8, view_name: str = ""):
+def get_gene_meta_three_facets(
+        dsid: str, gene: str, meta1: str, meta2: str, meta3: str = "mouse.id",
+        nobins: int = 8, view_name: str = ""):
     """"
     function to return the aggregate of 3 metadata options
     first two metadatas will be displayed in a boxplot doubled
@@ -171,6 +177,9 @@ def get_gene_meta_three_facets(dsid: str, gene: str, meta1: str, meta2: str, met
     emptyDF = False
 
     genedata = get_gene(dsid, gene)
+    if genedata is None:
+        raise bex.GeneNotFoundException
+
     metadata = get_meta(dsid, meta1, nobins=nobins,
                         view_name=view_name, raw=True)  # facet1
     metadata = metadata.select((pl.col(meta1)).cast(str))
@@ -401,6 +410,15 @@ def get_defields(dsid, view_name):
     return list(dex.keys())
 
 
+def get_dedata_simple(dsid, field):
+
+    cols = get_varfields(dsid)
+    assert 'gene' in cols
+    rv = pl.read_parquet(find_prq(dsid, 'var'), ['gene', field])
+    rv = rv.to_pandas()
+    return rv
+
+
 def get_dedata(dsid, categ, genes, view_name: str = ""):
     """Return diffexp data."""
     ds = get_dataset(dsid, view_name)
@@ -429,6 +447,7 @@ def get_dedata_new(dsid, categ):
     datadir = util.get_datadir("h5ad")
 
     # to get 'gene' column
+    # TODO: gene column MUST be called 'gene' - not be the last col!
     last_col = len(pl.read_parquet(find_prq(dsid, 'var')).columns)
 
     rv1 = pl.read_parquet(find_prq(dsid, 'var'), [last_col - 1])
@@ -571,7 +590,7 @@ def get_obsfields(dsid):
 
 def get_varfields(dsid):
     """Return a list of var columns for this datset."""
-    X = pl.scan_parquet(find_prq(dsid, 'obs'))
+    X = pl.scan_parquet(find_prq(dsid, 'var'))
     return X.columns
 
 
