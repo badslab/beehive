@@ -12,14 +12,14 @@ import polars as pl
 import yaml
 
 from beehive import util
-from beehive.util import find_prq
+from beehive.util import find_prq, get_geneset_db
 import beehive.exceptions as bex
 
 WARNED_NO_GENE_COL = False
 
 lg = logging.getLogger(__name__)
 
-lg.setLevel(logging.DEBUG)
+# lg.setLevel(logging.INGO)
 
 
 diskcache = partial(
@@ -34,10 +34,12 @@ diskcache = partial(
 
 def get_datasets(has_de: bool = False, view_name: str = ""):
     """Return a dict with all dataset."""
-    # DATASETS: Dict[str, Dict] = {}
-    DATASETS = dict()
+
+    DATASETS: Dict[str, Dict] = {}
+    # DATASETS = dict()
 
     datadir = util.get_datadir("h5ad")
+
     # global DATASETS
     if len(DATASETS) == 0:
         for yamlfile in datadir.glob("*.yaml"):
@@ -46,7 +48,7 @@ def get_datasets(has_de: bool = False, view_name: str = ""):
             basename = basename.replace(".yaml", "")
             with open(yamlfile, "r") as F:
                 y = yaml.load(F, Loader=yaml.SafeLoader)
-                if view_name not in y["use_in_view"]:
+                if view_name and (view_name not in y["use_in_view"]):
                     use = False
                 authors = y["author"].split(",")
                 authors = [x.strip() for x in authors]
@@ -68,13 +70,13 @@ def get_datasets(has_de: bool = False, view_name: str = ""):
         # return only datasets with diffexp data
         DSDE = {a: b for (a, b) in DATASETS.items()
                 if len(b.get("diffexp", {})) > 0}
-        lg.info(
-            f"expset datadir is {datadir}, found {len(DSDE)} "
-            f"(out of {len(DATASETS)}) sets with DE data"
-        )
+        # lg.debug(
+        #    f"expset datadir is {datadir}, found {len(DSDE)} "
+        #    f"(out of {len(DATASETS)}) sets with DE data"
+        # )
         return DSDE
     else:
-        lg.info(f"expset datadir is {datadir}, found {len(DATASETS)} sets")
+        lg.debug(f"expset datadir is {datadir}, found {len(DATASETS)} sets")
         return DATASETS
 
 
@@ -411,6 +413,67 @@ def get_defields(dsid, view_name):
     return list(dex.keys())
 
 
+def get_gsea_data(
+        dsid, col=None,
+        sort_on='fdr*nes',
+        return_no=50,):
+
+    assert sort_on in ['fdr', 'nes', 'fdr*nes']
+
+    gsd = get_geneset_db()
+
+    prq = find_prq(dsid, 'gsea')
+    if col is None:
+        gd = pl.read_parquet(prq).to_pandas()
+        gd = gd.melt(id_vars='set_hash',
+                     var_name='tmp')
+        gd[['de', 'what']] = \
+            gd['tmp'].str.rsplit(pat='__', n=1, expand=True)
+        del gd['tmp']
+        gd = gd.pivot(
+            index=['set_hash', 'de'],
+            columns='what', values='value').reset_index()
+
+    else:
+        X = pl.scan_parquet(prq)
+        cols = X.columns
+        if not (f"{col}__fdr" in cols and
+                f"{col}__nes" in cols):
+            raise bex.DEColumnNotFound()
+
+        gd = pl.read_parquet(
+            prq, [f"{col}__fdr", f"{col}__nes", 'set_hash'])\
+            .to_pandas()
+        gd = gd.rename(columns={
+            f"{col}__fdr": "fdr",
+            f"{col}__nes": "nes"})
+        gd = gd.sort_values(by='fdr')
+
+    if sort_on == 'fdr*nes':
+        gd['sk'] = np.log10(gd['fdr'].clip(1e-100, 1)) * -1 * gd['nes']
+        gd = gd.sort_values(by='sk', ascending=False)
+        del gd['sk']
+    else:
+        gd = gd.sort_values(by=sort_on)
+
+    gd = gd.head(return_no)
+
+    sethashes = list(gd['set_hash'].unique())
+    in_stm = '("' + '","'.join(sethashes) + '")'
+    gsdata = pd.read_sql(
+        f"""SELECT *
+              FROM genesets
+             INNER JOIN groups 
+                     ON groups.group_hash = genesets.group_hash
+             WHERE genesets.geneset_hash IN {in_stm} 
+             LIMIT 5""", gsd)
+
+    gd = gd.merge(gsdata,  left_on='set_hash',
+                  right_on='geneset_hash')
+    del gd['index']
+    return gd
+
+
 def get_dedata_simple(dsid, field):
     global WARNED_NO_GENE_COL
     cols = get_varfields(dsid)
@@ -421,9 +484,9 @@ def get_dedata_simple(dsid, field):
         if not WARNED_NO_GENE_COL:
             lg.warning(f'Could not find a gene column, using: {gcol}')
             WARNED_NO_GENE_COL = True
-            
+
     rv = pl.read_parquet(find_prq(dsid, 'var'), [gcol, field])
-    rv = rv.to_pandas().rename(columns={gcol:'gene'})
+    rv = rv.to_pandas().rename(columns={gcol: 'gene'})
     return rv
 
 
@@ -490,9 +553,9 @@ def get_dedata_quadrant(dsid, categ1, categ2):
 
     # avoid where chosen lfc's are the same ones..
     rv = rv.rename({categ1 + "__lfc": categ1 + "__lfc_1",
-                   categ2 + "__lfc": categ2 + "__lfc_2",
-                   categ1 + "__padj": categ1 + "__padj_1",
-                   categ2 + "__padj": categ2 + "__padj_2"})
+                    categ2 + "__lfc": categ2 + "__lfc_2",
+                    categ1 + "__padj": categ1 + "__padj_1",
+                    categ2 + "__padj": categ2 + "__padj_2"})
     rv = rv.to_pandas()
     # in new format, padjusted and lfc are already on columns, genes on rows.
     # get genes has same index as that for the rows.
