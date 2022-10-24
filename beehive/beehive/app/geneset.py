@@ -75,9 +75,10 @@ def run_one_gsea(args):
         verbose=True)
 
     res2 = results.res2d[['Term', 'NES', 'FDR q-val']]
-    res2.columns = ['group_hash', 'nes', 'fdr']
-    res2.set_index('group_hash')
+    res2.columns = ['set_hash', 'nes', 'fdr']
+    res2.set_index('set_hash')
 
+    lg.info(f"finished one gsea {group_hash} - {lfc_col}")
     return group_hash, lfc_col, res2
 
 
@@ -131,7 +132,9 @@ def get_geneset_dicts() -> dict:
 
 
 @ app.command('gsea')
-def gsea(dsid: str = typer.Argument(..., help='Dataset'), ):
+def gsea(
+        dsid: str = typer.Argument(..., help='Dataset'),
+        threads: int = typer.Option(32, '-j', '--threads'), ):
 
     from multiprocessing import Pool
 
@@ -141,9 +144,6 @@ def gsea(dsid: str = typer.Argument(..., help='Dataset'), ):
     lfc_cols = [x for x in var_cols if x.endswith('__lfc')]
 
     gsdict2 = get_geneset_dicts()
-    for k, v in gsdict2.items():
-        for kv, vv in v.items():
-            print(k, kv, len(vv))
     runs = []
     lg.info(f"No lfc columns: {len(lfc_cols)}")
 
@@ -156,26 +156,49 @@ def gsea(dsid: str = typer.Argument(..., help='Dataset'), ):
         for j, (group_hash, gdict) in enumerate(gsdict2.items()):
             runs.append((group_hash, lfc_col, rnk, gdict))
 
-    with Pool() as P:
+    with Pool(threads) as P:
         results = P.map(run_one_gsea_cached, runs)
 
+<<<<<<< HEAD
     allres_raw = []
+=======
+    allres = []
+    
+>>>>>>> b4f6b76a702a67910e0686fbbeaa3ef4abf0cfd8
     for gh, lfc, res in sorted(results, key=lambda x: x[1]):
         res = res.rename(
             columns=dict(nes=lfc + '__nes',
                          fdr=lfc + '__fdr'))
+<<<<<<< HEAD
         allres_raw.append(
             res.melt(id_vars='group_hash', var_name='columns'))
 
     allres = pd.concat(allres_raw, axis=0)
     allres = allres.pivot(index='group_hash',
+=======
+        allres.append(
+            res.melt(id_vars='set_hash', var_name='columns'))
+
+    allres = pd.concat(allres, axis=0)
+
+    ar2 = allres.copy()
+    ar2[['name', 'stat']] = ar2['columns']\
+        .str.rsplit(pat='__', n=1, expand=True)
+    ar2 = ar2.pivot(index=['set_hash', 'name'], columns='stat', values='value')
+    ar2 = ar2.reset_index()
+    geneset_db = get_geneset_db()
+    ar2.to_sql('gsea', geneset_db, if_exists='replace', index=False)
+    geneset_db.execute('''CREATE INDEX IF NOT EXISTS gsea_index
+                          ON gsea (set_hash, name, fdr, nes)''')
+
+    allres = allres.pivot(index='set_hash',
+>>>>>>> b4f6b76a702a67910e0686fbbeaa3ef4abf0cfd8
                           columns='columns',
                           values='value')
 
-    for k, v in gsdict2.items():
-        print(k, len(v))
-
     lg.warning(f'writing to {output_file} - shape {allres.shape}')
+
+
     allres_pl = pl.from_pandas(allres.reset_index())
     allres_pl.write_parquet(output_file)
 

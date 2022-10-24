@@ -14,6 +14,7 @@
 
 {% endblock %}
 
+
 {% block contents %}
 
 <div class="container">
@@ -23,7 +24,15 @@
       -
     <span id="view-name">{{ view_name }}</span>
   </header>
-<div class="wrapper">
+
+  {% if warning_message %}
+  <header class="warning">
+    <span id="banner">WARNING: {{ warning_message }}
+    </span>
+  </warning>
+  {% endif %}
+
+  <div class="wrapper">
   <div class="content">
 
     {{ super() }}
