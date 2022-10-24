@@ -99,11 +99,11 @@ def run_one_gsea_cached(args):
 
     if cache_file.exists():
         with open(cache_file, 'rb') as F:
-            lg.info(f"loading from cache: {uid}")
+            lg.debug(f"loading from cache: {uid}")
             rv = pickle.load(F)
     else:
         rv = run_one_gsea(args)
-        lg.info(f"saving to cache: {uid}")
+        lg.debug(f"saving to cache: {uid}")
         with open(cache_file, 'wb') as F:
             pickle.dump(rv, F)
 
@@ -147,9 +147,6 @@ def gsea(
     lfc_cols = [x for x in var_cols if x.endswith('__lfc')]
 
     gsdict2 = get_geneset_dicts()
-    for k, v in gsdict2.items():
-        for kv, vv in v.items():
-            print(k, kv, len(vv))
     runs = []
     lg.info(f"No lfc columns: {len(lfc_cols)}")
 
@@ -175,15 +172,23 @@ def gsea(
             res.melt(id_vars='set_hash', var_name='columns'))
 
     allres = pd.concat(allres, axis=0)
+
     ar2 = allres.copy()
-    # print(ar2.head(2).T)
-    
+    ar2[['name', 'stat']] = ar2['columns']\
+        .str.rsplit(pat='__', n=1, expand=True)
+    ar2 = ar2.pivot(index=['set_hash', 'name'], columns='stat', values='value')
+    ar2 = ar2.reset_index()
+    geneset_db = get_geneset_db()
+    ar2.to_sql('gsea', geneset_db, if_exists='replace', index=False)
+    geneset_db.execute('''CREATE INDEX IF NOT EXISTS gsea_index
+                          ON gsea (set_hash, name, fdr, nes)''')
+
     allres = allres.pivot(index='set_hash',
                           columns='columns',
                           values='value')
 
     lg.warning(f'writing to {output_file} - shape {allres.shape}')
-    geneset_db = get_geneset_db()
+
 
     allres_pl = pl.from_pandas(allres.reset_index())
     allres_pl.write_parquet(output_file)
