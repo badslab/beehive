@@ -15,7 +15,7 @@ from beehive.app import query
 logging.basicConfig(format="%(message)s")
 logging.getLogger('beehive').setLevel(logging.INFO)
 
-app = typer.Typer()
+app = typer.Typer(pretty_exceptions_show_locals=False)
 
 app.add_typer(gene_expression.app, name="gex")
 app.add_typer(h5ad.app, name="h5ad")
