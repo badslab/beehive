@@ -87,9 +87,10 @@ def run_one_gsea(args):
         verbose=True)
 
     res2 = results.res2d[['Term', 'NES', 'FDR q-val']]
-    res2.columns = ['group_hash', 'nes', 'fdr']
-    res2.set_index('group_hash')
+    res2.columns = ['set_hash', 'nes', 'fdr']
+    res2.set_index('set_hash')
 
+    lg.info(f"finished one gsea {group_hash} - {lfc_col}")
     return group_hash, lfc_col, res2
 
 
@@ -107,11 +108,11 @@ def run_one_gsea_cached(args):
 
     if cache_file.exists():
         with open(cache_file, 'rb') as F:
-            lg.debug(f"loading from cache: {uid}")
+            lg.info(f"loading from cache: {uid}")
             rv = pickle.load(F)
     else:
         rv = run_one_gsea(args)
-        lg.debug(f"saving to cache: {uid}")
+        lg.info(f"saving to cache: {uid}")
         with open(cache_file, 'wb') as F:
             pickle.dump(rv, F)
 
@@ -143,7 +144,9 @@ def get_geneset_dicts() -> dict:
 
 
 @ app.command('gsea')
-def gsea(dsid: str = typer.Argument(..., help='Dataset'), ):
+def gsea(
+        dsid: str = typer.Argument(..., help='Dataset'),
+        threads: int = typer.Option(32, '-j', '--threads'), ):
 
     from multiprocessing import Pool
 
@@ -168,26 +171,29 @@ def gsea(dsid: str = typer.Argument(..., help='Dataset'), ):
         for j, (group_hash, gdict) in enumerate(gsdict2.items()):
             runs.append((group_hash, lfc_col, rnk, gdict))
 
-    with Pool() as P:
+    with Pool(threads) as P:
         results = P.map(run_one_gsea_cached, runs)
 
     allres = []
+    
     for gh, lfc, res in sorted(results, key=lambda x: x[1]):
         res = res.rename(
             columns=dict(nes=lfc + '__nes',
                          fdr=lfc + '__fdr'))
         allres.append(
-            res.melt(id_vars='group_hash', var_name='columns'))
+            res.melt(id_vars='set_hash', var_name='columns'))
 
     allres = pd.concat(allres, axis=0)
-    allres = allres.pivot(index='group_hash',
+    ar2 = allres.copy()
+    print(ar2.head(2).T)
+    
+    allres = allres.pivot(index='set_hash',
                           columns='columns',
                           values='value')
 
-    for k, v in gsdict2.items():
-        print(k, len(v))
-        
     lg.warning(f'writing to {output_file} - shape {allres.shape}')
+    geneset_db = get_geneset_db()
+
     allres_pl = pl.from_pandas(allres.reset_index())
     allres_pl.write_parquet(output_file)
 
