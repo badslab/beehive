@@ -23,7 +23,8 @@ from typing import List, Optional, Dict
 
 import beehive
 from beehive import util, expset
-from beehive.util import dict_set, diskcache, query_pubmed
+from beehive.util import dict_set, diskcache, \
+    query_pubmed, get_geneset_db
 
 
 app = typer.Typer()
@@ -48,16 +49,6 @@ def get_hash(*args, **kwargs):
         h.update(str(k).lower().encode())
         h.update(str(v).lower().encode())
     return h.hexdigest()
-
-
-def get_geneset_db():
-    geneset_db_folder = beehive.BASEDIR / 'geneset'
-
-    if not geneset_db_folder.exists():
-        geneset_db_folder.mkdir(parents=True)
-
-    return sqlite3.connect(
-        geneset_db_folder / 'geneset_db.sqlite')
 
 
 def get_geneset_groups():
@@ -97,7 +88,7 @@ def run_one_gsea(args):
 def run_one_gsea_cached(args):
     uid = util.UID(*args, length=12)
     cache_folder = beehive.BASEDIR / 'gsea' / 'cache'
-    
+
     if not cache_folder.exists():
         try:
             cache_folder.mkdir(parents=True)
@@ -185,7 +176,7 @@ def gsea(
 
     allres = pd.concat(allres, axis=0)
     ar2 = allres.copy()
-    print(ar2.head(2).T)
+    # print(ar2.head(2).T)
     
     allres = allres.pivot(index='set_hash',
                           columns='columns',
@@ -204,7 +195,6 @@ def create_db():
     all_group_data = []
     all_gene_data = []
 
-    
     geneset_folder = beehive.BASEDIR / 'geneset' / 'prep'
 
     lg.info(f"creating database from {geneset_folder}")

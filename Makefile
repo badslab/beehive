@@ -81,6 +81,13 @@ serve_mark_gene_expression:
 	BEEHIVE_BASEDIR=/Users/u0089478/data/beehive/lab-data-visualization bokeh serve --dev --port 5009 --allow-websocket-origin=*  bokeh/gene_expression/
 
 
+.ONESHELL: 
+serve_mark_gsea:
+	echo "Hello"
+	BEEHIVE_BASEDIR=/Users/u0089478/data/beehive/lab-data-visualization \
+		bokeh serve --dev --port 5011 --allow-websocket-origin=* bokeh/gsea_view/
+
+
 ####raghid####
 #using pipenv to install requirements.txt as virtual env
 serve_dev_raghid_auth: fix_templates

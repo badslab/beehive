@@ -1,17 +1,23 @@
+from __future__ import generator_stop
+
 from functools import partial
 import logging
+from os.path import dirname, join
 
 import pandas as pd
 
 from bokeh.layouts import column, row
-from bokeh.models import ColumnDataSource, Range1d, DataTable, TableColumn, ScientificFormatter
+from bokeh.models import ColumnDataSource, Range1d, \
+    DataTable, TableColumn, ScientificFormatter
 from bokeh.models.callbacks import CustomJS
 from bokeh.models.widgets import (Select, Div,
                                   Button, AutocompleteInput)
 from bokeh.plotting import figure, curdoc
-from beehive import config, util, expset
 from bokeh.transform import jitter, CategoricalColorMapper
-from os.path import dirname, join
+
+from beehive import config, util, expset
+import beehive.exceptions as bex
+
 
 lg = logging.getLogger('GeneExp')
 lg.setLevel(logging.DEBUG)
@@ -24,13 +30,15 @@ curdoc().template_variables['view_name'] = 'Gene/Protein Expression'
 
 create_widget = partial(util.create_widget, curdoc=curdoc())
 
-datasets = expset.get_datasets(view_name = VIEW_NAME)
+datasets = expset.get_datasets(view_name=VIEW_NAME)
 
 args = curdoc().session_context.request.arguments
 
 # WIDGETS
-w_div_title_author = Div(text="", width = 400,height = 200)
-
+w_div_title_author = Div(text="", width=400, height=200)
+warning_div = Div(text="nothing good about this",
+                  sizing_mode="stretch_both",
+                  css_classes=['beehive_warning'])
 # Dataset
 
 dataset_options = [(k, "{short_title}, {short_author}, {datatype}".format(**v))
@@ -39,17 +47,19 @@ dataset_options = [(k, "{short_title}, {short_author}, {datatype}".format(**v))
 w_dataset_id = create_widget("dataset_id", Select, title="Dataset",
                              options=dataset_options,
                              default=dataset_options[0][0],
-                             visible=True,height = 30, width = 400)
+                             visible=True, height=30, width=400)
 
 w_sibling = create_widget("view", Select,
                           options=[],
                           default=w_dataset_id.value,
-                          update_url=False,height = 20, width = 150)
+                          update_url=False, height=20, width=150)
 
 
 def update_sibling_options():
-    siblings = expset.get_dataset_siblings(w_dataset_id.value, view_name =  VIEW_NAME)
+    siblings = expset.get_dataset_siblings(
+        w_dataset_id.value, view_name=VIEW_NAME)
     sibling_options = []
+
     # check all organisms
     organisms = []
     for k, v in siblings.items():
@@ -70,13 +80,17 @@ def update_sibling_options():
 
 update_sibling_options()
 
+w_gene = create_widget("gene", AutocompleteInput, restrict=False,
+                       completions=[], default='APOE', case_sensitive=False,
+                       height=50, width=150)
 
-w_gene = create_widget("gene", AutocompleteInput,
-                       completions=[], default='APOE', case_sensitive=False, height = 50, width = 150)
-w_facet = create_widget("facet", Select, options=[], title="Group by level 1:",height = 50, width = 150)
-w_facet2 = create_widget("facet2", Select, options=[], title="Group by level 2:",height = 50, width = 150)
-w_facet3 = create_widget("facet3", Select, options=[], title="Jitter points Average:",height = 50, width = 150)
-w_download = Button(label='Download', align='end', height = 50, width = 150)
+w_facet = create_widget("facet", Select, options=[],
+                        title="Group by level 1:", height=50, width=150)
+w_facet2 = create_widget("facet2", Select, options=[],
+                         title="Group by level 2:", height=50, width=150)
+w_facet3 = create_widget("facet3", Select, options=[],
+                         title="Jitter points Average:", height=50, width=150)
+w_download = Button(label='Download', align='end', height=50, width=150)
 w_download_filename = Div(text="", visible=False,
                           name="download_filename")
 
@@ -97,40 +111,47 @@ def get_genes():
 
 def update_facets():
     """Update interface for a specific dataset."""
-    options = expset.get_facet_options(w_dataset_id.value,only_categorical = True,view_name = VIEW_NAME)
-    options_with_skip = expset.get_facet_options(w_dataset_id.value,only_categorical = True, include_skip = True,view_name = VIEW_NAME)
+    options = expset.get_facet_options(
+        w_dataset_id.value, only_categorical=True, view_name=VIEW_NAME)
+    options_with_skip = expset.get_facet_options(
+        w_dataset_id.value, only_categorical=True, include_skip=True, view_name=VIEW_NAME)
     w_facet.options = options
     w_facet2.options = options
     w_facet3.options = options_with_skip
 
-    w_facet2.options = w_facet2.options + [("--","--")]
-    w_facet3.options = w_facet3.options + [("--","--")]
+    w_facet2.options = w_facet2.options + [("--", "--")]
+    w_facet3.options = w_facet3.options + [("--", "--")]
 
     if w_facet.value not in [x[0] for x in w_facet.options]:
         # set a default
         w_facet.value = w_facet.options[0][0]
 
-
-    w_facet2.options = list(filter(lambda x: x[0] != w_facet.value,w_facet2.options))
+    w_facet2.options = list(
+        filter(lambda x: x[0] != w_facet.value, w_facet2.options))
     if w_facet2.value not in [x[0] for x in w_facet2.options]:
         # set a default
         w_facet2.value = w_facet2.options[0][0]
 
-    w_facet.options = list(filter(lambda x: x[0] != w_facet2.value,w_facet.options))
+    w_facet.options = list(
+        filter(lambda x: x[0] != w_facet2.value, w_facet.options))
 
-    w_facet3.options = list(filter(lambda x: x[0] != w_facet.value,w_facet3.options))
-    w_facet3.options = list(filter(lambda x: x[0] != w_facet2.value or x[0] == "--" ,w_facet3.options))
+    w_facet3.options = list(
+        filter(lambda x: x[0] != w_facet.value, w_facet3.options))
+    w_facet3.options = list(
+        filter(lambda x: x[0] != w_facet2.value or x[0] == "--", w_facet3.options))
 
     if w_facet3.value not in [x[0] for x in w_facet3.options]:
         # set a default
-        w_facet3.value =  w_facet3.options[0][0]
+        w_facet3.value = w_facet3.options[0][0]
 
-    w_facet2.options = list(filter(lambda x: x[0] != w_facet3.value or x[0] == "--",w_facet2.options))
-    w_facet.options = list(filter(lambda x: x[0] != w_facet3.value,w_facet.options))
-
+    w_facet2.options = list(
+        filter(lambda x: x[0] != w_facet3.value or x[0] == "--", w_facet2.options))
+    w_facet.options = list(
+        filter(lambda x: x[0] != w_facet3.value, w_facet.options))
 
     # w_facet2.value = "--"
     # w_facet3.value = "--"
+
 
 def update_genes():
     """Update genes widget for a dataset."""
@@ -146,8 +167,9 @@ def update_genes():
 update_facets()
 update_genes()
 
+
 def set_defaults():
-    defaults_dict = expset.get_defaults(w_dataset_id.value,VIEW_NAME)
+    defaults_dict = expset.get_defaults(w_dataset_id.value, VIEW_NAME)
     if defaults_dict == {}:
         return
     for def_vals in defaults_dict[VIEW_NAME]:
@@ -156,13 +178,13 @@ def set_defaults():
             for i in range(len(w_dataset_id.options)):
                 if default_dsid == w_dataset_id.options[i][0]:
                     w_dataset_id.value = w_dataset_id.options[i][0]
-    
+
     update_facets()
     update_genes()
     update_sibling_options()
     for def_vals in defaults_dict[VIEW_NAME]:
         if def_vals.get("gene"):
-            w_gene.value =  def_vals.get("gene")
+            w_gene.value = def_vals.get("gene")
         if def_vals.get("meta1"):
             w_facet.value = def_vals.get("meta1")
         if def_vals.get("meta2"):
@@ -171,13 +193,14 @@ def set_defaults():
             w_facet3.value = def_vals.get("jitter")
     return
 
+
 if curdoc().session_context.request.arguments == {}:
     set_defaults()
 
 
 def get_data() -> pd.DataFrame:
     """Retrieve data from a dataset, gene & facet."""
-    global coloring_scheme #name of column for coloring.
+    global coloring_scheme  # name of column for coloring.
     dataset_id = w_dataset_id.value
     gene = w_gene.value
     facet = w_facet.value
@@ -193,20 +216,21 @@ def get_data() -> pd.DataFrame:
 
     lg.warning(f"!! Getting data for {dataset_id} {facet} {gene}")
 
-    data = expset.get_gene_meta_three_facets(dataset_id,gene,facet,facet2,facet3,view_name = VIEW_NAME)
+    data = expset.get_gene_meta_three_facets(
+        dataset_id, gene, facet, facet2, facet3, view_name=VIEW_NAME)
 
-    #filter NONEs
+    # filter NONEs
     data = data.loc[data["cat_value"].str[0] != "NONE"]
     data = data.loc[data["cat_value"].str[1] != "NONE"]
     data = data.loc[data["cat_value"] != "NONE"]
 
-    #for table
+    # for table
     data_no_dups = data.drop_duplicates("cat_value")
 
-    #rename jitter points column
+    # rename jitter points column
     data = data.rename(columns={f'mean_{facet3}': "jitter"})
 
-    return data,data_no_dups
+    return data, data_no_dups
 
 
 def get_dataset():
@@ -214,39 +238,43 @@ def get_dataset():
     dataset_id = w_dataset_id.value
     return dataset_id, datasets[dataset_id]
 
+
 def get_mapper():
     dataset = w_dataset_id.value
     meta = w_facet.value
-    dict_colors = expset.get_colors_of_obs(dataset,meta)
-    mapper = CategoricalColorMapper(palette = list(dict_colors.values()), factors=list(dict_colors.keys()))
+    dict_colors = expset.get_colors_of_obs(dataset, meta)
+    mapper = CategoricalColorMapper(palette=list(
+        dict_colors.values()), factors=list(dict_colors.keys()))
     return mapper
+
 
 def get_order():
     dataset = w_dataset_id.value
     meta = w_facet.value
-    dict_order = expset.get_order_of_obs(dataset,meta)
+    dict_order = expset.get_order_of_obs(dataset, meta)
     ordered_list = sorted(dict_order, key=dict_order.get)
     return ordered_list
+
 
 #
 # Create plot
 #
-plot = figure(background_fill_color="#efefef", x_range=[],title="Plot",
-              toolbar_location='right', tools="save", sizing_mode = "fixed", width = 800, height = 600)
+plot = figure(background_fill_color="#efefef", x_range=[], title="Plot",
+              toolbar_location='right', tools="save", sizing_mode="fixed", width=800, height=600)
 
 
-data,data_no_dups = get_data()
+data, data_no_dups = get_data()
 warning_experiment = Div(text="""<b>The selected combination of conditions was not tested in the manuscript, 
-please see experimental design and select an alternative view.</b>""",visible = False, style={'color': 'red'})
+please see experimental design and select an alternative view.</b>""", visible=False, style={'color': 'red'})
 
-#can we plot the data?
+# can we plot the data?
 if len(data) == 0:
-    #no..
+    # no..
     warning_experiment.visible = True
-    #fix the default facets and get data again.
+    # fix the default facets and get data again.
     w_facet.value = w_facet.options[0][0]
     w_facet2.value = w_facet2.options[1][0]
-    data,data_no_dups = get_data()
+    data, data_no_dups = get_data()
 
 #Plotting#
 source = ColumnDataSource(data)
@@ -254,9 +282,9 @@ source_no_dups = ColumnDataSource(data_no_dups)
 table = DataTable(source=source_no_dups,
                   margin=10,
                   index_position=None,
-                #   sizing_mode = "fixed",
-                  width = 500,
-                  height = 600,
+                  #   sizing_mode = "fixed",
+                  width=500,
+                  height=600,
                   columns=[
                       TableColumn(field='cat_value', title='Category'),
                       TableColumn(field='count', title='Number of Cells',
@@ -286,9 +314,9 @@ mapper = get_mapper()
 
 elements = dict(
     vbar=plot.vbar(x="cat_value", top='_bar_top',
-                bottom='_bar_bottom', source = source, width=0.85, name="barplot",
-                fill_color={'field': coloring_scheme, 'transform': mapper},
-                line_color="black"),
+                   bottom='_bar_bottom', source=source, width=0.85, name="barplot",
+                   fill_color={'field': coloring_scheme, 'transform': mapper},
+                   line_color="black"),
     seg_v_up=plot.segment(source=source, x0='cat_value', x1='cat_value',
                           y0='_bar_top', y1='_segment_top',
                           line_color='black'),
@@ -303,11 +331,12 @@ elements = dict(
                         y='_bar_median', width=0.85, line_width=2,
                         line_color='black'),
     # jitter_points = plot.scatter(x=jitter('cat_value', width=0.4, range=plot.x_range), y=f'mean_{meta3}', size=5, alpha=0.4, source=source,legend_label = f"{meta3}")
-    jitter_points = plot.scatter(x=jitter('cat_value', width=0.4, range=plot.x_range), y="jitter", size=5, alpha=0.4, source=source)
+    jitter_points=plot.scatter(x=jitter(
+        'cat_value', width=0.4, range=plot.x_range), y="jitter", size=5, alpha=0.4, source=source)
 
 )
 
-#to orient the legends of the x axis
+# to orient the legends of the x axis
 X_AXIS_LABELS_ORIENTATION = 3.14/2
 plot.xaxis.group_label_orientation = X_AXIS_LABELS_ORIENTATION
 plot.xaxis.major_label_orientation = X_AXIS_LABELS_ORIENTATION
@@ -318,93 +347,103 @@ ymax = data['_segment_top'].max() + yspacer
 ymin = data['_segment_bottom'].min() - yspacer
 plot.update(y_range=Range1d(ymin, ymax))
 
-citation = Div(text=f'{expset.get_legend_of_obs(w_dataset_id.value,w_facet.value)}')
+citation = Div(
+    text=f'{expset.get_legend_of_obs(w_dataset_id.value,w_facet.value)}')
 
-#check for metadata order
+# check for metadata order
 ordered_list = get_order()
 order = {key: i for i, key in enumerate(ordered_list)}
 
 try:
     xvals = data["cat_value"]
-    int_vals =  int(xvals[0])
+    int_vals = int(xvals[0])
     int_vals_sorted = sorted(list(set([int(x) for x in xvals])))
     int_vals_sorted = [str(x) for x in int_vals_sorted]
     plot.x_range.factors = int_vals_sorted
 except:
     xrangelist = list(set(data["cat_value"]))
     tupleval = xrangelist[0]
-    #check which is int
-    xrangelist = sorted(list(set(data["cat_value"])),key=lambda tup: tup[0])
+    # check which is int
+    xrangelist = sorted(list(set(data["cat_value"])), key=lambda tup: tup[0])
     if tupleval[0].isdigit():
-        xrangelist = sorted(xrangelist,key=lambda x: int(x[0]))
+        xrangelist = sorted(xrangelist, key=lambda x: int(x[0]))
     else:
-        xrangelist = sorted(xrangelist,key=lambda x: x[0])
+        xrangelist = sorted(xrangelist, key=lambda x: x[0])
     if tupleval[1].isdigit():
-        xrangelist = sorted(xrangelist,key=lambda x: int(x[1]))
+        xrangelist = sorted(xrangelist, key=lambda x: int(x[1]))
     else:
-        xrangelist = sorted(xrangelist,key=lambda x: x[1])  
+        xrangelist = sorted(xrangelist, key=lambda x: x[1])
 
     plot.x_range.factors = xrangelist
 
-plot.xaxis.group_label_orientation = X_AXIS_LABELS_ORIENTATION 
+plot.xaxis.group_label_orientation = X_AXIS_LABELS_ORIENTATION
 plot.xaxis.major_label_orientation = X_AXIS_LABELS_ORIENTATION
 plot.xaxis.major_label_text_font_size = "10px"
+
 
 def cb_update_plot(attr, old, new):
     """Populate and update the plot."""
     curdoc().hold()
     global plot, source, data, data_no_dups, w_download_filename
     update_facets()
-    #keeping old data and getting new data
+
+    lg.warning("Update plot")
+    # keeping old data and getting new data
     old_data = data
     old_data_no_dups = data_no_dups
-    new_data,new_data_no_dups = get_data()
+    try:
+        new_data, new_data_no_dups = get_data()
+    except bex.GeneNotFoundException:
+        lg.warning(f"!! GENE NOT FOUND!")
+        curdoc().unhold()
+        return
 
     dataset_id, dataset = get_dataset()
     facet = w_facet.value
     gene = w_gene.value
 
-    #can we plot the new data?
+    # can we plot the new data?
     if len(new_data) == 0:
-        #no..
+        # no..
         warning_experiment.visible = True
         data = old_data
         data_no_dups = old_data_no_dups
-        #keep the old data.
+        # keep the old data.
     else:
-        #yes, update everything.
+        # yes, update everything.
         warning_experiment.visible = False
         data = new_data
         data_no_dups = new_data_no_dups
         source.data = data
         source_no_dups.data = data_no_dups
-        #mapper for color, and mapper for order. if found.
+        # mapper for color, and mapper for order. if found.
         mapper = get_mapper()
-        elements["vbar"].glyph.fill_color = {'field': coloring_scheme, 'transform': mapper}
+        elements["vbar"].glyph.fill_color = {
+            'field': coloring_scheme, 'transform': mapper}
         ordered_list = get_order()
         order = {key: i for i, key in enumerate(ordered_list)}
         try:
             xvals = data["cat_value"]
-            int_vals =  int(xvals[0])
+            int_vals = int(xvals[0])
             int_vals_sorted = sorted(list(set([int(x) for x in xvals])))
             int_vals_sorted = [str(x) for x in int_vals_sorted]
             plot.x_range.factors = int_vals_sorted
         except:
             xrangelist = list(set(data["cat_value"]))
             tupleval = xrangelist[0]
-            #check which is int
-            xrangelist = sorted(list(set(data["cat_value"])),key=lambda tup: tup[0])
+            # check which is int
+            xrangelist = sorted(
+                list(set(data["cat_value"])), key=lambda tup: tup[0])
             if tupleval[0].isdigit():
-                xrangelist = sorted(xrangelist,key=lambda x: int(x[0]))
+                xrangelist = sorted(xrangelist, key=lambda x: int(x[0]))
             else:
-                xrangelist = sorted(xrangelist,key=lambda x: x[0])
+                xrangelist = sorted(xrangelist, key=lambda x: x[0])
             if tupleval[1].isdigit():
-                xrangelist = sorted(xrangelist,key=lambda x: int(x[1]))
+                xrangelist = sorted(xrangelist, key=lambda x: int(x[1]))
             else:
-                xrangelist = sorted(xrangelist,key=lambda x: x[1])  
+                xrangelist = sorted(xrangelist, key=lambda x: x[1])
 
             plot.x_range.factors = xrangelist
-
 
     w_div_title_author.text = \
         f"""
@@ -424,10 +463,10 @@ def cb_update_plot(attr, old, new):
     ymax = data['_segment_top'].max() + yspacer
     ymin = data['_segment_bottom'].min() - yspacer
 
-    #fixing y range min max    
+    # fixing y range min max
     plot.y_range.update(start=ymin, end=ymax)
 
-    #title of plot
+    # title of plot
     title = dataset['short_title']
     if len(title) > 80:
         title = title[:77] + '...'
@@ -435,14 +474,14 @@ def cb_update_plot(attr, old, new):
                        f" - {dataset['organism']}"
                        f" - {dataset['first_author']} - {title}")
 
-    ##x-axis legend
+    # x-axis legend
     plot.yaxis.axis_label = f"{dataset['datatype']}"
-    #adding citation if found.
-
+    # adding citation if found.
 
     citation.text = f'{expset.get_legend_of_obs(dataset_id,facet)}. Number of mice shown was adapted to the selected combination of groups'
     curdoc().unhold()
-    return 
+    return
+
 
 # convenience shortcut
 update_plot = partial(cb_update_plot, attr=None, old=None, new=None)
@@ -460,6 +499,7 @@ def cb_dataset_change(attr, old, new):
     update_sibling_options()
     update_plot()
 
+
 def cb_sibling_change(attr, old, new):
     lg.debug("Sibling change: " + new)
     w_dataset_id.value = new
@@ -467,34 +507,41 @@ def cb_sibling_change(attr, old, new):
     update_genes()
     update_plot()
 
+
 w_gene.on_change("value", cb_update_plot)
 w_sibling.on_change("value", cb_sibling_change)
 w_dataset_id.on_change("value", cb_dataset_change)
 w_facet.on_change("value", cb_update_plot)
-w_facet2.on_change("value",cb_update_plot)
-w_download.js_on_event("button_click", CustomJS(args=dict(source=source, file_name = w_download_filename, jitter_name = w_facet3, facet1 = w_facet, facet2 = w_facet2),
-                            code=open(join(dirname(__file__), "templates/download_gene_expression.js")).read()))
+w_facet2.on_change("value", cb_update_plot)
+w_download.js_on_event("button_click", CustomJS(args=dict(source=source, file_name=w_download_filename, jitter_name=w_facet3, facet1=w_facet, facet2=w_facet2),
+                                                code=open(join(dirname(__file__), "templates/download_gene_expression.js")).read()))
 
-w_facet3.on_change("value",cb_update_plot)
+w_facet3.on_change("value", cb_update_plot)
 
 #
 # Build the document
 #
 curdoc().add_root(row([
     column([
+        column([warning_div],
+               sizing_mode="stretch_width",
+               ),
         column([
-        row([w_gene, w_facet,w_facet2],sizing_mode='scale_both'),
-        row([w_facet3,w_sibling, w_download],sizing_mode='scale_both'),
-        ]),
+            row([w_gene, w_facet, w_facet2],
+                sizing_mode='stretch_width'),
+            row([w_facet3, w_sibling, w_download],
+                sizing_mode='stretch_width'),
+        ], sizing_mode="stretch_width"),
         column([w_div_title_author]),
         column([w_dataset_id]),
-        column([warning_experiment],sizing_mode='scale_both'),
+        column([warning_experiment], sizing_mode='stretch_both'),
         column([table])
-        ]),
+    ], css_classes=['menu_column'],
+    ),
     column([
-        column([plot], sizing_mode='scale_both'),
-        column([citation], sizing_mode='scale_both'),
+        column([plot], sizing_mode='stretch_both'),
+        column([citation], sizing_mode='stretch_both'),
 
-    ])
-], sizing_mode='scale_both')
+    ], css_classes=['plot_column'],)
+], sizing_mode='stretch_both')
 )

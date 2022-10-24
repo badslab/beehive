@@ -1,4 +1,5 @@
 """Helper functions for beehive."""
+
 import subprocess as sp
 import hashlib
 import time
@@ -8,8 +9,23 @@ import pandas as pd
 import beehive
 import numpy as np
 import pymed
+import sqlite3
 
 lg = logging.getLogger(__name__)
+
+
+def get_geneset_db() -> sqlite3.Connection:
+    """Return database with genesets
+    """
+
+    geneset_db_folder = beehive.BASEDIR / 'geneset'
+
+    if not geneset_db_folder.exists():
+        geneset_db_folder.mkdir(parents=True)
+
+    gsdb = geneset_db_folder / 'geneset_db.sqlite'
+    print(gsdb)
+    return sqlite3.connect(gsdb)
 
 
 def dict_set(data, *args, overwrite=False):
@@ -59,20 +75,19 @@ def find_prq(dsid, ptype, check_exists=True):
 
     assert ptype in ['X', 'obs', 'var', 'gsea']
     name = f"{dsid}.{ptype}.prq"
-    prq_dir =  beehive.BASEDIR / 'prq' 
+    prq_dir = beehive.BASEDIR / 'prq'
     prq_file = prq_dir / name
 
     if prq_file.exists():
         return prq_file
 
-    #find alternative location:
+    # find alternative location:
     prq_file_alt = beehive.BASEDIR / 'data' / 'h5ad' / name
     if (not prq_file_alt.exists()) and check_exists:
         raise FileNotFoundError(f'Cannot find prq file {name}')
 
     return prq_file
-    
-    
+
 
 def get_datadir(name):
     """Return a bokeh view's data folder."""
