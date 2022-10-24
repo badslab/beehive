@@ -1,15 +1,18 @@
 """Helper functions for beehive."""
 
-import subprocess as sp
 import hashlib
-import time
 import logging
-from typing import List
-import pandas as pd
-import beehive
-import numpy as np
-import pymed
 import sqlite3
+import subprocess as sp
+import time
+from typing import List
+
+import colorcet as cc
+import numpy as np
+import pandas as pd
+import pymed
+
+import beehive
 
 lg = logging.getLogger(__name__)
 
@@ -124,10 +127,11 @@ def create_widget(name: str,
     Note - the js callback relies on a function called insertUrlParam
            being available.
     """
+    import random
+
+    from bokeh.models import RadioGroup
     from bokeh.models.callbacks import CustomJS
     from bokeh.models.widgets.inputs import AutocompleteInput
-    from bokeh.models import RadioGroup
-    import random
 
     assert curdoc is not None
 
@@ -251,9 +255,9 @@ def sizeof_fmt(num, suffix='B'):
 
 
 def diskcache(where='~/.cache/simple_disk_cache/', refresh=False, verbose=False):
-    from pathlib import Path
     import inspect
     import pickle
+    from pathlib import Path
 
     where = Path(where).expanduser()
 

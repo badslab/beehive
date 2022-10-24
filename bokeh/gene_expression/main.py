@@ -1,23 +1,25 @@
 from __future__ import generator_stop
 
-from functools import partial
 import logging
+from functools import partial
 from os.path import dirname, join
 
 import pandas as pd
-
 from bokeh.layouts import column, row
-from bokeh.models import ColumnDataSource, Range1d, \
-    DataTable, TableColumn, ScientificFormatter
+from bokeh.models import (
+    ColumnDataSource,
+    DataTable,
+    Range1d,
+    ScientificFormatter,
+    TableColumn,
+)
 from bokeh.models.callbacks import CustomJS
-from bokeh.models.widgets import (Select, Div,
-                                  Button, AutocompleteInput)
-from bokeh.plotting import figure, curdoc
-from bokeh.transform import jitter, CategoricalColorMapper
+from bokeh.models.widgets import AutocompleteInput, Button, Div, Select
+from bokeh.plotting import curdoc, figure
+from bokeh.transform import CategoricalColorMapper, jitter
 
-from beehive import config, util, expset
 import beehive.exceptions as bex
-
+from beehive import config, expset, util
 
 lg = logging.getLogger('GeneExp')
 lg.setLevel(logging.DEBUG)
@@ -206,11 +208,12 @@ def get_data() -> pd.DataFrame:
     facet = w_facet.value
     facet2 = w_facet2.value
     facet3 = w_facet3.value
-
+    
     if w_facet.value == gene:
         coloring_scheme = f'{w_facet.value}_category_y'
     else:
         coloring_scheme = f'{w_facet.value}_x'
+        
     if w_facet2.value == "--":
         coloring_scheme = "cat_value"
 
@@ -260,12 +263,15 @@ def get_order():
 # Create plot
 #
 plot = figure(background_fill_color="#efefef", x_range=[], title="Plot",
-              toolbar_location='right', tools="save", sizing_mode="fixed", width=800, height=600)
+              toolbar_location='right', tools="save", sizing_mode="fixed", 
+              width=800, height=600)
 
 
 data, data_no_dups = get_data()
-warning_experiment = Div(text="""<b>The selected combination of conditions was not tested in the manuscript, 
-please see experimental design and select an alternative view.</b>""", visible=False, style={'color': 'red'})
+warning_experiment = Div(
+    text="<b>The selected combination of conditions was not tested in "
+    "the manuscript, please see experimental design and select an "
+    "alternative view.</b>""", visible=False, style={'color': 'red'})
 
 # can we plot the data?
 if len(data) == 0:
@@ -358,9 +364,9 @@ try:
     xvals = data["cat_value"]
     int_vals = int(xvals[0])
     int_vals_sorted = sorted(list(set([int(x) for x in xvals])))
-    int_vals_sorted = [str(x) for x in int_vals_sorted]
-    plot.x_range.factors = int_vals_sorted
-except:
+    int_vals_sorted_str = [str(x) for x in int_vals_sorted]
+    plot.x_range.factors = int_vals_sorted_str
+except Exception:
     xrangelist = list(set(data["cat_value"]))
     tupleval = xrangelist[0]
     # check which is int
@@ -394,7 +400,7 @@ def cb_update_plot(attr, old, new):
     try:
         new_data, new_data_no_dups = get_data()
     except bex.GeneNotFoundException:
-        lg.warning(f"!! GENE NOT FOUND!")
+        lg.warning("!! GENE NOT FOUND!")
         curdoc().unhold()
         return
 
@@ -420,15 +426,14 @@ def cb_update_plot(attr, old, new):
         mapper = get_mapper()
         elements["vbar"].glyph.fill_color = {
             'field': coloring_scheme, 'transform': mapper}
-        ordered_list = get_order()
-        order = {key: i for i, key in enumerate(ordered_list)}
+        # ordered_list = get_order()
+        # order = {key: i for i, key in enumerate(ordered_list)}
         try:
             xvals = data["cat_value"]
-            int_vals = int(xvals[0])
             int_vals_sorted = sorted(list(set([int(x) for x in xvals])))
             int_vals_sorted = [str(x) for x in int_vals_sorted]
             plot.x_range.factors = int_vals_sorted
-        except:
+        except Exception:
             xrangelist = list(set(data["cat_value"]))
             tupleval = xrangelist[0]
             # check which is int

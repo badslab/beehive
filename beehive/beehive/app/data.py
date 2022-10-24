@@ -1,20 +1,21 @@
 """helpers for the gene expression app."""
 
-from functools import partial
-import logging
 import copy
+import logging
 import os
+import shutil
 import time
+from functools import partial
 from pathlib import Path
 from pprint import pprint
-import shutil
+from typing import Dict, List, Optional
 
+import numpy as np
 import typer
-from typer import echo
-from typing import List, Optional, Dict
 import yaml
+from typer import echo
 
-from beehive import util, expset
+from beehive import expset, util
 from beehive.util import dict_set
 
 app = typer.Typer()
@@ -24,15 +25,12 @@ lg = logging.getLogger(__name__)
 
 def value_typer(key, val):
     """Convert values to the correct datatype - if necessary"""
-    if key in ['year']:
+    if key in ["year"]:
         return int(val)
     return val
 
 
-def check_yaml(dataset_id,
-               data,
-               overwrite=False,
-               **defaults):
+def check_yaml(dataset_id, data, overwrite=False, **defaults):
     """Check YAML & fixes it where possible"""
 
     import pandas as pd
@@ -40,11 +38,11 @@ def check_yaml(dataset_id,
     tds = partial(dict_set, data, overwrite=overwrite)
 
     incoming_uid = util.make_hash_sha256(data)
-    mandatory_fields = '''
+    mandatory_fields = """
         author title datatype organism short_title study year
-        '''.split()
-    optional_fields = '''
-        description '''.split()
+        """.split()
+    optional_fields = """
+        description """.split()
 
     problems = []
     warnings = []
@@ -64,88 +62,100 @@ def check_yaml(dataset_id,
             else:
                 warnings.append(f"Missing optional field: {mf}")
 
-    if not isinstance(data['year'], int):
-        problems.append("Year is not an integer: " + str(data['year']))
+    if not isinstance(data["year"], int):
+        problems.append("Year is not an integer: " + str(data["year"]))
 
-    if data['organism'] not in ['human', 'mouse', 'human+mouse']:
-        problems.append("Unexpected organism: " + data['organism'])
+    if data["organism"] not in ["human", "mouse", "human+mouse"]:
+        problems.append("Unexpected organism: " + data["organism"])
 
     obs_columns = expset.get_obsfields(dataset_id)
     var_columns = expset.get_varfields(dataset_id)
     if len(var_columns) > 200:
         warnings.append(
-            f"Var table might be transposed - {len(var_columns)} "
-            "columns found")
+            f"Var table might be transposed - {len(var_columns)} " 
+            "columns found"
+        )
         print(var_columns[:5])
 
-    if 'obs_meta' not in data:
-        data['obs_meta'] = {}
+    if "obs_meta" not in data:
+        data["obs_meta"] = {}
 
-    if 'de_meta' not in data:
-        data['de_meta'] = {}
+    if "diffexp" not in data:
+        data["diffexp"] = {}
 
-    obm = data['obs_meta']
+    obm = data["obs_meta"]
 
-    if 'de_data_2' in data:
-        del data['de_data_2']
+    if "de_data_2" in data:
+        del data["de_data_2"]
 
     for de_field in var_columns:
-        if de_field.startswith('_'):
+        if de_field.startswith("_"):
             continue
 
-        if not de_field.endswith('__lfc'):
+        if not de_field.endswith("__lfc"):
             continue
 
-        col_padj = de_field[:-5] + '__padj'
+        col_padj = de_field[:-5] + "__padj"
         dename = de_field[:-5]
         assert col_padj in var_columns
-        tds2 = partial(tds, 'de_meta', dename)
-        tds2('name', dename)
+        tds2 = partial(tds, "diffexp", dename)
+        tds2("name", dename)
 
-        if de_field.count('__') == 2:
-            obsfield, obsval, _ = de_field.split('__')
+        if de_field.count("__") == 2:
+            obsfield, obsval, _ = de_field.split("__")
             if obsfield in obs_columns:
-                tds2('obs_field', obsfield)
+                tds2("obs_field", obsfield)
                 # TODO: add obs_compare and obs_against!
             else:
-                warn_message = (f'Cannot find DE field "{obsfield}" '
-                                'in obs table')
+                warn_message = \
+                    f'Cannot find DE field "{obsfield}" ' "in obs table"
                 if warn_message not in warnings:
                     warnings.append(warn_message)
 
     for obs_col in obs_columns:
 
         # shortcut - to easily set
-        tds2 = partial(tds, 'obs_meta', obs_col)
-        tds2('name', obs_col)
+        tds2 = partial(tds, "obs_meta", obs_col)
+        tds2("name", obs_col)
 
-        fields = pd.Series(expset.get_meta(
-            dataset_id, obs_col, raw=True)).iloc[0]
+        fields_raw = expset.get_meta(dataset_id, obs_col, raw=True)
+        fields = fields_raw.to_pandas()[obs_col]
+        # fields = pd.Series(fields_raw).iloc[0]
         var_columns = expset.get_varfields(dataset_id)
-        DE_fields = [x[:-5] for x in var_columns if x.endswith('__lfc')]
+        DE_fields = [x[:-5] for x in var_columns if x.endswith("__lfc")]
         no_unique = len(fields.unique())
 
-        odtype = obm[obs_col].get('dtype')
+        odtype = obm[obs_col].get("dtype")
 
-        if fields.is_numeric():
+        print(obs_col, type(fields.dtype), odtype)
+
+        print(fields)
+        if fields.dtype == "category":
+            print("cat??")
+        elif np.issubdtype(fields.dtype, np.number):
             if odtype is not None:
-                if odtype not in ['numerical', 'skip']:
+                if odtype not in ["numerical", "skip"]:
                     warnings.append(
-                        (f"Field{obs_col} seems numeric, yet is "
-                         f"assigned as {odtype} "))
+                        (
+                            f"Field{obs_col} seems numeric, yet is "
+                            f"assigned as {odtype} "
+                        )
+                    )
             else:
                 messages.append(f"Assigned field {obs_col} as numerical")
-                tds2('dtype', 'numerical')
+                tds2("dtype", "numerical")
                 if no_unique < 15:
                     warnings.append(
                         f"Numerical field {obs_col} has only {no_unique} "
-                        "unique values - is this not a categorical?")
+                        "unique values - is this not a categorical?"
+                    )
         else:
             if odtype is not None:
-                if odtype not in ['categorical', 'skip']:
+                if odtype not in ["categorical", "skip"]:
                     warnings.append(
                         f"Field{obs_col} seems categorical, yet is "
-                        f"assigned as {odtype} ")
+                        f"assigned as {odtype} "
+                    )
             else:
                 messages.append(f"Assigned field {obs_col} as categorical")
                 if no_unique > 20:
@@ -153,50 +163,56 @@ def check_yaml(dataset_id,
                     warnings.append(
                         f"Field `{obs_col}` appears categorical but has "
                         f"{no_unique} unique values - Skipping! - "
-                        f"(first few:  {ff})")
-                    tds2('dtype', 'skip')
+                        f"(first few:  {ff})"
+                    )
+                    tds2("dtype", "skip")
                 else:
-                    tds2('dtype', 'categorical')
+                    tds2("dtype", "categorical")
 
-            if no_unique <= 20 and 'values' not in obm[obs_col]:
+            if no_unique <= 20 and "values" not in obm[obs_col]:
                 # metadata per possible value type:
-                values = {str(a): dict(name=str(a))
-                          for a in sorted(fields.unique(), key=str)}
+                values = {
+                    str(a): dict(name=str(a)) 
+                    for a in sorted(fields.unique(), key=str)
+                }
 
                 for vk, vv in values.items():
                     dekey = f"{obs_col}__{vk}"
                     if dekey in DE_fields:
-                        vv['DE_prefix'] = dekey
-                obm[obs_col]['values'] = values
+                        vv["DE_prefix"] = dekey
+                obm[obs_col]["values"] = values
 
     outgoing_uid = util.make_hash_sha256(data)
     return incoming_uid != outgoing_uid, problems, warnings, messages
 
 
 @app.command("check")
-def data_check(yaml_file: Path = typer.Argument(..., exists=True),
-               defaults: List[str] = typer.Argument(None),
-               overwrite: bool = typer.Option(False, '--overwrite', '-o',
-                                              help="Overwrite keys in YAML"),):
+def data_check(
+    yaml_file: Path = typer.Argument(..., exists=True),
+    defaults: List[str] = typer.Argument(None),
+    overwrite: bool = typer.Option(
+        False, "--overwrite", "-o", help="Overwrite keys in YAML"
+    ),
+):
 
-    dataset_id = str(yaml_file.name).replace('.yaml', '')
+    dataset_id = str(yaml_file.name).replace(".yaml", "")
     lg.info(f"processing dataset {dataset_id}")
 
     defaults_dict = {}
     for d in defaults:
-        if '=' not in d:
+        if "=" not in d:
             print(f"invalid default: {d}")
             exit(-1)
 
-        k, v = d.split('=', 1)
+        k, v = d.split("=", 1)
         defaults_dict[k] = value_typer(k, v)
 
     with open(yaml_file) as F:
         yml = yaml.load(F, Loader=yaml.SafeLoader)
 
-    changed, problems, warnings, messages\
-        = check_yaml(dataset_id, yml, overwrite=overwrite,
-                     **defaults_dict)
+    changed, problems, warnings, messages = check_yaml(
+        dataset_id, yml, overwrite=overwrite, **defaults_dict
+    )
 
     if len(problems) == 0:
         print("No problems found")
@@ -221,7 +237,7 @@ def data_check(yaml_file: Path = typer.Argument(..., exists=True),
         lg.warning(f"yaml changed - saving to {yaml_file}")
         lg.warning(f"old yaml file backed up to {backup_file}")
         shutil.move(str(yaml_file), backup_file)
-        with open(yaml_file, 'w') as F:
+        with open(yaml_file, "w") as F:
             yaml.dump(yml, F, Dumper=yaml.SafeDumper)
     else:
         lg.info("Yaml file did not change - not updating")
@@ -230,14 +246,16 @@ def data_check(yaml_file: Path = typer.Argument(..., exists=True),
 @app.command("transpose_var")
 def transpose_var(
     var_prq: Path = typer.Argument(..., exists=True),
-    idx_name: str = typer.Argument('?', help='name of index'),
-    doit: bool = typer.Option(False, '--doit', '-d',
-                              help="Actually do it - otherwise check"),):
+    idx_name: str = typer.Argument("?", help="name of index"),
+    doit: bool = typer.Option(
+        False, "--doit", "-d", help="Actually do it - otherwise check"
+    ),
+):
     import pandas as pd
 
     v = pd.read_parquet(var_prq)
 
-    if idx_name == '?':
+    if idx_name == "?":
         print("first column names:")
         print(" ".join(v.columns[:10]))
         print("last column names:")
@@ -246,7 +264,7 @@ def transpose_var(
         return
 
     v = v.set_index(idx_name).T
-    v.index.name = 'gene'
+    v.index.name = "gene"
     print("Columns: ", " ".join(map(str, v.columns[:3])))
     print("Columns: ", " ".join(map(str, v.index[:3])))
     print(v.iloc[:3, :3])

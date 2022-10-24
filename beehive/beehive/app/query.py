@@ -1,30 +1,25 @@
 """helpers for the gene expression app."""
 
-from functools import partial
 import hashlib
 import logging
 import os
 import pickle
 import sqlite3
-
-import pandas as pd
+from functools import partial
 from pathlib import Path
 from pprint import pprint
+from typing import Dict, List, Optional
+
 import gseapy as gp
+import pandas as pd
 import polars as pl
-import yaml
-
-
 import typer
+import yaml
 from typer import echo
-from typing import List, Optional, Dict
 
 import beehive
-from beehive import util, expset
-from beehive.util import dict_set, diskcache, query_pubmed, \
-    get_geneset_db
-from beehive import util, expset
-
+from beehive import expset, util
+from beehive.util import dict_set, diskcache, get_geneset_db, query_pubmed
 
 app = typer.Typer()
 

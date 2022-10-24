@@ -1,19 +1,18 @@
-from ast import Pass
-from functools import partial, lru_cache
-from itertools import groupby
 import logging
+from ast import Pass
+from functools import lru_cache, partial
+from itertools import groupby
 from ssl import VERIFY_X509_TRUSTED_FIRST
 from typing import Dict, List, Tuple
 
-
-import pandas as pd
 import numpy as np
+import pandas as pd
 import polars as pl
 import yaml
 
+import beehive.exceptions as bex
 from beehive import util
 from beehive.util import find_prq, get_geneset_db
-import beehive.exceptions as bex
 
 WARNED_NO_GENE_COL = False
 
@@ -32,14 +31,15 @@ diskcache = partial(
 # @lru_cache(1)
 
 
-def get_datasets(has_de: bool = False, view_name: str = ""):
+def get_datasets(has_de: bool = False, 
+                 view_name: str = None):
     """Return a dict with all dataset."""
 
     DATASETS: Dict[str, Dict] = {}
     # DATASETS = dict()
 
     datadir = util.get_datadir("h5ad")
-
+    
     # global DATASETS
     if len(DATASETS) == 0:
         for yamlfile in datadir.glob("*.yaml"):
@@ -48,7 +48,8 @@ def get_datasets(has_de: bool = False, view_name: str = ""):
             basename = basename.replace(".yaml", "")
             with open(yamlfile, "r") as F:
                 y = yaml.load(F, Loader=yaml.SafeLoader)
-                if view_name and (view_name not in y["use_in_view"]):
+                if (view_name is not None) \
+                        and (view_name not in y["use_in_view"]):
                     use = False
                 authors = y["author"].split(",")
                 authors = [x.strip() for x in authors]
@@ -262,36 +263,36 @@ def get_gene_meta_three_facets(
     )
 
     # switch to dfs
-    rv_combined = rv_combined.to_pandas()
-    rv_mouseid = rv_mouseid.to_pandas()
+    df_combined = rv_combined.to_pandas()
+    df_mouseid = rv_mouseid.to_pandas()
 
     # calculate other measures
-    rv_combined['perc'] = 100 * rv_combined['count'] / \
-        rv_combined['count'].sum()
-    rv_combined['_segment_top'] = rv_combined['q99']
-    rv_combined['_bar_top'] = rv_combined['q75']
-    rv_combined['_bar_median'] = rv_combined['median']
-    rv_combined['_bar_bottom'] = rv_combined['q25']
-    rv_combined['_segment_bottom'] = rv_combined['q01']
+    df_combined['perc'] = 100 * df_combined['count'] / \
+        df_combined['count'].sum()
+    df_combined['_segment_top'] = df_combined['q99']
+    df_combined['_bar_top'] = df_combined['q75']
+    df_combined['_bar_median'] = df_combined['median']
+    df_combined['_bar_bottom'] = df_combined['q25']
+    df_combined['_segment_bottom'] = df_combined['q01']
 
     # manipulation to get the ["X"] columns as the factors
     if not (emptyDF):
-        rv_combined["x"] = rv_combined[[
+        df_combined["x"] = df_combined[[
             new_meta2, new_meta]].apply(tuple, axis=1)
-        rv_combined.sort_values(
+        df_combined.sort_values(
             by="x", key=lambda col: col.str[0], inplace=True)
-        rv_combined.sort_values(
+        df_combined.sort_values(
             by="x", key=lambda col: col.str[1], inplace=True)
 
-        rv_mouseid["x"] = rv_mouseid[[
+        df_mouseid["x"] = df_mouseid[[
             new_meta2, new_meta]].apply(tuple, axis=1)
-        rv_mouseid.sort_values(
+        df_mouseid.sort_values(
             by="x", key=lambda col: col.str[0], inplace=True)
-        rv_mouseid.sort_values(
+        df_mouseid.sort_values(
             by="x", key=lambda col: col.str[1], inplace=True)
 
     # merge on the just created ["X"] column
-        final_rv = pd.merge(rv_combined, rv_mouseid, on="x")
+        final_rv = pd.merge(df_combined, df_mouseid, on="x")
         # sort..
         final_rv.sort_values(by="x", key=lambda col: col.str[0], inplace=True)
         final_rv.sort_values(by="x", key=lambda col: col.str[1], inplace=True)
@@ -301,7 +302,7 @@ def get_gene_meta_three_facets(
         # sort the column for colors to be displayed..
         final_rv.sort_values(by=f'{new_meta}_y', inplace=True)
     else:
-        final_rv = pd.merge(rv_combined, rv_mouseid, on=new_meta)
+        final_rv = pd.merge(df_combined, df_mouseid, on=new_meta)
         final_rv = final_rv.rename(columns={new_meta: "cat_value"})
 
     return final_rv
@@ -407,10 +408,11 @@ def get_gene(dsid, gene):
     return rv
 
 
-def get_defields(dsid, view_name):
+def get_defields(dsid, view_name=None):
     ds = get_dataset(dsid, view_name)
     dex = ds.get("diffexp")
-    return list(dex.keys())
+    return [(a, b.get('name', a)) 
+            for (a,b) in dex.items()]
 
 
 def get_gsea_data(
@@ -466,10 +468,15 @@ def get_gsea_data(
              INNER JOIN groups 
                      ON groups.group_hash = genesets.group_hash
              WHERE genesets.geneset_hash IN {in_stm} 
-             LIMIT 5""", gsd)
+             LIMIT 200""", gsd)
 
+    # remove duplicate study_hash in table
+    gsdata = gsdata.T.drop_duplicates().T
+    
     gd = gd.merge(gsdata,  left_on='set_hash',
                   right_on='geneset_hash')
+    
+    gd['no_genes'] = gd['genes'].apply(lambda x: len(x.split()))
     del gd['index']
     return gd
 
@@ -600,7 +607,6 @@ def get_defaults(dsid, view_name: str = ""):
 
 def get_meta(dsid, col, raw=False, nobins=8, view_name: str = ""):
     """Return one obs column."""
-    datadir = util.get_datadir("h5ad")
     rv = pl.read_parquet(find_prq(dsid, 'obs'), [col])
 
     if raw:

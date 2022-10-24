@@ -1,31 +1,28 @@
 """helpers for the gene expression app."""
 
-from functools import partial
 import copy
 import hashlib
 import logging
 import os
 import pickle
+import shutil
 import sqlite3
 import time
-
-import pandas as pd
+from functools import partial
 from pathlib import Path
 from pprint import pprint
-import gseapy as gp
-import polars as pl
-import shutil
-import yaml
+from typing import Dict, List, Optional
 
+import gseapy as gp
+import pandas as pd
+import polars as pl
 import typer
+import yaml
 from typer import echo
-from typing import List, Optional, Dict
 
 import beehive
-from beehive import util, expset
-from beehive.util import dict_set, diskcache, \
-    query_pubmed, get_geneset_db
-
+from beehive import expset, util
+from beehive.util import dict_set, diskcache, get_geneset_db, query_pubmed
 
 app = typer.Typer()
 
@@ -162,15 +159,15 @@ def gsea(dsid: str = typer.Argument(..., help='Dataset'), ):
     with Pool() as P:
         results = P.map(run_one_gsea_cached, runs)
 
-    allres = []
+    allres_raw = []
     for gh, lfc, res in sorted(results, key=lambda x: x[1]):
         res = res.rename(
             columns=dict(nes=lfc + '__nes',
                          fdr=lfc + '__fdr'))
-        allres.append(
+        allres_raw.append(
             res.melt(id_vars='group_hash', var_name='columns'))
 
-    allres = pd.concat(allres, axis=0)
+    allres = pd.concat(allres_raw, axis=0)
     allres = allres.pivot(index='group_hash',
                           columns='columns',
                           values='value')
@@ -333,7 +330,7 @@ def import_geneset(
             group_genes_df.index.name = 'geneset_hash'
             group_genes_df = group_genes_df.reset_index()
             group_genes_df = group_genes_df[
-                ['geneset_hash',  'group_hash', 'study_hash', 'title',
+                ['geneset_hash', 'group_hash', 'study_hash', 'title',
                  'type', 'direction', 'genes']].copy()
 
             lg.info(f"    - writing to {group_output_folder}", )
