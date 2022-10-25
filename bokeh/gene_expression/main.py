@@ -9,9 +9,11 @@ from bokeh.layouts import column, row
 from bokeh.models import (
     ColumnDataSource,
     DataTable,
+    Panel,
     Range1d,
     ScientificFormatter,
     TableColumn,
+    Tabs,
 )
 from bokeh.models.callbacks import CustomJS
 from bokeh.models.widgets import AutocompleteInput, Button, Div, Select
@@ -37,7 +39,7 @@ datasets = expset.get_datasets(view_name=VIEW_NAME)
 args = curdoc().session_context.request.arguments
 
 # WIDGETS
-w_div_title_author = Div(text="", width=400, height=200)
+w_div_title_author = Div(text="", sizing_mode='stretch_width')
 warning_div = Div(text="nothing good about this",
                   sizing_mode="stretch_both",
                   css_classes=['beehive_warning'])
@@ -49,12 +51,16 @@ dataset_options = [(k, "{short_title}, {short_author}, {datatype}".format(**v))
 w_dataset_id = create_widget("dataset_id", Select, title="Dataset",
                              options=dataset_options,
                              default=dataset_options[0][0],
-                             visible=True, height=30, width=400)
+                             visible=False, 
+                             sizing_mode='stretch_width',
+                             )
 
-w_sibling = create_widget("view", Select,
+w_sibling = create_widget("Data variant", Select,
                           options=[],
                           default=w_dataset_id.value,
-                          update_url=False, height=20, width=150)
+                          update_url=False, 
+                          sizing_mode='stretch_width',
+                          )
 
 
 def update_sibling_options():
@@ -84,15 +90,18 @@ update_sibling_options()
 
 w_gene = create_widget("gene", AutocompleteInput, restrict=False,
                        completions=[], default='APOE', case_sensitive=False,
-                       height=50, width=150)
+                       sizing_mode='stretch_width')
 
 w_facet = create_widget("facet", Select, options=[],
-                        title="Group by level 1:", height=50, width=150)
+                        title="Group by level 1:", 
+                        sizing_mode='stretch_width')
 w_facet2 = create_widget("facet2", Select, options=[],
-                         title="Group by level 2:", height=50, width=150)
+                         title="Group by level 2:", sizing_mode='stretch_width')
 w_facet3 = create_widget("facet3", Select, options=[],
-                         title="Jitter points Average:", height=50, width=150)
-w_download = Button(label='Download', align='end', height=50, width=150)
+                         title="Jitter points Average:", 
+                         sizing_mode='stretch_width')
+w_download = Button(label='Download', align='end')
+
 w_download_filename = Div(text="", visible=False,
                           name="download_filename")
 
@@ -452,12 +461,10 @@ def cb_update_plot(attr, old, new):
 
     w_div_title_author.text = \
         f"""
-        <ul>
-          <li><b>Title:</b> {dataset['title']}</li>
-          <li><b>Author:</b> {dataset['author']}</li>
-          <li><b>Organism / Datatype:</b>
-              {dataset['organism']} / {dataset['datatype']}</li>
-        </ul>
+        <b>{dataset['title']}</b><br>
+        <i>{dataset['short_author']}</i><br>
+        Organism: {dataset['organism']}<br>
+        Datatype: {dataset['datatype']}
         """
 
     w_download_filename.text = f"exp_{dataset_id}_{facet}_{gene}.csv"
@@ -518,35 +525,40 @@ w_sibling.on_change("value", cb_sibling_change)
 w_dataset_id.on_change("value", cb_dataset_change)
 w_facet.on_change("value", cb_update_plot)
 w_facet2.on_change("value", cb_update_plot)
-w_download.js_on_event("button_click", CustomJS(args=dict(source=source, file_name=w_download_filename, jitter_name=w_facet3, facet1=w_facet, facet2=w_facet2),
-                                                code=open(join(dirname(__file__), "templates/download_gene_expression.js")).read()))
+w_download.js_on_event("button_click", CustomJS(
+    args=dict(source=source, file_name=w_download_filename, 
+              jitter_name=w_facet3, facet1=w_facet, facet2=w_facet2),
+              code=open(join(dirname(__file__), "templates/download_gene_expression.js")).read()))
 
 w_facet3.on_change("value", cb_update_plot)
 
 #
 # Build the document
 #
-curdoc().add_root(row([
-    column([
-        column([warning_div],
-               sizing_mode="stretch_width",
-               ),
-        column([
-            row([w_gene, w_facet, w_facet2],
-                sizing_mode='stretch_width'),
-            row([w_facet3, w_sibling, w_download],
-                sizing_mode='stretch_width'),
-        ], sizing_mode="stretch_width"),
-        column([w_div_title_author]),
-        column([w_dataset_id]),
-        column([warning_experiment], sizing_mode='stretch_both'),
-        column([table])
-    ], css_classes=['menu_column'],
-    ),
-    column([
-        column([plot], sizing_mode='stretch_both'),
-        column([citation], sizing_mode='stretch_both'),
 
-    ], css_classes=['plot_column'],)
+# column([warning_div],
+#        sizing_mode="stretch_width",
+#        ),
+
+menucol = column([
+    w_div_title_author,
+    w_gene,
+    w_facet,
+    w_facet2,
+    w_facet3,
+    w_sibling,
+    w_dataset_id,
+    warning_experiment,
+    ], sizing_mode='fixed', width=350,)
+
+PlotTab = Panel(child=plot, title="Plot")
+TableTab = Panel(child=column([table, w_download]), title="Table")
+
+
+curdoc().add_root(row([
+    menucol, 
+    Tabs(tabs=[PlotTab, TableTab],  tabs_location = 'right')
 ], sizing_mode='stretch_both')
 )
+
+
