@@ -57,7 +57,7 @@ def get_datasets(has_de: bool = False,
                 if len(authors) < 3:
                     y["short_author"] = y["author"]
                 else:
-                    y["short_author"] = authors[0] + ".." + authors[-1]
+                    y["short_author"] = authors[0] + " .. " + authors[-1]
 
                 if "short_title" not in y:
                     if len(y["title"]) >= 65:

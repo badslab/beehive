@@ -159,40 +159,16 @@ def gsea(
     with Pool(threads) as P:
         results = P.map(run_one_gsea_cached, runs)
 
-<<<<<<< HEAD
     allres_raw = []
-=======
-    allres = []
-    
->>>>>>> b4f6b76a702a67910e0686fbbeaa3ef4abf0cfd8
     for gh, lfc, res in sorted(results, key=lambda x: x[1]):
         res = res.rename(
             columns=dict(nes=lfc + '__nes',
                          fdr=lfc + '__fdr'))
-<<<<<<< HEAD
         allres_raw.append(
             res.melt(id_vars='group_hash', var_name='columns'))
 
     allres = pd.concat(allres_raw, axis=0)
     allres = allres.pivot(index='group_hash',
-=======
-        allres.append(
-            res.melt(id_vars='set_hash', var_name='columns'))
-
-    allres = pd.concat(allres, axis=0)
-
-    ar2 = allres.copy()
-    ar2[['name', 'stat']] = ar2['columns']\
-        .str.rsplit(pat='__', n=1, expand=True)
-    ar2 = ar2.pivot(index=['set_hash', 'name'], columns='stat', values='value')
-    ar2 = ar2.reset_index()
-    geneset_db = get_geneset_db()
-    ar2.to_sql('gsea', geneset_db, if_exists='replace', index=False)
-    geneset_db.execute('''CREATE INDEX IF NOT EXISTS gsea_index
-                          ON gsea (set_hash, name, fdr, nes)''')
-
-    allres = allres.pivot(index='set_hash',
->>>>>>> b4f6b76a702a67910e0686fbbeaa3ef4abf0cfd8
                           columns='columns',
                           values='value')
 
