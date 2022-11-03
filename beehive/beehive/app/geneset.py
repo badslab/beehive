@@ -180,8 +180,10 @@ def gsea(
     allres_pl.write_parquet(output_file)
 
 
-@ app.command('create_db')
-def create_db():
+@ app.command('create-db')
+def create_db(
+    dsid: str = typer.Argument(..., help='Dataset'),
+    ):
 
     all_group_data = []
     all_gene_data = []
@@ -220,6 +222,64 @@ def create_db():
     geneset_db.commit()
     geneset_db.close()
 
+@app.command('gsea-export')
+def gsea_export(
+    dsid: str = typer.Argument(..., help='Dataset'),
+    output_folder: str = typer.Argument(...)
+    ):
+    
+    output_folder = Path(output_folder).expanduser()
+    if not output_folder.exists():
+        output_folder.mkdir(parents=True)
+    
+    gsea_file = util.find_prq(dsid, 'gsea')
+    lg.info(f"gsea parquet file {gsea_file}")
+    gsea = pl.read_parquet(gsea_file).to_pandas()
+    gsea = gsea.set_index('group_hash')
+    gsea.index.name = 'geneset_hash'
+
+    gsdb = get_geneset_db()
+    gsets = pd.read_sql(
+        ''' SELECT gs.geneset_hash,
+                   gs.title as title,
+                   gs.type as type,
+                   gs.direction as direction,
+                   gs.genes as genes,
+                   gr.organism as organism,
+                   gr.study_title as study_title,
+                   gr.study_author as study_author,
+                   gr.study_year as study_year
+              FROM genesets as gs, groups as gr
+             WHERE gs.group_hash = gr.group_hash
+        ''', gsdb)
+    gsets['no_genes'] = gsets['genes'].str.split().apply(len)
+    del gsets['genes']
+    gsets = gsets.set_index('geneset_hash')
+    assert gsets.index.is_unique
+    print(gsets.head(2).T)
+    gsea_runs = list(set(
+        gsea.columns.str.rsplit('__', n=1).str.get(0)))
+    
+    unknown_sets =set(gsea.index) - set(gsets.index)
+    known_sets = list(set(gsea.index) & set(gsets.index))
+    if len(unknown_sets) > 0:
+        
+        lg.warning(f"unkonwn genesets {len(unknown_sets)} found?")
+        lg.warning("your geneset database is not up to date?")
+        
+    lg.info(f"exporting {len(known_sets)} known gsets")
+    
+    for gr in gsea_runs:
+        d = pd.DataFrame(dict(
+            fdr = gsea[f"{gr}__fdr"],
+            nes = gsea[f"{gr}__nes"]))
+        d = d.join(gsets, how='left')
+        d = d.sort_values(by='fdr')
+        output_name = f"gsea__{dsid}__{gr}.tsv"
+        output_file = output_folder / output_name
+        print(f'export to {output_file}')
+        d.to_csv(f"{output_file}")
+        
 
 
 @diskcache()
