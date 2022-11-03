@@ -1,6 +1,7 @@
 """helpers for the gene expression app."""
 
 import copy
+from datetime import datetime
 import hashlib
 import logging
 import os
@@ -220,6 +221,80 @@ def create_db():
     geneset_db.close()
 
 
+
+@diskcache()
+def import_one_from_enrichr(organism, geneset):
+    lg.info("downloading from enrichr")
+    return gp.get_library(name=geneset, organism=organism)
+    
+@ app.command('import-enrichr')
+def import_enrichr(
+        geneset: str,
+        organism = typer.Option('Human', '--organism', '-o'),
+        ):
+    
+    """ @Todo: organism support? Now sticking with human
+    """
+    print(organism, geneset)
+    enrgenes = import_one_from_enrichr(organism, geneset)
+
+    output_folder = beehive.BASEDIR / 'geneset' / 'prep'
+    if not output_folder.exists():
+        output_folder.mkdir(parents=True)
+
+    now = datetime.now()
+    study_info = dict(title='enrichr',
+                      year=now.year,
+                      author='enrichr')
+    study_hash = get_hash(**study_info)
+    group_info = dict(title=geneset,
+                      organism=organism.lower(),
+                      ranktype='geneset',
+                      year=now.year,
+                      author='enrichr')
+    group_hash = get_hash(study_hash, **group_info)
+    group_info_2 = dict(
+        study_title=study_info['title'],
+        study_year=study_info['year'],
+        study_author=study_info['author'],
+        ranktype=group_info['ranktype'],
+        organism=group_info['organism'],
+        group_title=group_info['title'],
+        study_hash=study_hash[:10],
+        group_hash=group_hash[:10])
+
+    group_output_folder = output_folder / group_hash[:10]
+    if not group_output_folder.exists():
+        group_output_folder.mkdir()
+
+    with open(group_output_folder / 'group.yaml', 'w') as F:
+        yaml.dump(group_info_2, F)
+
+    group_genes = {}
+    
+    for gsr_title, genes in enrgenes.items():
+        gsr_hash = get_hash(group_hash, *genes)[:10]
+        group_genes[gsr_hash] = dict(
+            genes=" ".join(genes),
+            group_hash=group_hash[:10],
+            study_hash=study_hash[:10],
+            type='geneset', direction='-',
+            title=gsr_title)
+
+    group_genes_df = pd.DataFrame(group_genes).T
+    group_genes_df.index.name = 'geneset_hash'
+    group_genes_df = group_genes_df.reset_index()
+    group_genes_df = group_genes_df[
+        ['geneset_hash', 'group_hash', 'study_hash', 'title',
+         'type', 'direction', 'genes']].copy()
+
+    lg.info(f"    - writing to {group_output_folder}", )
+
+    group_genes_df.to_csv(group_output_folder / 'genes.tsv', sep="\t",
+                          index=False)
+
+
+    
 @ app.command('import')
 def import_geneset(
         base_folder: Path = typer.Argument(
