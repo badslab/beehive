@@ -13,7 +13,6 @@ from pathlib import Path
 from pprint import pprint
 from typing import Dict, List, Optional
 
-import gseapy as gp
 import pandas as pd
 import polars as pl
 import typer
@@ -64,6 +63,8 @@ def get_geneset_genes(group_hash):
 
 
 def run_one_gsea(args):
+
+    import gseapy as gp
 
     group_hash, lfc_col, rnk, genedict = args
 
