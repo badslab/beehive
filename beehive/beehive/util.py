@@ -10,7 +10,6 @@ from typing import List
 import colorcet as cc
 import numpy as np
 import pandas as pd
-import pymed
 
 import beehive
 
