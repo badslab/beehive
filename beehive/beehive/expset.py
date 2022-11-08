@@ -30,14 +30,14 @@ diskcache = partial(
 # variable.
 # @lru_cache(1)
 
-
+@lru_cache(32)
 def get_datasets(has_de: bool = False, 
                  view_name: str = None):
     """Return a dict with all dataset."""
 
-    DATASETS: Dict[str, Dict] = {}
-
+    datasets: Dict[str, Dict] = {}
     datadir = util.get_datadir("h5ad")
+    lg.debug(f"checking h5ad files in {datadir}")
     
     for yamlfile in datadir.glob("*.yaml"):
         use = True
@@ -63,11 +63,12 @@ def get_datasets(has_de: bool = False,
                 else:
                     y["short_title"] = y["title"]
         if use is True:
-            DATASETS[basename] = y
+            lg.debug("Using dataset {yamlfile}f for {view_name}")
+            datasets[basename] = y
 
     if has_de:
         # return only datasets with diffexp data
-        DSDE = {a: b for (a, b) in DATASETS.items()
+        DSDE = {a: b for (a, b) in datasets.items()
                 if len(b.get("diffexp", {})) > 0}
         # lg.debug(
         #    f"expset datadir is {datadir}, found {len(DSDE)} "
@@ -75,10 +76,10 @@ def get_datasets(has_de: bool = False,
         # )
         return DSDE
     else:
-        lg.debug(f"expset datadir is {datadir}, found {len(DATASETS)} sets")
-        for a, b in DATASETS.items():
+        lg.debug(f"expset datadir is {datadir}, found {len(datasets)} sets")
+        for a, b in datasets.items():
             lg.debug(f"  - {a}")
-        return DATASETS
+        return datasets
 
 
 def get_dataset_siblings(dsid: str, view_name: str) -> dict:
