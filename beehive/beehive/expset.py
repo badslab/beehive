@@ -23,6 +23,7 @@ lg.setLevel(logging.DEBUG)
 diskcache = partial(
     util.diskcache, where=util.get_datadir("cache"), refresh=True)
 
+
 # NOTE:
 # datasets now depend on the view
 # if all views are active at the same time, DATASETS should not be a global
@@ -35,36 +36,34 @@ def get_datasets(has_de: bool = False,
     """Return a dict with all dataset."""
 
     DATASETS: Dict[str, Dict] = {}
-    # DATASETS = dict()
 
     datadir = util.get_datadir("h5ad")
     
-    # global DATASETS
-    if len(DATASETS) == 0:
-        for yamlfile in datadir.glob("*.yaml"):
-            use = True
-            basename = yamlfile.name
-            basename = basename.replace(".yaml", "")
-            with open(yamlfile, "r") as F:
-                y = yaml.load(F, Loader=yaml.SafeLoader)
-                if (view_name is not None) \
-                        and (view_name not in y["use_in_view"]):
-                    use = False
-                authors = y["author"].split(",")
-                authors = [x.strip() for x in authors]
-                y["first_author"] = authors[0]
-                if len(authors) < 3:
-                    y["short_author"] = y["author"]
-                else:
-                    y["short_author"] = authors[0] + " .. " + authors[-1]
+    for yamlfile in datadir.glob("*.yaml"):
+        use = True
+        basename = yamlfile.name
+        basename = basename.replace(".yaml", "")
+        lg.debug("Considering dataset {yamlfile}")
+        with open(yamlfile, "r") as F:
+            y = yaml.load(F, Loader=yaml.SafeLoader)
+            if (view_name is not None) \
+                    and (view_name not in y["use_in_view"]):
+                use = False
+            authors = y["author"].split(",")
+            authors = [x.strip() for x in authors]
+            y["first_author"] = authors[0]
+            if len(authors) < 3:
+                y["short_author"] = y["author"]
+            else:
+                y["short_author"] = authors[0] + " .. " + authors[-1]
 
-                if "short_title" not in y:
-                    if len(y["title"]) >= 65:
-                        y["short_title"] = y["title"][:57] + "..."
-                    else:
-                        y["short_title"] = y["title"]
-            if use is True:
-                DATASETS[basename] = y
+            if "short_title" not in y:
+                if len(y["title"]) >= 65:
+                    y["short_title"] = y["title"][:57] + "..."
+                else:
+                    y["short_title"] = y["title"]
+        if use is True:
+            DATASETS[basename] = y
 
     if has_de:
         # return only datasets with diffexp data
