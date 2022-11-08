@@ -14,6 +14,7 @@ import pandas as pd
 import beehive
 
 lg = logging.getLogger(__name__)
+lg.setLevel(logging.DEBUG)
 
 
 def get_geneset_db() -> sqlite3.Connection:
@@ -26,7 +27,8 @@ def get_geneset_db() -> sqlite3.Connection:
         geneset_db_folder.mkdir(parents=True)
 
     gsdb = geneset_db_folder / 'geneset_db.sqlite'
-    print(gsdb)
+    lg.info(f"Get geneset db {gsdb}")
+
     return sqlite3.connect(gsdb)
 
 
@@ -66,7 +68,7 @@ def timer(func):
         t1 = time.time()
         res = func(*arg, **kw)
         t2 = time.time()
-        print(f'Function run {1000*(t2-t1):.2f}ms.')
+        lg.info(f'Function run {1000*(t2-t1):.2f}ms.')
         return res
     return wrapper
 
@@ -81,6 +83,7 @@ def find_prq(dsid, ptype, check_exists=True):
     prq_file = prq_dir / name
 
     if prq_file.exists():
+        lg.debug(f"Found Parquet file in prq/ {prq_file}")
         return prq_file
 
     # find alternative location:
@@ -88,12 +91,15 @@ def find_prq(dsid, ptype, check_exists=True):
     if (not prq_file_alt.exists()) and check_exists:
         raise FileNotFoundError(f'Cannot find prq file {name}')
 
+    lg.warning(f"Found Parquet file in data/h5ad {prq_file}")
     return prq_file
 
 
 def get_datadir(name):
     """Return a bokeh view's data folder."""
-    return beehive.DATADIR / name
+    datadir = beehive.DATADIR / name
+    lg.debug(f"Beehive data dir {datadir}")
+    return datadir
 
 
 def getarg(args, name, default=None, dtype=str):
@@ -107,7 +113,9 @@ def getarg(args, name, default=None, dtype=str):
     else:
         return default
 
-
+#
+# Bokeh helper functions
+#
 def create_widget(name: str,
                   widget,
                   default=None,
