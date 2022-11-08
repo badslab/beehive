@@ -17,8 +17,7 @@ from beehive.util import find_prq, get_geneset_db
 WARNED_NO_GENE_COL = False
 
 lg = logging.getLogger(__name__)
-
-# lg.setLevel(logging.INGO)
+lg.setLevel(logging.DEBUG)
 
 
 diskcache = partial(
@@ -78,6 +77,8 @@ def get_datasets(has_de: bool = False,
         return DSDE
     else:
         lg.debug(f"expset datadir is {datadir}, found {len(DATASETS)} sets")
+        for a, b in DATASETS.items():
+            lg.debug(f"  - {a}")
         return DATASETS
 
 
