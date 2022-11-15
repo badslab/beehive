@@ -1,6 +1,7 @@
 from __future__ import generator_stop
 
 import logging
+import math
 from functools import partial
 from os.path import dirname, join
 
@@ -37,6 +38,15 @@ create_widget = partial(util.create_widget, curdoc=curdoc())
 datasets = expset.get_datasets(view_name=VIEW_NAME)
 
 args = curdoc().session_context.request.arguments
+
+def elog(*args, **kwargs):
+    print("V" * 80)
+    for a in args:
+        print(a)
+    for k, v in kwargs.items():
+        print(k, v)
+    print("^" * 80)
+
 
 # WIDGETS
 w_div_title_author = Div(text="", sizing_mode='stretch_width')
@@ -231,6 +241,15 @@ def get_data() -> pd.DataFrame:
     data = expset.get_gene_meta_three_facets(
         dataset_id, gene, facet, facet2, facet3, view_name=VIEW_NAME)
 
+    def fixNone(t):
+        def fixNone1(a):
+            return 'NONE' if a is None else a
+        return fixNone1(t[0]), fixNone1(t[1])
+    
+    # TODO: Figure out why this is necessary!
+    data['cat_value'] = data['cat_value'].apply(fixNone)
+    # elog(data['cat_value'])
+    
     # filter NONEs
     data = data.loc[data["cat_value"].str[0] != "NONE"]
     data = data.loc[data["cat_value"].str[1] != "NONE"]
@@ -352,7 +371,7 @@ elements = dict(
 )
 
 # to orient the legends of the x axis
-X_AXIS_LABELS_ORIENTATION = 3.14/2
+X_AXIS_LABELS_ORIENTATION = math.pi / 2
 plot.xaxis.group_label_orientation = X_AXIS_LABELS_ORIENTATION
 plot.xaxis.major_label_orientation = X_AXIS_LABELS_ORIENTATION
 
@@ -369,6 +388,7 @@ citation = Div(
 ordered_list = get_order()
 order = {key: i for i, key in enumerate(ordered_list)}
 
+
 try:
     xvals = data["cat_value"]
     int_vals = int(xvals[0])
@@ -380,12 +400,14 @@ except Exception:
     tupleval = xrangelist[0]
     # check which is int
     xrangelist = sorted(list(set(data["cat_value"])), key=lambda tup: tup[0])
-    if tupleval[0].isdigit():
-        xrangelist = sorted(xrangelist, key=lambda x: int(x[0]))
+    
+    if tupleval[0] is not None and tupleval[0].isdigit():
+        xrangelist = sorted(xrangelist, key=lambda x: float(x[0]))
     else:
         xrangelist = sorted(xrangelist, key=lambda x: x[0])
-    if tupleval[1].isdigit():
-        xrangelist = sorted(xrangelist, key=lambda x: int(x[1]))
+        
+    if tupleval[1] is not None and tupleval[1].isdigit():
+        xrangelist = sorted(xrangelist, key=lambda x: float(x[1]))
     else:
         xrangelist = sorted(xrangelist, key=lambda x: x[1])
 
@@ -443,6 +465,7 @@ def cb_update_plot(attr, old, new):
             int_vals_sorted = [str(x) for x in int_vals_sorted]
             plot.x_range.factors = int_vals_sorted
         except Exception:
+            #print(xrangelist)
             xrangelist = list(set(data["cat_value"]))
             tupleval = xrangelist[0]
             # check which is int
@@ -560,5 +583,3 @@ curdoc().add_root(row([
     Tabs(tabs=[PlotTab, TableTab],  tabs_location = 'right')
 ], sizing_mode='stretch_both')
 )
-
-
