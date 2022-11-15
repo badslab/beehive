@@ -14,7 +14,6 @@ check_deployment:
 	done
 
 
-
 .PHONY:
 fix_templates:
 	for bdir in ./bokeh/*; do \
@@ -23,6 +22,7 @@ fix_templates:
 		echo "Make templates symlink"; \
 		( cd $$bdir ; ln -sf ../../templates . ); \
 	done
+
 
 .PHONY:
 .ONEHSELL:
@@ -74,7 +74,23 @@ serve_dev: fix_templates
 		bokeh serve --dev --port 5010 bokeh/gene_expression/ # bokeh/diffexp/
 	done
 
+
 #### Mark 
+
+mf_latest_docker:
+	export iid=$$(docker image ls -q  | head -1) ; \
+	echo "running $$iid" ; \
+	docker run --restart unless-stopped -d -p 5009:5009 \
+		-e PORT_FOR_VISUALIZATION=5009 \
+		-e VISUALIZATION_WEBSOCKET_ORIGIN="*" \
+		--mount type=bind,source=/Users/u0089478/data/beehive/lab-data-visualization/,target=/beehive/data \
+		$$iid
+
+
+.ONESHELL: 
+serve_mark_all:
+	BEEHIVE_BASEDIR=/Users/u0089478/data/beehive/lab-data-visualization bokeh serve \
+		--port 5009 --allow-websocket-origin=*  bokeh/*
 
 .ONESHELL: 
 serve_mark_gene_expression:
