@@ -74,8 +74,15 @@ serve_dev: fix_templates
 		bokeh serve --dev --port 5010 bokeh/gene_expression/ # bokeh/diffexp/
 	done
 
+#### Docker
 
-#### Mark 
+docker_build:
+	docker buildx  build  --platform linux/amd64 -f Dockerfile -t bdslab/beehive  .
+
+docker_push:
+	docker buildx  build  --platform linux/amd64 -f Dockerfile -t bdslab/beehive  .
+
+#### Debug targets from Mark 
 
 mf_latest_docker:
 	export iid=$$(docker image ls -q  | head -1) ; \
@@ -92,9 +99,11 @@ serve_mark_all:
 	BEEHIVE_BASEDIR=/Users/u0089478/data/beehive/lab-data-visualization bokeh serve \
 		--port 5009 --allow-websocket-origin=*  bokeh/*
 
+
 .ONESHELL: 
 serve_mark_gene_expression:
-	BEEHIVE_BASEDIR=/Users/u0089478/data/beehive/lab-data-visualization bokeh serve --dev --port 5009 --allow-websocket-origin=*  bokeh/gene_expression/
+	BEEHIVE_BASEDIR=/Users/u0089478/data/beehive/lab-data-visualization bokeh serve \
+		--dev --port 15009 --allow-websocket-origin=*  bokeh/gene_expression/
 
 
 .ONESHELL: 
@@ -102,6 +111,32 @@ serve_mark_gsea:
 	echo "Hello"
 	BEEHIVE_BASEDIR=/Users/u0089478/data/beehive/lab-data-visualization \
 		bokeh serve --dev --port 5011 --allow-websocket-origin=* bokeh/gsea_view/
+
+
+.PHONY:
+.ONESHELL:
+rebuild_static_private_website:
+	cd static_private
+	make html
+	git add content/*.md output/*.html  output/category/*.html output/author/*.html output/tag/*.html
+	git commit -m 'rebuild private static website' content/*.md output/*.html  output/category/*.html output/author/*.html output/tag/*.html
+
+
+.PHONY:
+.ONESHELL:
+rebuild_static_public_website:
+	cd static_public
+	make html
+	git add content/*.md output/*.html  output/category/*.html output/author/*.html output/tag/*.html
+	git commit -m 'rebuild static website' content/*.md output/*.html  output/category/*.html output/author/*.html output/tag/*.html
+
+sync_data_to_moamx:
+	rsync -arv data/h5ad/*prq moamx:/data/project/mark/beehive/data/h5ad/
+
+
+##
+## Targets from Raghid
+## 
 
 
 ####raghid####
@@ -140,37 +175,3 @@ serve_dev_raghid_all: fix_templates
 									bokeh/gene_expression/ \
 									bokeh/hexbin_expression/
 
-
-.PHONY:
-.ONESHELL:
-rebuild_static_private_website:
-	cd static_private
-	make html
-	git add content/*.md output/*.html  output/category/*.html output/author/*.html output/tag/*.html
-	git commit -m 'rebuild private static website' content/*.md output/*.html  output/category/*.html output/author/*.html output/tag/*.html
-
-
-.PHONY:
-.ONESHELL:
-rebuild_static_public_website:
-	cd static_public
-	make html
-	git add content/*.md output/*.html  output/category/*.html output/author/*.html output/tag/*.html
-	git commit -m 'rebuild static website' content/*.md output/*.html  output/category/*.html output/author/*.html output/tag/*.html
-
-sync_data_to_moamx:
-	rsync -arv data/h5ad/*prq moamx:/data/project/mark/beehive/data/h5ad/
-
-
-# .SILENT:
-# .ONESHELL:
-# dev:
-# 	export PATH=/opt/python/miniconda-sep-2021/envs/sparrowhawk/bin/:$$PATH;
-# 	LATEST=$$(ls -dt bokeh/*/main.py | head -1);
-# 	LATEST=$$(readlink -f $$LATEST);
-# 	LATEST=$$(dirname $$LATEST);
-# 	echo "Using bokeh app: $$LATEST"
-# 	while true; do
-# 		echo "(re-)starting $$LATEST"
-# 		pipenv run bokeh serve --dev --port 5008 $$LATEST;
-# 	done
