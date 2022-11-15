@@ -29,7 +29,7 @@ lg.setLevel(logging.DEBUG)
 lg.info("startup")
 
 VIEW_NAME = "gene_expression"
-
+coloring_scheme = None
 curdoc().template_variables['config'] = config
 curdoc().template_variables['view_name'] = 'Gene/Protein Expression'
 
@@ -39,7 +39,9 @@ datasets = expset.get_datasets(view_name=VIEW_NAME)
 
 args = curdoc().session_context.request.arguments
 
+
 def elog(*args, **kwargs):
+    "Print debug info"
     print("V" * 80)
     for a in args:
         print(a)
@@ -61,14 +63,14 @@ dataset_options = [(k, "{short_title}, {short_author}, {datatype}".format(**v))
 w_dataset_id = create_widget("dataset_id", Select, title="Dataset",
                              options=dataset_options,
                              default=dataset_options[0][0],
-                             visible=False, 
+                             visible=False,
                              sizing_mode='stretch_width',
                              )
 
 w_sibling = create_widget("Data variant", Select,
                           options=[],
                           default=w_dataset_id.value,
-                          update_url=False, 
+                          update_url=False,
                           sizing_mode='stretch_width',
                           )
 
@@ -103,12 +105,13 @@ w_gene = create_widget("gene", AutocompleteInput, restrict=False,
                        sizing_mode='stretch_width')
 
 w_facet = create_widget("facet", Select, options=[],
-                        title="Group by level 1:", 
+                        title="Group by level 1:",
                         sizing_mode='stretch_width')
 w_facet2 = create_widget("facet2", Select, options=[],
-                         title="Group by level 2:", sizing_mode='stretch_width')
+                         title="Group by level 2:",
+                         sizing_mode='stretch_width')
 w_facet3 = create_widget("facet3", Select, options=[],
-                         title="Jitter points Average:", 
+                         title="Jitter points Average:",
                          sizing_mode='stretch_width')
 w_download = Button(label='Download', align='end')
 
@@ -135,7 +138,8 @@ def update_facets():
     options = expset.get_facet_options(
         w_dataset_id.value, only_categorical=True, view_name=VIEW_NAME)
     options_with_skip = expset.get_facet_options(
-        w_dataset_id.value, only_categorical=True, include_skip=True, view_name=VIEW_NAME)
+        w_dataset_id.value, only_categorical=True, include_skip=True,
+        view_name=VIEW_NAME)
     w_facet.options = options
     w_facet2.options = options
     w_facet3.options = options_with_skip
@@ -159,14 +163,18 @@ def update_facets():
     w_facet3.options = list(
         filter(lambda x: x[0] != w_facet.value, w_facet3.options))
     w_facet3.options = list(
-        filter(lambda x: x[0] != w_facet2.value or x[0] == "--", w_facet3.options))
+        filter(
+            lambda x: x[0] != w_facet2.value or x[0] == "--",
+            w_facet3.options))
 
     if w_facet3.value not in [x[0] for x in w_facet3.options]:
         # set a default
         w_facet3.value = w_facet3.options[0][0]
 
     w_facet2.options = list(
-        filter(lambda x: x[0] != w_facet3.value or x[0] == "--", w_facet2.options))
+        filter(
+            lambda x: x[0] != w_facet3.value or x[0] == "--",
+            w_facet2.options))
     w_facet.options = list(
         filter(lambda x: x[0] != w_facet3.value, w_facet.options))
 
@@ -227,12 +235,12 @@ def get_data() -> pd.DataFrame:
     facet = w_facet.value
     facet2 = w_facet2.value
     facet3 = w_facet3.value
-    
+
     if w_facet.value == gene:
         coloring_scheme = f'{w_facet.value}_category_y'
     else:
         coloring_scheme = f'{w_facet.value}_x'
-        
+
     if w_facet2.value == "--":
         coloring_scheme = "cat_value"
 
@@ -245,11 +253,11 @@ def get_data() -> pd.DataFrame:
         def fixNone1(a):
             return 'NONE' if a is None else a
         return fixNone1(t[0]), fixNone1(t[1])
-    
+
     # TODO: Figure out why this is necessary!
     data['cat_value'] = data['cat_value'].apply(fixNone)
     # elog(data['cat_value'])
-    
+
     # filter NONEs
     data = data.loc[data["cat_value"].str[0] != "NONE"]
     data = data.loc[data["cat_value"].str[1] != "NONE"]
@@ -291,7 +299,7 @@ def get_order():
 # Create plot
 #
 plot = figure(background_fill_color="#efefef", x_range=[], title="Plot",
-              toolbar_location='right', tools="save", sizing_mode="fixed", 
+              toolbar_location='right', tools="save", sizing_mode="fixed",
               width=800, height=600)
 
 
@@ -310,7 +318,7 @@ if len(data) == 0:
     w_facet2.value = w_facet2.options[1][0]
     data, data_no_dups = get_data()
 
-#Plotting#
+# Plotting#
 source = ColumnDataSource(data)
 source_no_dups = ColumnDataSource(data_no_dups)
 table = DataTable(source=source_no_dups,
@@ -348,7 +356,8 @@ mapper = get_mapper()
 
 elements = dict(
     vbar=plot.vbar(x="cat_value", top='_bar_top',
-                   bottom='_bar_bottom', source=source, width=0.85, name="barplot",
+                   bottom='_bar_bottom', source=source, width=0.85,
+                   name="barplot",
                    fill_color={'field': coloring_scheme, 'transform': mapper},
                    line_color="black"),
     seg_v_up=plot.segment(source=source, x0='cat_value', x1='cat_value',
@@ -364,9 +373,12 @@ elements = dict(
     seg_h_med=plot.rect(source=source, x='cat_value', height=0.001,
                         y='_bar_median', width=0.85, line_width=2,
                         line_color='black'),
-    # jitter_points = plot.scatter(x=jitter('cat_value', width=0.4, range=plot.x_range), y=f'mean_{meta3}', size=5, alpha=0.4, source=source,legend_label = f"{meta3}")
+    # jitter_points = plot.scatter(x=jitter('cat_value', width=0.4,
+    # # range=plot.x_range), y=f'mean_{meta3}', size=5, alpha=0.4,
+    # # source=source,legend_label = f"{meta3}")
     jitter_points=plot.scatter(x=jitter(
-        'cat_value', width=0.4, range=plot.x_range), y="jitter", size=5, alpha=0.4, source=source)
+        'cat_value', width=0.4, range=plot.x_range), y="jitter", size=5,
+        alpha=0.4, source=source)
 
 )
 
@@ -400,12 +412,12 @@ except Exception:
     tupleval = xrangelist[0]
     # check which is int
     xrangelist = sorted(list(set(data["cat_value"])), key=lambda tup: tup[0])
-    
+
     if tupleval[0] is not None and tupleval[0].isdigit():
         xrangelist = sorted(xrangelist, key=lambda x: float(x[0]))
     else:
         xrangelist = sorted(xrangelist, key=lambda x: x[0])
-        
+
     if tupleval[1] is not None and tupleval[1].isdigit():
         xrangelist = sorted(xrangelist, key=lambda x: float(x[1]))
     else:
@@ -465,10 +477,9 @@ def cb_update_plot(attr, old, new):
             int_vals_sorted = [str(x) for x in int_vals_sorted]
             plot.x_range.factors = int_vals_sorted
         except Exception:
-            #print(xrangelist)
             xrangelist = list(set(data["cat_value"]))
             tupleval = xrangelist[0]
-            # check which is int
+            # check which (if any) is an integer - and use that to sort
             xrangelist = sorted(
                 list(set(data["cat_value"])), key=lambda tup: tup[0])
             if tupleval[0].isdigit():
@@ -513,7 +524,10 @@ def cb_update_plot(attr, old, new):
     plot.yaxis.axis_label = f"{dataset['datatype']}"
     # adding citation if found.
 
-    citation.text = f'{expset.get_legend_of_obs(dataset_id,facet)}. Number of mice shown was adapted to the selected combination of groups'
+    citation.text = (
+        f'{expset.get_legend_of_obs(dataset_id,facet)}. '
+        'Number of samples shown was adapted to the selected '
+        'combination of groups')
     curdoc().unhold()
     return
 
@@ -549,9 +563,10 @@ w_dataset_id.on_change("value", cb_dataset_change)
 w_facet.on_change("value", cb_update_plot)
 w_facet2.on_change("value", cb_update_plot)
 w_download.js_on_event("button_click", CustomJS(
-    args=dict(source=source, file_name=w_download_filename, 
+    args=dict(source=source, file_name=w_download_filename,
               jitter_name=w_facet3, facet1=w_facet, facet2=w_facet2),
-              code=open(join(dirname(__file__), "templates/download_gene_expression.js")).read()))
+    code=open(join(dirname(__file__),
+                   "templates/download_gene_expression.js")).read()))
 
 w_facet3.on_change("value", cb_update_plot)
 
@@ -571,15 +586,15 @@ menucol = column([
     w_facet3,
     w_sibling,
     w_dataset_id,
-    warning_experiment,
-    ], sizing_mode='fixed', width=350,)
+    warning_experiment, ],
+    sizing_mode='fixed', width=350,)
 
 PlotTab = Panel(child=plot, title="Plot")
 TableTab = Panel(child=column([table, w_download]), title="Table")
 
 
 curdoc().add_root(row([
-    menucol, 
-    Tabs(tabs=[PlotTab, TableTab],  tabs_location = 'right')
+    menucol,
+    Tabs(tabs=[PlotTab, TableTab], tabs_location='right')
 ], sizing_mode='stretch_both')
 )
