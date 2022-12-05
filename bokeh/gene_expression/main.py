@@ -100,6 +100,7 @@ def update_sibling_options():
 
 update_sibling_options()
 
+
 w_gene = create_widget("gene", AutocompleteInput, restrict=False,
                        completions=[], default='APOE', case_sensitive=False,
                        sizing_mode='stretch_width')
@@ -140,6 +141,7 @@ def update_facets():
     options_with_skip = expset.get_facet_options(
         w_dataset_id.value, only_categorical=True, include_skip=True,
         view_name=VIEW_NAME)
+
     w_facet.options = options
     w_facet2.options = options
     w_facet3.options = options_with_skip
@@ -255,7 +257,8 @@ def get_data() -> pd.DataFrame:
         return fixNone1(t[0]), fixNone1(t[1])
 
     # TODO: Figure out why this is necessary!
-    data['cat_value'] = data['cat_value'].apply(fixNone)
+    # TODO2: Figure out if this is necessary??
+    # data['cat_value'] = data['cat_value'].apply(fixNone)
     # elog(data['cat_value'])
 
     # filter NONEs
@@ -269,6 +272,7 @@ def get_data() -> pd.DataFrame:
     # rename jitter points column
     data = data.rename(columns={f'mean_{facet3}': "jitter"})
 
+    print(data.head(3).T)
     return data, data_no_dups
 
 
