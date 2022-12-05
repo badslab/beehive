@@ -1,16 +1,16 @@
 <!doctype html>
-<html lang="{{ HTML_LANG }}">	
+<html lang="{{ HTML_LANG }}">
 <head>
 	<meta charset="utf-8"/>
-	<title>{% block title %}{{ SITENAME }}{%endblock%}</title>	
+	<title>{% block title %}{{ SITENAME }}{%endblock%}</title>
 	<meta name="author" content="{{ AUTHOR }}">
-	
+
 	{% block extra_meta %}
 	{% endblock %}
 
-	<link rel="top" href="#" /><link href='http://fonts.googleapis.com/css?family=Source+Sans+Pro:300,400,600,300italic,400italic,600italic|Source+Code+Pro' rel='stylesheet' type='text/css'></link>
+	<link rel="top" href="#" /><link href='https://fonts.googleapis.com/css?family=Source+Sans+Pro:300,400,600,300italic,400italic,600italic|Source+Code+Pro' rel='stylesheet' type='text/css'></link>
 	<link rel="stylesheet" href="{{ SITEURL }}/theme/css/{{ CSS_FILE }}" type="text/css" />
-		
+
 	{% block scripts %}
 	{% endblock %}
 
@@ -21,11 +21,11 @@
     <link href="{{ FEED_DOMAIN }}/{{ FEED_ALL_RSS }}" type="application/rss+xml" rel="alternate" title="{{ SITENAME }} RSS Feed" />
     {% endif %}
 </head>
-	
+
 <body>
 {{ FEED_ATOM }}
     <div class="container">
-	  
+
 	  <header role="banner">
 	    <div class="feeds">
 	      {% if FEED_ALL_ATOM %}
@@ -45,13 +45,13 @@
 	    {% endif %}
 		<a href="/" class="title">{{ SITENAME }}</a>
       </header>
-	
+
 	  <div class="wrapper">
 
 		  <div role="main" class="content">
 		    {% block content %}{% endblock %}
-		  </div>	
-		  
+		  </div>
+
 		  <div class="sidebar">
 
 	        <nav>
@@ -98,9 +98,9 @@
 		  © 2022 {{ AUTHOR }} - Powered by <a href="http://alexis.notmyidea.org/pelican/">pelican</a>. Theme <a href="https://github.com/fle/pelican-simplegrey">pelican-simplegrey</a>.
     	</p>
 
-	  </footer>	
+	  </footer>
 
-	</div>	
+	</div>
 
 </body>
 </html>
