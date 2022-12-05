@@ -14,7 +14,7 @@ RUN set -x \
     && pip install --upgrade scipy statsmodels typer pelican markdown pymed \
     && pip install -e beehive \
     && chmod a+x docker/entrypoint.sh \
-    o    && make fix_templates \
+    && make fix_templates \
     && make fix_bokeh_static_js
 
 ENV BEEHIVE_BASEDIR=/beehive/data
