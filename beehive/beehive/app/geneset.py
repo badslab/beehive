@@ -227,11 +227,11 @@ def gsea_export(
     dsid: str = typer.Argument(..., help='Dataset'),
     output_folder: str = typer.Argument(...)
     ):
-    
+
     output_folder = Path(output_folder).expanduser()
     if not output_folder.exists():
         output_folder.mkdir(parents=True)
-    
+
     gsea_file = util.find_prq(dsid, 'gsea')
     lg.info(f"gsea parquet file {gsea_file}")
     gsea = pl.read_parquet(gsea_file).to_pandas()
@@ -259,16 +259,16 @@ def gsea_export(
     print(gsets.head(2).T)
     gsea_runs = list(set(
         gsea.columns.str.rsplit('__', n=1).str.get(0)))
-    
+
     unknown_sets =set(gsea.index) - set(gsets.index)
     known_sets = list(set(gsea.index) & set(gsets.index))
     if len(unknown_sets) > 0:
-        
+
         lg.warning(f"unkonwn genesets {len(unknown_sets)} found?")
         lg.warning("your geneset database is not up to date?")
-        
+
     lg.info(f"exporting {len(known_sets)} known gsets")
-    
+
     for gr in gsea_runs:
         d = pd.DataFrame(dict(
             fdr = gsea[f"{gr}__fdr"],
@@ -279,7 +279,7 @@ def gsea_export(
         output_file = output_folder / output_name
         print(f'export to {output_file}')
         d.to_csv(f"{output_file}")
-        
+
 
 @ app.command('import')
 def import_geneset(
