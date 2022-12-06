@@ -5,13 +5,11 @@ import os
 import time
 from pathlib import Path
 from pprint import pprint
+from typing import List, Optional
 
 import typer
-from typer import echo
-from typing import List, Optional
 import yaml
-
-from beehive import util, expset
+from typer import echo
 
 app = typer.Typer()
 
@@ -75,9 +73,9 @@ def h5ad_convert(h5ad_file: Path = typer.Argument(..., exists=True),
                  ):
     """Convert to polars/parquet dataframes."""
 
-    import scanpy as sc
-    import polars as pl
     import pandas as pd
+    import polars as pl
+    import scanpy as sc
 
     outbase = h5ad_file
     lg.info(f"Filename for IO: {outbase}")

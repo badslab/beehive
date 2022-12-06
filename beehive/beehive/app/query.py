@@ -1,25 +1,8 @@
 """helpers for the gene expression app."""
 
-import hashlib
 import logging
-import os
-import pickle
-import sqlite3
-from functools import partial
-from pathlib import Path
-from pprint import pprint
-from typing import Dict, List, Optional
 
-import gseapy as gp
-import pandas as pd
-import polars as pl
 import typer
-import yaml
-from typer import echo
-
-import beehive
-from beehive import expset, util
-from beehive.util import dict_set, diskcache, get_geneset_db, query_pubmed
 
 app = typer.Typer()
 
@@ -29,6 +12,7 @@ lg.setLevel(logging.INFO)
 
 @app.command('ds')
 def ds():
+    from beehive import expset
     datasets = expset.get_datasets()
     for name, ds in datasets.items():
         print("\t".join([
@@ -39,6 +23,7 @@ def ds():
 @app.command('de')
 def de(dsid: str,
        ):
+    from beehive import expset
     cols = expset.get_varfields(dsid)
     if 'gene' in cols:
         cols.remove('gene')
@@ -52,7 +37,7 @@ def de(dsid: str,
 @app.command('gsea')
 def gsea(dsid: str,
          decol: str = typer.Argument(None),):
-
+    from beehive import expset
     gd = expset.get_gsea_data(dsid, decol)
 
     del gd['geneset_hash']

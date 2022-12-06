@@ -1,20 +1,26 @@
 import logging
 from functools import partial
-import logging
-import pandas as pd
-import numpy as np
-
-from bokeh.layouts import column, row
-from bokeh.models import (ColumnDataSource, RadioGroup, Slider,MultiSelect, 
-                            LinearColorMapper, ColorBar, Label)
-from bokeh.models.callbacks import CustomJS
-from bokeh.models.widgets import (Select, Div,
-                                  Button, AutocompleteInput)
-from bokeh.plotting import figure, curdoc
-from beehive import config, util, expset
-from bokeh.util.hex import cartesian_to_axial
-from bokeh.palettes import Viridis256,Magma256
 from os.path import dirname, join
+
+import numpy as np
+import pandas as pd
+from bokeh.layouts import column, row
+from bokeh.models import (
+    ColorBar,
+    ColumnDataSource,
+    Label,
+    LinearColorMapper,
+    MultiSelect,
+    RadioGroup,
+    Slider,
+)
+from bokeh.models.callbacks import CustomJS
+from bokeh.models.widgets import AutocompleteInput, Button, Div, Select
+from bokeh.palettes import Magma256, Viridis256
+from bokeh.plotting import curdoc, figure
+from bokeh.util.hex import cartesian_to_axial
+
+from beehive import config, expset, util
 
 lg = logging.getLogger('ScatterExpression')
 lg.setLevel(logging.DEBUG)
@@ -241,7 +247,7 @@ def get_unique_obs(data):
     global w_subset_select
     unique_obs = pd.DataFrame(data)['obs'].unique()
     final_result =  [str(x) for x in unique_obs]
-    w_subset_select.options = final_result.tolist()
+    w_subset_select.options = final_result
     return unique_obs
 
 # @diskcache(where="./.cache/simple_disk_cache/", refresh= False)

@@ -5,29 +5,42 @@ import logging
 import sqlite3
 import subprocess as sp
 import time
-from typing import List
+from functools import lru_cache
+from pathlib import Path
 
-import colorcet as cc
 import numpy as np
 import pandas as pd
-import pymed
 
 import beehive
 
 lg = logging.getLogger(__name__)
+lg.setLevel(logging.DEBUG)
 
 
-def get_geneset_db() -> sqlite3.Connection:
+def get_geneset_folder() -> Path:
+    """Return folder with the raw geneset database
+    """
+
+    geneset_folder = beehive.BASEDIR / 'geneset'
+    if not geneset_folder.exists():
+        geneset_folder.mkdir(parents=True)
+    return geneset_folder
+
+
+@lru_cache(16)
+def get_geneset_db(
+        dsid: str) -> sqlite3.Connection:
     """Return database with genesets
     """
 
-    geneset_db_folder = beehive.BASEDIR / 'geneset'
+    geneset_db_folder = get_geneset_folder() / "db"
 
     if not geneset_db_folder.exists():
         geneset_db_folder.mkdir(parents=True)
 
-    gsdb = geneset_db_folder / 'geneset_db.sqlite'
-    print(gsdb)
+    gsdb = geneset_db_folder / f'geneset_db_{dsid}.sqlite'
+    lg.debug(f"Get geneset db {gsdb}")
+
     return sqlite3.connect(gsdb)
 
 
@@ -67,13 +80,13 @@ def timer(func):
         t1 = time.time()
         res = func(*arg, **kw)
         t2 = time.time()
-        print(f'Function run {1000*(t2-t1):.2f}ms.')
+        lg.info(f'Function run {1000*(t2-t1):.2f}ms.')
         return res
     return wrapper
 
 
 def find_prq(dsid, ptype, check_exists=True):
-    """ Find parquet file based on dataset id 
+    """ Find parquet file based on dataset id
         and parquet type"""
 
     assert ptype in ['X', 'obs', 'var', 'gsea']
@@ -82,6 +95,7 @@ def find_prq(dsid, ptype, check_exists=True):
     prq_file = prq_dir / name
 
     if prq_file.exists():
+        # lg.debug(f"Found PRQ file in prq/ {prq_file}")
         return prq_file
 
     # find alternative location:
@@ -89,12 +103,15 @@ def find_prq(dsid, ptype, check_exists=True):
     if (not prq_file_alt.exists()) and check_exists:
         raise FileNotFoundError(f'Cannot find prq file {name}')
 
+    lg.warning(f"Found Parquet file in data/h5ad {prq_file}")
     return prq_file
 
 
 def get_datadir(name):
     """Return a bokeh view's data folder."""
-    return beehive.DATADIR / name
+    datadir = beehive.DATADIR / name
+    lg.debug(f"Beehive data dir {datadir}")
+    return datadir
 
 
 def getarg(args, name, default=None, dtype=str):
@@ -109,6 +126,9 @@ def getarg(args, name, default=None, dtype=str):
         return default
 
 
+#
+# Bokeh helper functions
+#
 def create_widget(name: str,
                   widget,
                   default=None,
@@ -163,7 +183,8 @@ def create_widget(name: str,
     else:
         new_widget = widget(name=name, title=title, **kwargs)
 
-    if (value_type == list) and not (type(getarg(args, param_name, default)) == list):
+    if (value_type == list) and not \
+            (type(getarg(args, param_name, default)) == list):
         new_widget.value = getarg(args, param_name, default).split(",")
         if new_widget.value == [""]:
             new_widget.value = []
@@ -208,7 +229,9 @@ def make_hashable(o):
 def UID(*args, length=7):
     chs = hashlib.sha512()
     for a in args:
-        if isinstance(a, int) or isinstance(a, float) or isinstance(a, np.float32):
+        if isinstance(a, int) \
+                or isinstance(a, float) \
+                or isinstance(a, np.float32):
             chs.update(str(a).encode())
         elif isinstance(a, str):
             chs.update(str(a).lower().encode())
@@ -254,7 +277,8 @@ def sizeof_fmt(num, suffix='B'):
     return "%.1f%s%s" % (num, 'Yi', suffix)
 
 
-def diskcache(where='~/.cache/simple_disk_cache/', refresh=False, verbose=False):
+def diskcache(where='~/.cache/simple_disk_cache/',
+              refresh=False, verbose=False):
     import inspect
     import pickle
     from pathlib import Path

@@ -1,11 +1,7 @@
 import logging
-from ast import Pass
 from functools import lru_cache, partial
-from itertools import groupby
-from ssl import VERIFY_X509_TRUSTED_FIRST
 from typing import Dict, List, Tuple
 
-import numpy as np
 import pandas as pd
 import polars as pl
 import yaml
@@ -17,12 +13,12 @@ from beehive.util import find_prq, get_geneset_db
 WARNED_NO_GENE_COL = False
 
 lg = logging.getLogger(__name__)
-
-# lg.setLevel(logging.INGO)
+lg.setLevel(logging.INFO)
 
 
 diskcache = partial(
     util.diskcache, where=util.get_datadir("cache"), refresh=True)
+
 
 # NOTE:
 # datasets now depend on the view
@@ -30,46 +26,45 @@ diskcache = partial(
 # variable.
 # @lru_cache(1)
 
-
-def get_datasets(has_de: bool = False, 
+@lru_cache(32)
+def get_datasets(has_de: bool = False,
                  view_name: str = None):
     """Return a dict with all dataset."""
 
-    DATASETS: Dict[str, Dict] = {}
-    # DATASETS = dict()
-
+    datasets: Dict[str, Dict] = {}
     datadir = util.get_datadir("h5ad")
-    
-    # global DATASETS
-    if len(DATASETS) == 0:
-        for yamlfile in datadir.glob("*.yaml"):
-            use = True
-            basename = yamlfile.name
-            basename = basename.replace(".yaml", "")
-            with open(yamlfile, "r") as F:
-                y = yaml.load(F, Loader=yaml.SafeLoader)
-                if (view_name is not None) \
-                        and (view_name not in y["use_in_view"]):
-                    use = False
-                authors = y["author"].split(",")
-                authors = [x.strip() for x in authors]
-                y["first_author"] = authors[0]
-                if len(authors) < 3:
-                    y["short_author"] = y["author"]
-                else:
-                    y["short_author"] = authors[0] + " .. " + authors[-1]
+    lg.debug(f"checking h5ad files in {datadir}")
 
-                if "short_title" not in y:
-                    if len(y["title"]) >= 65:
-                        y["short_title"] = y["title"][:57] + "..."
-                    else:
-                        y["short_title"] = y["title"]
-            if use is True:
-                DATASETS[basename] = y
+    for yamlfile in datadir.glob("*.yaml"):
+        use = True
+        basename = yamlfile.name
+        basename = basename.replace(".yaml", "")
+        lg.debug(f"Considering dataset {yamlfile}")
+        with open(yamlfile, "r") as F:
+            y = yaml.load(F, Loader=yaml.SafeLoader)
+            if (view_name is not None) \
+                    and (view_name not in y["use_in_view"]):
+                use = False
+            authors = y["author"].split(",")
+            authors = [x.strip() for x in authors]
+            y["first_author"] = authors[0]
+            if len(authors) < 3:
+                y["short_author"] = y["author"]
+            else:
+                y["short_author"] = authors[0] + " .. " + authors[-1]
+
+            if "short_title" not in y:
+                if len(y["title"]) >= 65:
+                    y["short_title"] = y["title"][:57] + "..."
+                else:
+                    y["short_title"] = y["title"]
+        if use is True:
+            lg.debug("Using dataset {yamlfile}f for {view_name}")
+            datasets[basename] = y
 
     if has_de:
         # return only datasets with diffexp data
-        DSDE = {a: b for (a, b) in DATASETS.items()
+        DSDE = {a: b for (a, b) in datasets.items()
                 if len(b.get("diffexp", {})) > 0}
         # lg.debug(
         #    f"expset datadir is {datadir}, found {len(DSDE)} "
@@ -77,8 +72,10 @@ def get_datasets(has_de: bool = False,
         # )
         return DSDE
     else:
-        lg.debug(f"expset datadir is {datadir}, found {len(DATASETS)} sets")
-        return DATASETS
+        lg.debug(f"expset datadir is {datadir}, found {len(datasets)} sets")
+        for a, b in datasets.items():
+            lg.debug(f"  - {a}")
+        return datasets
 
 
 def get_dataset_siblings(dsid: str, view_name: str) -> dict:
@@ -178,6 +175,7 @@ def get_gene_meta_three_facets(
     we end up with means of the third metadata
     and means of (metadata1 * metadata2) groups.
     """
+
     emptyDF = False
 
     genedata = get_gene(dsid, gene)
@@ -349,6 +347,7 @@ def get_order_of_obs(dsid: str, meta: str):
 
 def get_gene_meta_agg(dsid: str, gene: str, meta: str, nobins: int = 8):
     """Return gene and observation."""
+
     genedata = get_gene(dsid, gene)
     metadata = get_meta(dsid, meta, nobins=nobins)
 
@@ -411,14 +410,16 @@ def get_gene(dsid, gene):
 def get_defields(dsid, view_name=None):
     ds = get_dataset(dsid, view_name)
     dex = ds.get("diffexp")
-    return [(a, b.get('name', a)) 
-            for (a,b) in dex.items()]
+    return [(a, b.get('name', a))
+            for (a, b) in dex.items()]
 
 
 def get_gsea_data(
         dsid, col=None,
         sort_on='fdr*nes',
         return_no=50,):
+
+    import numpy as np
 
     assert sort_on in ['fdr', 'nes', 'fdr*nes']
 
@@ -439,8 +440,8 @@ def get_gsea_data(
     else:
         X = pl.scan_parquet(prq)
         cols = X.columns
-        if not (f"{col}__fdr" in cols and
-                f"{col}__nes" in cols):
+        if not (f"{col}__fdr" in cols
+                and f"{col}__nes" in cols):
             raise bex.DEColumnNotFound()
 
         gd = pl.read_parquet(
@@ -465,17 +466,17 @@ def get_gsea_data(
     gsdata = pd.read_sql(
         f"""SELECT *
               FROM genesets
-             INNER JOIN groups 
+             INNER JOIN groups
                      ON groups.group_hash = genesets.group_hash
-             WHERE genesets.geneset_hash IN {in_stm} 
+             WHERE genesets.geneset_hash IN {in_stm}
              LIMIT 200""", gsd)
 
     # remove duplicate study_hash in table
     gsdata = gsdata.T.drop_duplicates().T
-    
-    gd = gd.merge(gsdata,  left_on='set_hash',
+
+    gd = gd.merge(gsdata, left_on='set_hash',
                   right_on='geneset_hash')
-    
+
     gd['no_genes'] = gd['genes'].apply(lambda x: len(x.split()))
     del gd['index']
     return gd
@@ -499,6 +500,7 @@ def get_dedata_simple(dsid, field):
 
 def get_dedata(dsid, categ, genes, view_name: str = ""):
     """Return diffexp data."""
+
     ds = get_dataset(dsid, view_name)
     dex = ds.get("diffexp")
     assert categ in dex
@@ -506,8 +508,8 @@ def get_dedata(dsid, categ, genes, view_name: str = ""):
     if isinstance(genes, str):
         genes = [genes]
 
-    rv = pl.read_parquet(find_prq(dsid, 'var'), ["field"] + genes)
-    rv = rv.to_pandas()
+    rvpl = pl.read_parquet(find_prq(dsid, 'var'), ["field"] + genes)
+    rv = rvpl.to_pandas()
     rvx = rv["field"].str.split("__", expand=True)
     rvx.columns = ["categ", "cat_value", "measurement"]
     rv = pd.concat([rv, rvx], axis=1)
@@ -522,7 +524,6 @@ def get_dedata(dsid, categ, genes, view_name: str = ""):
 
 
 def get_dedata_new(dsid, categ):
-    datadir = util.get_datadir("h5ad")
 
     # to get 'gene' column
     # TODO: gene column MUST be called 'gene' - not be the last col!
@@ -553,8 +554,9 @@ def get_dedata_quadrant(dsid, categ1, categ2):
     # get logfoldchange and padjusted for one category
     # (example injection__None)
     rv2 = pl.read_parquet(
-        find_prq(dsid, 'var')
-        [categ1 + "__lfc"] + [categ2 + "__lfc"] + [categ1 + "__padj"] + [categ2 + "__padj"])
+        find_prq(dsid, 'var'),
+        [categ1 + "__lfc"] + [categ2 + "__lfc"] +
+        [categ1 + "__padj"] + [categ2 + "__padj"])
 
     rv = pl.concat([rv2, rv1], how="horizontal")
 
@@ -570,7 +572,6 @@ def get_dedata_quadrant(dsid, categ1, categ2):
 
 
 def get_dedata_abundance(dsid, categ):
-    datadir = util.get_datadir("h5ad")
 
     # to get 'gene' column
     last_col = len(pl.read_parquet(find_prq(dsid, 'var')).columns)
@@ -679,9 +680,4 @@ def units_of_gene_expression(dsid):
             with open(yamlfile, "r") as F:
                 y = yaml.load(F, Loader=yaml.SafeLoader)
                 # find which view_name:
-                try:
-                    units = y["unit_gene_expression"]
-                except:
-                    return ""
-
-    return units
+                return y.get("unit_gene_expression", "")

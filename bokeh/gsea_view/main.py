@@ -47,12 +47,12 @@ def get_dataset():
 
 # @lru_cache(16)
 def get_diffexp_field_options():
-    dataset_id = w_dataset_id.value 
+    dataset_id = w_dataset_id.value
     defields = expset.get_defields(dataset_id)
     defields = [(f"{a}__lfc", b) for (a,b) in defields]
     return defields
 
-    
+
 # WIDGETS
 w_div_title_author = Div(text="")
 warning_div = Div(text="nothing good about this",
@@ -84,19 +84,19 @@ def get_data():
     studies = (data[['study_hash', 'study_author', 'study_year']]
                .drop_duplicates())
     print(studies)
-    
+
     # for easy reference - create short name for every study
     def nn(r):
         return r['study_author'].split(',')[0].split()[-1] + \
             f" {r['study_year']}"
     studies['study_short'] = studies.apply(nn, axis=1)
     i = -1
-    
+
     def get_letter():
         nonlocal i
         i += 1
         return string.ascii_lowercase[i]
-    
+
     studies['study_short'][studies['study_short'].duplicated()] \
         = studies['study_short'][studies['study_short'].duplicated()].apply(
             lambda x: x + " " + get_letter())
@@ -111,13 +111,13 @@ source = ColumnDataSource(get_data())
 w_table = DataTable(
     source=source,
     sizing_mode='stretch_both',
-    margin=10, 
+    margin=10,
     index_position=None,
     columns=[
         TableColumn(field='title', title='Title'),
         TableColumn(field='study_short', title='Study'),
         TableColumn(field='no_genes', title='Genes in dataset'),
-        TableColumn(field='nes', title='NES', 
+        TableColumn(field='nes', title='NES',
                     formatter=ScientificFormatter(precision=2)),
         TableColumn(field='fdr', title='FDR',
                     formatter=ScientificFormatter(precision=1)),
@@ -132,10 +132,10 @@ def update_view(attr, old, new):
 
     w_debug.text = str(defield)
     lg.info(f"DE Field {defield}")
-    
+
     data = get_data()
     source.data = data
-    
+
     w_div_title_author.text = \
         f"""
         <ul>

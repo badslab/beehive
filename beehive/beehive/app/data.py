@@ -1,21 +1,15 @@
 """helpers for the gene expression app."""
 
-import copy
 import logging
-import os
 import shutil
-import time
 from functools import partial
 from pathlib import Path
-from pprint import pprint
-from typing import Dict, List, Optional
+from typing import List
 
-import numpy as np
 import typer
 import yaml
-from typer import echo
 
-from beehive import expset, util
+from beehive import util
 from beehive.util import dict_set
 
 app = typer.Typer()
@@ -33,7 +27,10 @@ def value_typer(key, val):
 def check_yaml(dataset_id, data, overwrite=False, **defaults):
     """Check YAML & fixes it where possible"""
 
+    import numpy as np
     import pandas as pd
+
+    from beehive import expset
 
     tds = partial(dict_set, data, overwrite=overwrite)
 
@@ -72,7 +69,7 @@ def check_yaml(dataset_id, data, overwrite=False, **defaults):
     var_columns = expset.get_varfields(dataset_id)
     if len(var_columns) > 200:
         warnings.append(
-            f"Var table might be transposed - {len(var_columns)} " 
+            f"Var table might be transposed - {len(var_columns)} "
             "columns found"
         )
         print(var_columns[:5])
@@ -172,7 +169,7 @@ def check_yaml(dataset_id, data, overwrite=False, **defaults):
             if no_unique <= 20 and "values" not in obm[obs_col]:
                 # metadata per possible value type:
                 values = {
-                    str(a): dict(name=str(a)) 
+                    str(a): dict(name=str(a))
                     for a in sorted(fields.unique(), key=str)
                 }
 
