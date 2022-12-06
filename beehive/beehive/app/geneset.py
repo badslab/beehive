@@ -272,10 +272,10 @@ def gsea_export(
 
         output_name = f"gsea__{dsid}__{column}"
         output_csv_file = output_path / f"{output_name}.tsv"
-        output_xls_file = output_path / f"{output_name}.tsv"
+        output_xlsx_file = output_path / f"{output_name}.xlsx"
         print(f'export to {output_name}')
         data.to_csv(output_csv_file, sep="\t")
-        data.to_excel(output_xls_file)
+        data.to_excel(output_xlsx_file)
 
 
 @ app.command('import')
