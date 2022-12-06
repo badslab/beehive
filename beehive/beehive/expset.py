@@ -13,7 +13,7 @@ from beehive.util import find_prq, get_geneset_db
 WARNED_NO_GENE_COL = False
 
 lg = logging.getLogger(__name__)
-lg.setLevel(logging.DEBUG)
+lg.setLevel(logging.INFO)
 
 
 diskcache = partial(
@@ -39,7 +39,7 @@ def get_datasets(has_de: bool = False,
         use = True
         basename = yamlfile.name
         basename = basename.replace(".yaml", "")
-        lg.debug("Considering dataset {yamlfile}")
+        lg.debug(f"Considering dataset {yamlfile}")
         with open(yamlfile, "r") as F:
             y = yaml.load(F, Loader=yaml.SafeLoader)
             if (view_name is not None) \
@@ -440,8 +440,8 @@ def get_gsea_data(
     else:
         X = pl.scan_parquet(prq)
         cols = X.columns
-        if not (f"{col}__fdr" in cols and
-                f"{col}__nes" in cols):
+        if not (f"{col}__fdr" in cols
+                and f"{col}__nes" in cols):
             raise bex.DEColumnNotFound()
 
         gd = pl.read_parquet(
@@ -555,8 +555,8 @@ def get_dedata_quadrant(dsid, categ1, categ2):
     # (example injection__None)
     rv2 = pl.read_parquet(
         find_prq(dsid, 'var'),
-        [categ1 + "__lfc"] + [categ2 + "__lfc"]
-         + [categ1 + "__padj"] + [categ2 + "__padj"])
+        [categ1 + "__lfc"] + [categ2 + "__lfc"] +
+        [categ1 + "__padj"] + [categ2 + "__padj"])
 
     rv = pl.concat([rv2, rv1], how="horizontal")
 
@@ -680,9 +680,4 @@ def units_of_gene_expression(dsid):
             with open(yamlfile, "r") as F:
                 y = yaml.load(F, Loader=yaml.SafeLoader)
                 # find which view_name:
-                try:
-                    units = y["unit_gene_expression"]
-                except:
-                    return ""
-
-    return units
+                return y.get("unit_gene_expression", "")
