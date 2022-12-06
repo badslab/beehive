@@ -1,11 +1,7 @@
 import logging
-from ast import Pass
 from functools import lru_cache, partial
-from itertools import groupby
-from ssl import VERIFY_X509_TRUSTED_FIRST
 from typing import Dict, List, Tuple
 
-import numpy as np
 import pandas as pd
 import polars as pl
 import yaml
@@ -31,14 +27,14 @@ diskcache = partial(
 # @lru_cache(1)
 
 @lru_cache(32)
-def get_datasets(has_de: bool = False, 
+def get_datasets(has_de: bool = False,
                  view_name: str = None):
     """Return a dict with all dataset."""
 
     datasets: Dict[str, Dict] = {}
     datadir = util.get_datadir("h5ad")
     lg.debug(f"checking h5ad files in {datadir}")
-    
+
     for yamlfile in datadir.glob("*.yaml"):
         use = True
         basename = yamlfile.name
@@ -179,6 +175,7 @@ def get_gene_meta_three_facets(
     we end up with means of the third metadata
     and means of (metadata1 * metadata2) groups.
     """
+
     emptyDF = False
 
     genedata = get_gene(dsid, gene)
@@ -350,6 +347,7 @@ def get_order_of_obs(dsid: str, meta: str):
 
 def get_gene_meta_agg(dsid: str, gene: str, meta: str, nobins: int = 8):
     """Return gene and observation."""
+
     genedata = get_gene(dsid, gene)
     metadata = get_meta(dsid, meta, nobins=nobins)
 
@@ -412,14 +410,16 @@ def get_gene(dsid, gene):
 def get_defields(dsid, view_name=None):
     ds = get_dataset(dsid, view_name)
     dex = ds.get("diffexp")
-    return [(a, b.get('name', a)) 
-            for (a,b) in dex.items()]
+    return [(a, b.get('name', a))
+            for (a, b) in dex.items()]
 
 
 def get_gsea_data(
         dsid, col=None,
         sort_on='fdr*nes',
         return_no=50,):
+
+    import numpy as np
 
     assert sort_on in ['fdr', 'nes', 'fdr*nes']
 
@@ -466,17 +466,17 @@ def get_gsea_data(
     gsdata = pd.read_sql(
         f"""SELECT *
               FROM genesets
-             INNER JOIN groups 
+             INNER JOIN groups
                      ON groups.group_hash = genesets.group_hash
-             WHERE genesets.geneset_hash IN {in_stm} 
+             WHERE genesets.geneset_hash IN {in_stm}
              LIMIT 200""", gsd)
 
     # remove duplicate study_hash in table
     gsdata = gsdata.T.drop_duplicates().T
-    
-    gd = gd.merge(gsdata,  left_on='set_hash',
+
+    gd = gd.merge(gsdata, left_on='set_hash',
                   right_on='geneset_hash')
-    
+
     gd['no_genes'] = gd['genes'].apply(lambda x: len(x.split()))
     del gd['index']
     return gd
@@ -500,6 +500,7 @@ def get_dedata_simple(dsid, field):
 
 def get_dedata(dsid, categ, genes, view_name: str = ""):
     """Return diffexp data."""
+
     ds = get_dataset(dsid, view_name)
     dex = ds.get("diffexp")
     assert categ in dex
@@ -507,8 +508,8 @@ def get_dedata(dsid, categ, genes, view_name: str = ""):
     if isinstance(genes, str):
         genes = [genes]
 
-    rv = pl.read_parquet(find_prq(dsid, 'var'), ["field"] + genes)
-    rv = rv.to_pandas()
+    rvpl = pl.read_parquet(find_prq(dsid, 'var'), ["field"] + genes)
+    rv = rvpl.to_pandas()
     rvx = rv["field"].str.split("__", expand=True)
     rvx.columns = ["categ", "cat_value", "measurement"]
     rv = pd.concat([rv, rvx], axis=1)
@@ -523,14 +524,10 @@ def get_dedata(dsid, categ, genes, view_name: str = ""):
 
 
 def get_dedata_new(dsid, categ):
-    datadir = util.get_datadir("h5ad")
 
     # to get 'gene' column
     # TODO: gene column MUST be called 'gene' - not be the last col!
     last_col = len(pl.read_parquet(find_prq(dsid, 'var')).columns)
-
-
-
 
     rv1 = pl.read_parquet(find_prq(dsid, 'var'), [last_col - 1])
 
@@ -558,7 +555,8 @@ def get_dedata_quadrant(dsid, categ1, categ2):
     # (example injection__None)
     rv2 = pl.read_parquet(
         find_prq(dsid, 'var'),
-        [categ1 + "__lfc"] + [categ2 + "__lfc"] + [categ1 + "__padj"] + [categ2 + "__padj"])
+        [categ1 + "__lfc"] + [categ2 + "__lfc"]
+         + [categ1 + "__padj"] + [categ2 + "__padj"])
 
     rv = pl.concat([rv2, rv1], how="horizontal")
 
@@ -574,7 +572,6 @@ def get_dedata_quadrant(dsid, categ1, categ2):
 
 
 def get_dedata_abundance(dsid, categ):
-    datadir = util.get_datadir("h5ad")
 
     # to get 'gene' column
     last_col = len(pl.read_parquet(find_prq(dsid, 'var')).columns)

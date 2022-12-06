@@ -3,12 +3,7 @@
 import copy
 import hashlib
 import logging
-import os
 import pickle
-import shutil
-import sqlite3
-import time
-from functools import partial
 from pathlib import Path
 from pprint import pprint
 from typing import Dict, List, Optional
@@ -20,7 +15,7 @@ import yaml
 from typer import echo
 
 import beehive
-from beehive import expset, util
+from beehive import util
 from beehive.util import dict_set, diskcache, get_geneset_db, query_pubmed
 
 app = typer.Typer()
@@ -139,6 +134,8 @@ def gsea(
 
     from multiprocessing import Pool
 
+    from beehive import expset
+
     output_file = util.find_prq(dsid, 'gsea', check_exists=False)
     lg.info(f'Run GSEA for {dsid}')
     var_cols = expset.get_varfields(dsid)
@@ -175,15 +172,13 @@ def gsea(
 
     lg.warning(f'writing to {output_file} - shape {allres.shape}')
 
-
     allres_pl = pl.from_pandas(allres.reset_index())
     allres_pl.write_parquet(output_file)
 
 
 @ app.command('create-db')
 def create_db(
-    dsid: str = typer.Argument(..., help='Dataset'),
-    ):
+        dsid: str = typer.Argument(..., help='Dataset'),):
 
     all_group_data = []
     all_gene_data = []
@@ -222,15 +217,15 @@ def create_db(
     geneset_db.commit()
     geneset_db.close()
 
+
 @app.command('gsea-export')
 def gsea_export(
-    dsid: str = typer.Argument(..., help='Dataset'),
-    output_folder: str = typer.Argument(...)
-    ):
+        dsid: str = typer.Argument(..., help='Dataset'),
+        output_folder: str = typer.Argument(...)):
 
-    output_folder = Path(output_folder).expanduser()
-    if not output_folder.exists():
-        output_folder.mkdir(parents=True)
+    output_path = Path(output_folder).expanduser()
+    if not output_path.exists():
+        output_path.mkdir(parents=True)
 
     gsea_file = util.find_prq(dsid, 'gsea')
     lg.info(f"gsea parquet file {gsea_file}")
@@ -260,7 +255,7 @@ def gsea_export(
     gsea_runs = list(set(
         gsea.columns.str.rsplit('__', n=1).str.get(0)))
 
-    unknown_sets =set(gsea.index) - set(gsets.index)
+    unknown_sets = set(gsea.index) - set(gsets.index)
     known_sets = list(set(gsea.index) & set(gsets.index))
     if len(unknown_sets) > 0:
 
@@ -271,12 +266,12 @@ def gsea_export(
 
     for gr in gsea_runs:
         d = pd.DataFrame(dict(
-            fdr = gsea[f"{gr}__fdr"],
-            nes = gsea[f"{gr}__nes"]))
+            fdr=gsea[f"{gr}__fdr"],
+            nes=gsea[f"{gr}__nes"]))
         d = d.join(gsets, how='left')
         d = d.sort_values(by='fdr')
         output_name = f"gsea__{dsid}__{gr}.tsv"
-        output_file = output_folder / output_name
+        output_file = output_path / output_name
         print(f'export to {output_file}')
         d.to_csv(f"{output_file}")
 
