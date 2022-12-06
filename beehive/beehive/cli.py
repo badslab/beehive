@@ -3,7 +3,7 @@ import logging
 
 import typer
 
-logging.basicConfig(format="%(message)s")
+logging.basicConfig(format="%(message)s | %(name)s")
 logging.getLogger('beehive').setLevel(logging.INFO)
 
 
