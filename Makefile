@@ -1,5 +1,7 @@
 SHELL=/bin/bash
 
+BEEHIVE_BASEDIR=/Users/u0089478/data/beehive/beehive_data_intern
+
 .PHONY:
 .SILENT:
 check_deployment:
@@ -93,38 +95,44 @@ docker_shell:
 	echo "connecting to $$iid" ; \
 	docker exec -it $$iid bash
 
+
 docker_kill_mac:
 	export iid=$$(docker container ls -q  | head -1) ; \
 	echo "kill docker $$iid" ; \
 	docker container stop -t 0 $$iid ; \
 	docker container rm $$iid
 
+
+.ONESHELL:
 docker_run_mac:
+	set -v ; \
 	export iid=$$(docker image ls -q  | head -1) ; \
 	echo "running $$iid" ; \
-	docker run --restart unless-stopped -d -p 5009:5009 -p 5010:5010 \
+	docker run --restart unless-stopped -d -p 5010:5010 \
 		-e VISUALIZATION_WEBSOCKET_ORIGIN="*" \
-		--mount type=bind,source=/Users/u0089478/data/beehive/beehive_data_intern/,target=/beehive/data \
+		--mount type=bind,source=${BEEHIVE_BASEDIR},target=/beehive/data \
 		$$iid
 
 .ONESHELL:
 serve_mark_all:
-	BEEHIVE_BASEDIR=/Users/u0089478/data/beehive/lab-data-visualization bokeh serve \
+	export BEEHIVE_BASEDIR=${BEEHIVE_BASEDIR} ; \
+	bokeh serve \
 		--port 5009 --allow-websocket-origin=*  bokeh/*
 
 
 .ONESHELL:
 serve_mark_gene_expression:
-	BEEHIVE_DEBUG=1 \
-	BEEHIVE_BASEDIR=/Users/u0089478/data/beehive/beehive_data_intern \
-		bokeh serve \
-		--dev --port 15009 --allow-websocket-origin=*  bokeh/gene_expression/
+	export BEEHIVE_DEBUG=1 ; \
+	export BEEHIVE_BASEDIR=${BEEHIVE_BASEDIR} ; \
+	bokeh serve \
+		--dev --port 15009 --allow-websocket-origin=* \
+		bokeh/gene_expression/
 
 
 .ONESHELL:
 serve_mark_gsea:
 	export BEEHIVE_DEBUG=1 ; \
-	export BEEHIVE_BASEDIR=/Users/u0089478/data/beehive/lab-data-visualization ; \
+	export BEEHIVE_BASEDIR=${BEEHIVE_BASEDIR} ; \
 	while true; do bokeh serve \
 			--dev --port 15009 --allow-websocket-origin=* \
 			bokeh/gsea_view/; done
