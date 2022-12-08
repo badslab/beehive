@@ -1,22 +1,28 @@
 import logging
 from functools import partial
-import logging
-import pandas as pd
-from scipy import stats
-import numpy as np
-
-from bokeh.layouts import column, row
-from bokeh.models import (ColumnDataSource, CheckboxGroup, RadioGroup, LinearColorMapper, ColorBar, Label,Slider)
-from bokeh.models.callbacks import CustomJS
-from bokeh.models.widgets import (Select, Div,
-                                  Button, AutocompleteInput)
-from bokeh.plotting import figure, curdoc
-from bokeh.transform import factor_cmap
-from bokeh.palettes import Category20
 from os.path import dirname, join
 
+import numpy as np
+import pandas as pd
+from bokeh.layouts import column, row
+from bokeh.models import (
+    CheckboxGroup,
+    ColorBar,
+    ColumnDataSource,
+    Label,
+    LinearColorMapper,
+    RadioGroup,
+    Slider,
+)
+from bokeh.models.callbacks import CustomJS
+from bokeh.models.widgets import AutocompleteInput, Button, Div, Select
+from bokeh.palettes import Category20
+from bokeh.plotting import curdoc, figure
+from bokeh.transform import factor_cmap
+from scipy import stats
 
-from beehive import config, util, expset
+from beehive import config, expset, util
+
 # import traceback
 
 
@@ -44,7 +50,7 @@ w_div_title_author = Div(text="")
 # Dataset
 dataset_options = [(k, "{short_title}, {short_author}, {datatype}".format(**v))
                    for k, v in datasets.items()]
-                   
+
 # TODO setting manually
 DATASET_NUMBER = 0
 
@@ -67,6 +73,7 @@ widget_axes = [w_gene1, w_gene2, w_facet_numerical_1, w_facet_numerical_2]
 
 w_regression = CheckboxGroup(labels=["Regression Lines"], active=[])
 
+
 # Widget fixed options:
 FIXED_OPTIONS = [("geneX", "Gene X"), ("geneY", "Gene Y"), ("num_facetX",
                                                             "Numerical Facet on X"), ("num_facetY", "Numerical Facet on Y")]
@@ -85,7 +92,7 @@ w_facet = create_widget("facet", Select, options=[],
 
 w_gene3 = create_widget("geneZ", AutocompleteInput,
                         completions=[], default="APOE", title="Group by Gene Expression", case_sensitive=False,width=150)
-                        
+
 w_facet_numerical_3 = create_widget("num_facetZ", Select,
                                     options=[], title="Numerical Facet",width=100)
 
@@ -157,7 +164,7 @@ def set_defaults():
             for i in range(len(w_dataset_id.options)):
                 if default_dsid == w_dataset_id.options[i][0]:
                     w_dataset_id.value = w_dataset_id.options[i][0]
-    
+
     update_facets()
     update_genes()
     for def_vals in defaults_dict[VIEW_NAME]:
@@ -195,7 +202,7 @@ def update_numerical_facets():
     w_facet_numerical_2.options = options
     w_facet_numerical_3.options = options
     # some datasets might not have any numerical facets
-    if not(options): 
+    if not(options):
         return
 
     if w_facet_numerical_1.value not in [x[0] for x in options]:
@@ -251,7 +258,7 @@ def get_data() -> pd.DataFrame:
     # with a gene expression
     if gene3:
         geneZ = expset.get_gene(dataset_id, gene3)[:, 0]
-    
+
     if num_facet3:
         num_facetZ = expset.get_meta(dataset_id, num_facet3, raw=True,view_name=VIEW_NAME)[:, 0]
 
@@ -425,7 +432,7 @@ spinner_text = """
 @keyframes spin {
     0% { transform: rotate(0deg); }
     100% { transform: rotate(360deg); }
-} 
+}
 </style>
 </div>
 """
@@ -449,7 +456,7 @@ def cb_update_plot(attr, old, new, type_change):
     # if type_change not in ["XYAXIS", "regression", "categorical", "geneX", "geneY", "num_facetX", "num_facetY","num_facetZ"]:
     #     curdoc().unhold()
     #     return
-  
+
     div_spinner.visible = True
     plot.visible = False
     if type_change == "cosmetics":
@@ -567,10 +574,10 @@ def cb_update_plot(attr, old, new, type_change):
         """
 
     title = dataset['title'][:60]
-    
+
     if X_AXIS == "geneX":
         x_units = get_units()
-    else: 
+    else:
         x_units = ""
     if Y_AXIS == "geneY":
         y_units = get_units()
@@ -639,8 +646,8 @@ w_size_slider.on_change("value", partial(cb_update_plot, type_change="cosmetics"
 
 w_dataset_id.on_change("value", cb_dataset_change)
 
-w_download.js_on_event("button_click", CustomJS(args=dict(source=source_download, file_name = w_download_filename, geneX = w_gene1, 
-geneY = w_gene2, geneZ = w_gene3, num_facet1 = w_facet_numerical_1, num_facet2 = w_facet_numerical_2, 
+w_download.js_on_event("button_click", CustomJS(args=dict(source=source_download, file_name = w_download_filename, geneX = w_gene1,
+geneY = w_gene2, geneZ = w_gene3, num_facet1 = w_facet_numerical_1, num_facet2 = w_facet_numerical_2,
 num_facet3 = w_facet_numerical_3, obs = w_facet),
                         code=open(join(dirname(__file__), "templates/download_scatter_expression.js")).read()))
 
@@ -648,7 +655,7 @@ cb = CustomJS(args=dict(div_spinner=div_spinner)
               ,code='''
               console.log('cb triggered!')
               div_spinner.change.emit()''')
-              
+
 div_spinner.js_on_change('visible',cb)
 # curdoc().add_root(
 #     column([

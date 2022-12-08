@@ -32,7 +32,7 @@ def get_geneset_db(
         dsid: str) -> sqlite3.Connection:
     """Return database with genesets
     """
-
+    lg.info("opening a new database")
     geneset_db_folder = get_geneset_folder() / "db"
 
     if not geneset_db_folder.exists():
@@ -129,6 +129,10 @@ def getarg(args, name, default=None, dtype=str):
 #
 # Bokeh helper functions
 #
+def list2options(l, add_none=True):
+    return [('-', '-')] + [(x,x) for x in l]
+
+
 def create_widget(name: str,
                   widget,
                   default=None,
