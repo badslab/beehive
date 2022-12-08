@@ -312,6 +312,11 @@ def get_gene_meta_three_facets(
 # get_order_of_obs()
 def get_colors_of_obs(dsid: str, meta: str):
     final_dict = {}
+    import matplotlib as mpl
+    import matplotlib.pyplot as plt
+    backup_palette = plt.cm.Dark2
+    ii = 0
+
     datadir = util.get_datadir("h5ad")
     for yamlfile in datadir.glob("*.yaml"):
         basename = yamlfile.name.replace(".yaml", "")
@@ -323,7 +328,13 @@ def get_colors_of_obs(dsid: str, meta: str):
                         name = key
                         color = data.get("color")
                         # default is grey
-                        final_dict[name] = "grey" if color is None else color
+                        if color is None:
+                            final_dict[name] = mpl.colors.to_hex(
+                                backup_palette(ii))
+                            ii += 1
+                        else:
+                            final_dict[name] = color
+
     return final_dict
 
 
