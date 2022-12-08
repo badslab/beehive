@@ -15,7 +15,7 @@ import yaml
 
 import beehive
 from beehive import util
-from beehive.util import get_geneset_db, query_pubmed
+from beehive.util import get_geneset_db, query_pubmed, diskcache
 
 app = typer.Typer()
 
@@ -77,9 +77,9 @@ def run_one_gsea(args):
         outdir=None, seed=42,
         verbose=True)
 
-    print(results.res2d)
     res2 = results.res2d[['Term', 'NES', 'FDR q-val', 'Lead_genes']]
     res2.columns = ['geneset_hash', 'nes', 'fdr', 'lead_genes']
+    res2 = res2.copy()
     res2['lead_genes'] = res2['lead_genes'].str.replace(';', ' ')
     res2.set_index('geneset_hash')
     lg.warning(f"Finished one gsea {group_hash} - {lfc_col}")
@@ -102,11 +102,11 @@ def run_one_gsea_cached(args):
 
     if cache_file.exists():
         with open(cache_file, 'rb') as F:
-            lg.debug("return from cache")
+            # lg.debug("return from cache")
             rv = pickle.load(F)
     else:
         rv = run_one_gsea(args)
-        lg.debug(f"saving to cache: {uid}")
+        # lg.debug(f"saving to cache: {uid}")
         with open(cache_file, 'wb') as F:
             pickle.dump(rv, F)
 
@@ -234,7 +234,10 @@ def create_db(
 
 @app.command('gsea-export')
 def gsea_export(
-        dsid: str = typer.Argument(..., help='Dataset'),):
+        dsid: str = typer.Argument(..., help='Dataset'),
+        fdr_cutoff: float = typer.Option(
+            0.25, "--fdr-cutoff",
+            help='do not export enrichments with an fdr worse than this'),):
 
     output_path = util.get_geneset_folder() / "gsea" / dsid
     if not output_path.exists():
@@ -244,8 +247,7 @@ def gsea_export(
 
     columns = pd.read_sql(
         '''select distinct(column) from gsea''', gsdb)
-    for _, column in columns['column'].iteritems():
-        lg.info(f"exporting {column}")
+    for _, column in columns['column'].items():
         sql = \
             f''' SELECT
                     gsea.geneset_hash,
@@ -266,6 +268,7 @@ def gsea_export(
                 WHERE gs.group_hash = gr.group_hash
                   AND gsea.geneset_hash = gs.geneset_hash
                   AND gsea.column = "{column}"
+                  AND gsea.fdr < {fdr_cutoff}
                 ORDER BY gsea.fdr
             '''
         data = pd.read_sql(sql, gsdb)
@@ -274,19 +277,21 @@ def gsea_export(
         assert data.index.is_unique
 
         output_name = f"gsea__{dsid}__{column}"
-        output_csv_file = output_path / f"{output_name}.tsv"
-        output_xlsx_file = output_path / f"{output_name}.xlsx"
+        output_csv_file = output_path / f"{output_name}.tsv.gz"
+        #output_xlsx_file = output_path / f"{output_name}.xlsx"
         print(f'export to {output_name}')
         data.to_csv(output_csv_file, sep="\t")
-        data.to_excel(output_xlsx_file)
+        #data.to_excel(output_xlsx_file)
 
 
 
 @diskcache()
 def import_one_from_enrichr(organism, geneset):
+    import gseapy as gp
     lg.info("downloading from enrichr")
     return gp.get_library(name=geneset, organism=organism)
-    
+
+
 @ app.command('import-enrichr')
 def import_enrichr(
         geneset: str,
