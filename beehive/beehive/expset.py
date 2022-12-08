@@ -1,7 +1,8 @@
 import logging
 from functools import lru_cache, partial
-from typing import Dict, List, Tuple
+from typing import Any, Dict, List, Tuple
 
+import numpy as np
 import pandas as pd
 import polars as pl
 import yaml
@@ -327,7 +328,7 @@ def get_colors_of_obs(dsid: str, meta: str):
 
 
 def get_order_of_obs(dsid: str, meta: str):
-    final_dict = {}
+    final_dict: Dict[str, Any] = {}
     datadir = util.get_datadir("h5ad")
     for yamlfile in datadir.glob("*.yaml"):
         basename = yamlfile.name.replace(".yaml", "")
@@ -414,72 +415,69 @@ def get_defields(dsid, view_name=None):
             for (a, b) in dex.items()]
 
 
+def get_gsea_columns(dsid, column=None):
+    gsdb = get_geneset_db(dsid)
+    sql = '''
+        SELECT DISTINCT(column)
+        FROM gsea '''
+    rv = pd.read_sql(sql, gsdb)
+    print(rv)
+    return list(rv['column'])
+
+
 def get_gsea_data(
-        dsid, col=None,
-        sort_on='fdr*nes',
+        dsid, defield=None,
+        gsfilter="",
+        sort_on='nes',
         return_no=50,):
 
-    import numpy as np
+    assert sort_on in ['fdr', 'nes', 'absnes']
 
-    assert sort_on in ['fdr', 'nes', 'fdr*nes']
+    gsdb = get_geneset_db(dsid)
 
-    gsd = get_geneset_db()
+    sql = ''' SELECT
+                gsea.geneset_hash,
+                gsea.nes,
+                gsea.fdr,
+                gsea.lead_genes,
+                abs(gsea.nes) as abs_nes,
+                gsea.column as de_column,
+                gs.title as geneset_title,
+                gs.type as geneset_type,
+                gs.direction as direction,
+                gs.genes as genes,
+                gr.organism as organism,
+                gr.study_title as study_title,
+                gr.study_hash,
+                gr.study_author as study_author,
+                gr.study_year as study_year
+            FROM genesets as gs, groups as gr,
+                    gsea as gsea
+            WHERE gs.group_hash = gr.group_hash
+                AND gsea.geneset_hash = gs.geneset_hash '''
 
-    prq = find_prq(dsid, 'gsea')
-    if col is None:
-        gd = pl.read_parquet(prq).to_pandas()
-        gd = gd.melt(id_vars='set_hash',
-                     var_name='tmp')
-        gd[['de', 'what']] = \
-            gd['tmp'].str.rsplit(pat='__', n=1, expand=True)
-        del gd['tmp']
-        gd = gd.pivot(
-            index=['set_hash', 'de'],
-            columns='what', values='value').reset_index()
+    if defield != '-':
+        sql += f""" AND gsea.column = "{defield}" """
 
-    else:
-        X = pl.scan_parquet(prq)
-        cols = X.columns
-        if not (f"{col}__fdr" in cols
-                and f"{col}__nes" in cols):
-            raise bex.DEColumnNotFound()
+    if gsfilter != "":
+        sql += f""" AND gs.title LIKE "%{gsfilter}%" """
 
-        gd = pl.read_parquet(
-            prq, [f"{col}__fdr", f"{col}__nes", 'set_hash'])\
-            .to_pandas()
-        gd = gd.rename(columns={
-            f"{col}__fdr": "fdr",
-            f"{col}__nes": "nes"})
-        gd = gd.sort_values(by='fdr')
+    if sort_on == 'fdr':
+        sql = sql + ' ORDER BY gsea.fdr '
+    elif sort_on == 'nes':
+        sql = sql + ' ORDER BY gsea.nes DESC '
+    elif sort_on == 'absnes':
+        sql = sql + ' ORDER BY abs_nes DESC '
 
-    if sort_on == 'fdr*nes':
-        gd['sk'] = np.log10(gd['fdr'].clip(1e-100, 1)) * -1 * gd['nes']
-        gd = gd.sort_values(by='sk', ascending=False)
-        del gd['sk']
-    else:
-        gd = gd.sort_values(by=sort_on)
+    sql += ' LIMIT 100 '
+    rv = pd.read_sql(sql, gsdb)
 
-    gd = gd.head(return_no)
+    rv['genes'] = rv['genes'].str.split()
+    rv['no_genes'] = rv['genes'].apply(len)
+    rv['lead_genes'] = rv['lead_genes'].str.split()
+    rv['no_lead_genes'] = rv['lead_genes'].apply(len)
 
-    sethashes = list(gd['set_hash'].unique())
-    in_stm = '("' + '","'.join(sethashes) + '")'
-    gsdata = pd.read_sql(
-        f"""SELECT *
-              FROM genesets
-             INNER JOIN groups
-                     ON groups.group_hash = genesets.group_hash
-             WHERE genesets.geneset_hash IN {in_stm}
-             LIMIT 200""", gsd)
-
-    # remove duplicate study_hash in table
-    gsdata = gsdata.T.drop_duplicates().T
-
-    gd = gd.merge(gsdata, left_on='set_hash',
-                  right_on='geneset_hash')
-
-    gd['no_genes'] = gd['genes'].apply(lambda x: len(x.split()))
-    del gd['index']
-    return gd
+    return rv
 
 
 def get_dedata_simple(dsid, field):
@@ -606,7 +604,8 @@ def get_defaults(dsid, view_name: str = ""):
     return final_dict
 
 
-def get_meta(dsid, col, raw=False, nobins=8, view_name: str = ""):
+def get_meta(dsid, col, raw=False, nobins=8,
+             view_name: str = ""):
     """Return one obs column."""
     rv = pl.read_parquet(find_prq(dsid, 'obs'), [col])
 
