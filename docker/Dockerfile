@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1
 FROM python:3.8
 
-WORKDIR beehive/
+WORKDIR /beehive/
 COPY . .
 
 RUN set -x \

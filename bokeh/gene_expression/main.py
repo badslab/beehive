@@ -247,7 +247,6 @@ def get_data() -> pd.DataFrame:
         coloring_scheme = "cat_value"
 
     lg.warning(f"!! Getting data for {dataset_id} {facet} {gene}")
-
     data = expset.get_gene_meta_three_facets(
         dataset_id, gene, facet, facet2, facet3, view_name=VIEW_NAME)
 
@@ -267,12 +266,15 @@ def get_data() -> pd.DataFrame:
     data = data.loc[data["cat_value"] != "NONE"]
 
     # for table
+    # TODO; Why are there duplicates here? There shouldn't be, right?
     data_no_dups = data.drop_duplicates("cat_value")
 
     # rename jitter points column
     data = data.rename(columns={f'mean_{facet3}': "jitter"})
 
-    print(data.head(3).T)
+    #print(data.keys())
+    data = data.sort_values(by='order')
+
     return data, data_no_dups
 
 
@@ -298,10 +300,8 @@ def get_order():
     ordered_list = sorted(dict_order, key=dict_order.get)
     return ordered_list
 
-
 #
 # Create plot
-#
 plot = figure(background_fill_color="#efefef", x_range=[], title="Plot",
               toolbar_location='right', tools="save", sizing_mode="fixed",
               width=800, height=600)
@@ -356,8 +356,6 @@ table = DataTable(source=source_no_dups,
 mapper = get_mapper()
 
 # create plot elements - these are the same for boxplots as mean/std type plots
-
-
 elements = dict(
     vbar=plot.vbar(x="cat_value", top='_bar_top',
                    bottom='_bar_bottom', source=source, width=0.85,
@@ -377,9 +375,7 @@ elements = dict(
     seg_h_med=plot.rect(source=source, x='cat_value', height=0.001,
                         y='_bar_median', width=0.85, line_width=2,
                         line_color='black'),
-    # jitter_points = plot.scatter(x=jitter('cat_value', width=0.4,
-    # # range=plot.x_range), y=f'mean_{meta3}', size=5, alpha=0.4,
-    # # source=source,legend_label = f"{meta3}")
+
     jitter_points=plot.scatter(x=jitter(
         'cat_value', width=0.4, range=plot.x_range), y="jitter", size=5,
         alpha=0.4, source=source)
@@ -390,6 +386,7 @@ elements = dict(
 X_AXIS_LABELS_ORIENTATION = math.pi / 2
 plot.xaxis.group_label_orientation = X_AXIS_LABELS_ORIENTATION
 plot.xaxis.major_label_orientation = X_AXIS_LABELS_ORIENTATION
+plot.xaxis.major_label_text_font_size = "10px"
 
 yspacer = (data['_segment_top'].max() - data['_segment_bottom'].min()) / 20
 
@@ -399,39 +396,6 @@ plot.update(y_range=Range1d(ymin, ymax))
 
 citation = Div(
     text=f'{expset.get_legend_of_obs(w_dataset_id.value,w_facet.value)}')
-
-# check for metadata order
-ordered_list = get_order()
-order = {key: i for i, key in enumerate(ordered_list)}
-
-
-try:
-    xvals = data["cat_value"]
-    int_vals = int(xvals[0])
-    int_vals_sorted = sorted(list(set([int(x) for x in xvals])))
-    int_vals_sorted_str = [str(x) for x in int_vals_sorted]
-    plot.x_range.factors = int_vals_sorted_str
-except Exception:
-    xrangelist = list(set(data["cat_value"]))
-    tupleval = xrangelist[0]
-    # check which is int
-    xrangelist = sorted(list(set(data["cat_value"])), key=lambda tup: tup[0])
-
-    if tupleval[0] is not None and tupleval[0].isdigit():
-        xrangelist = sorted(xrangelist, key=lambda x: float(x[0]))
-    else:
-        xrangelist = sorted(xrangelist, key=lambda x: x[0])
-
-    if tupleval[1] is not None and tupleval[1].isdigit():
-        xrangelist = sorted(xrangelist, key=lambda x: float(x[1]))
-    else:
-        xrangelist = sorted(xrangelist, key=lambda x: x[1])
-
-    plot.x_range.factors = xrangelist
-
-plot.xaxis.group_label_orientation = X_AXIS_LABELS_ORIENTATION
-plot.xaxis.major_label_orientation = X_AXIS_LABELS_ORIENTATION
-plot.xaxis.major_label_text_font_size = "10px"
 
 
 def cb_update_plot(attr, old, new):
@@ -444,6 +408,7 @@ def cb_update_plot(attr, old, new):
     # keeping old data and getting new data
     old_data = data
     old_data_no_dups = data_no_dups
+
     try:
         new_data, new_data_no_dups = get_data()
     except bex.GeneNotFoundException:
@@ -458,44 +423,28 @@ def cb_update_plot(attr, old, new):
     # can we plot the new data?
     if len(new_data) == 0:
         # no..
+        # keep the old data.
         warning_experiment.visible = True
         data = old_data
         data_no_dups = old_data_no_dups
-        # keep the old data.
-    else:
-        # yes, update everything.
-        warning_experiment.visible = False
-        data = new_data
-        data_no_dups = new_data_no_dups
-        source.data = data
-        source_no_dups.data = data_no_dups
-        # mapper for color, and mapper for order. if found.
-        mapper = get_mapper()
-        elements["vbar"].glyph.fill_color = {
-            'field': coloring_scheme, 'transform': mapper}
-        # ordered_list = get_order()
-        # order = {key: i for i, key in enumerate(ordered_list)}
-        try:
-            xvals = data["cat_value"]
-            int_vals_sorted = sorted(list(set([int(x) for x in xvals])))
-            int_vals_sorted = [str(x) for x in int_vals_sorted]
-            plot.x_range.factors = int_vals_sorted
-        except Exception:
-            xrangelist = list(set(data["cat_value"]))
-            tupleval = xrangelist[0]
-            # check which (if any) is an integer - and use that to sort
-            xrangelist = sorted(
-                list(set(data["cat_value"])), key=lambda tup: tup[0])
-            if tupleval[0].isdigit():
-                xrangelist = sorted(xrangelist, key=lambda x: int(x[0]))
-            else:
-                xrangelist = sorted(xrangelist, key=lambda x: x[0])
-            if tupleval[1].isdigit():
-                xrangelist = sorted(xrangelist, key=lambda x: int(x[1]))
-            else:
-                xrangelist = sorted(xrangelist, key=lambda x: x[1])
+        return
 
-            plot.x_range.factors = xrangelist
+    # yes, update everything.
+    warning_experiment.visible = False
+    data = new_data
+    data_no_dups = new_data_no_dups
+    source.data = data
+    source_no_dups.data = data_no_dups
+
+    # mapper for color, and mapper for order. if found.
+    mapper = get_mapper()
+    elements["vbar"].glyph.fill_color = {
+        'field': coloring_scheme, 'transform': mapper}
+
+    xrangelist = data[['cat_value', 'order']].drop_duplicates()
+    print(xrangelist)
+    xrangelist = list(xrangelist['cat_value'])
+    plot.x_range.factors = xrangelist
 
     w_div_title_author.text = \
         f"""
@@ -504,6 +453,7 @@ def cb_update_plot(attr, old, new):
         Organism: {dataset['organism']}<br>
         Datatype: {dataset['datatype']}
         """
+
 
     w_download_filename.text = f"exp_{dataset_id}_{facet}_{gene}.csv"
 

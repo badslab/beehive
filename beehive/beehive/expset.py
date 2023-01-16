@@ -1,6 +1,6 @@
 import logging
 from functools import lru_cache, partial
-from typing import Any, Dict, List, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
 import pandas as pd
@@ -29,7 +29,7 @@ diskcache = partial(
 
 @lru_cache(32)
 def get_datasets(has_de: bool = False,
-                 view_name: str = None):
+                 view_name: Optional[str] = None):
     """Return a dict with all dataset."""
 
     datasets: Dict[str, Dict] = {}
@@ -177,11 +177,21 @@ def get_gene_meta_three_facets(
     and means of (metadata1 * metadata2) groups.
     """
 
-    emptyDF = False
-
     genedata = get_gene(dsid, gene)
     if genedata is None:
         raise bex.GeneNotFoundException
+
+    # TODO: Rewrite this whole function? or better document
+
+    # gdseries = genedata.to_pandas()[gene]
+    # metanew = get_meta_multi(dsid, [meta1, meta2, meta3], nobins=nobins,
+    #                         view_name=view_name, raw=True)
+    # metanew.columns = 'meta_' + metanew.columns
+    # metanew['gene_' + gene] = gdseries
+
+    # print(metanew.head(3).T)
+
+    emptyDF = False
 
     metadata = get_meta(dsid, meta1, nobins=nobins,
                         view_name=view_name, raw=True)  # facet1
@@ -213,7 +223,6 @@ def get_gene_meta_three_facets(
         metadata3 = pl.DataFrame([])
         new_meta3 = meta3
     else:
-        # most likely mouse_id
         metadata3 = get_meta(dsid, meta3, nobins=nobins,
                              view_name=view_name, raw=True)
         metadata3 = metadata3.select((pl.col(meta3)).cast(str))
@@ -231,6 +240,8 @@ def get_gene_meta_three_facets(
             or metadata2 is None \
             or metadata3 is None:
         return None
+
+    # print(groupby_columns1)
 
     rv_combined = (
         pl.concat([genedata, metadata, metadata2, metadata3], how="horizontal")
@@ -250,6 +261,7 @@ def get_gene_meta_three_facets(
             ]
         )
     )
+
     rv_mouseid = (
         pl.concat([genedata, metadata, metadata2, metadata3], how="horizontal")
         .groupby(groupby_columns2)
@@ -260,6 +272,26 @@ def get_gene_meta_three_facets(
             ]
         )
     )
+
+    gc1 = groupby_columns1[0]
+    go1 = get_order_of_obs(dsid, meta1)
+    go1x = max(go1.values()) + 2 if go1 else 2
+
+    rv_combined = rv_combined.with_column(
+        pl.col(gc1).apply(lambda x: go1.get(x, go1x)).alias('order1'))
+
+    if len(groupby_columns1) == 1:
+        rv_combined = rv_combined.rename({"order1": "order"})
+    else:
+        gc2 = groupby_columns1[1]
+        go2 = get_order_of_obs(dsid, gc2)
+        go2x = max(go2.values()) + 2 if go2 else 2
+        rv_combined = rv_combined.with_column(
+            pl.col(gc2).apply(lambda x: go2.get(x, go2x)).alias('order2'))
+        rv_combined = rv_combined.with_column(
+            ((rv_combined['order2'] * go2x) + rv_combined['order1'])
+            .alias('order'))
+        rv_combined = rv_combined.drop(["order1", "order2"])
 
     # switch to dfs
     df_combined = rv_combined.to_pandas()
@@ -432,7 +464,6 @@ def get_gsea_columns(dsid, column=None):
         SELECT DISTINCT(column)
         FROM gsea '''
     rv = pd.read_sql(sql, gsdb)
-    print(rv)
     return list(rv['column'])
 
 
@@ -613,6 +644,20 @@ def get_defaults(dsid, view_name: str = ""):
                 except:  # noqa: E722
                     return final_dict
     return final_dict
+
+
+def get_meta_multi(dsid: str,
+                   cols: List[str],
+                   raw: bool = False,
+                   nobins: int = 8,
+                   view_name: str = ""):
+
+    find_m = {}
+    for c in cols:
+        find_m[c] = get_meta(dsid, col=c, raw=raw, nobins=nobins,
+                             view_name=view_name).to_series()
+    rv = pd.DataFrame.from_dict(find_m)
+    return rv
 
 
 def get_meta(dsid, col, raw=False, nobins=8,
