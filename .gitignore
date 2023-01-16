@@ -22,3 +22,4 @@ data/incoming
 *.prq
 beehive/pyproject.toml
 *.h5ad
+mus.*
