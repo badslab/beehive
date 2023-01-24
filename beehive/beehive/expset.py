@@ -166,6 +166,67 @@ def get_facet_options_numerical(dsid: str, view_name: str = "") \
     return list(sorted(rv))
 
 
+def get_gene_meta_multi_aggregate(
+        dsid: str, gene: str,
+        metafields: List[str],
+        view_name: str = "",
+        nobins: int = 8,
+        remove_NONE: bool = True):
+
+    """Aggregate."""
+    data = get_gene_meta_multi(
+        dsid=dsid, gene=gene,
+        metafields=metafields,
+        view_name=view_name, nobins=nobins,
+        remove_NONE=remove_NONE)
+
+    # functions instead of lambda's yield better names in the
+    # pandas aggregate..
+
+    def q01(x): return np.quantile(x, 0.25)
+    def q25(x): return np.quantile(x, 0.25)
+    def q75(x): return np.quantile(x, 0.25)
+    def q99(x): return np.quantile(x, 0.9)
+
+    aggdata = data.groupby(metafields)['_gene_'].agg(
+        [np.mean, np.median, max, min, np.std,
+         q01, q25, q75, q99
+        ])
+    # print(aggdata.index.to_series())
+    # print(aggdata)
+    return aggdata
+
+
+def get_gene_meta_multi(
+        dsid: str, gene: str,
+        metafields: List[str],
+        view_name: str = "",
+        nobins: int = 8,
+        remove_NONE: bool = True):
+    """Get gene and metadata for multiple fields."""
+
+    genedata = get_gene(dsid, gene)
+    if genedata is None:
+        raise bex.GeneNotFoundException
+
+    rvr = {"_gene_": genedata[gene]}
+
+    for i, meta in enumerate(metafields):
+        if meta == '--':
+            continue
+        m = get_meta(dsid, meta, nobins=nobins,
+                     view_name=view_name, raw=True).to_pandas()
+        rvr[meta] = m[meta]
+
+    rv = pd.DataFrame(rvr)
+
+    # TODO: This is probably not the fastest method
+    if remove_NONE:
+        rv = rv[rv.apply(lambda x: 'NONE' not in list(x), axis=1)]
+
+    return rv
+
+
 def get_gene_meta_three_facets(
         dsid: str, gene: str, meta1: str, meta2: str, meta3: str = "mouse.id",
         nobins: int = 8, view_name: str = ""):
