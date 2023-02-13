@@ -1,8 +1,6 @@
 """helpers for the gene expression app."""
 
 import logging
-import os
-import time
 from pathlib import Path
 from pprint import pprint
 from typing import List, Optional
@@ -68,8 +66,9 @@ def h5ad_del(h5ad_file: Path = typer.Argument(..., exists=True),
 
 @ app.command("prepare")
 def h5ad_convert(h5ad_file: Path = typer.Argument(..., exists=True),
-                 author: str = None,
-                 title: str = None,
+                 expyaml: Optional[Path] = None,
+                 author: Optional[str] = None,
+                 title: Optional[str] = None,
                  ):
     """Convert to polars/parquet dataframes."""
 
@@ -77,19 +76,36 @@ def h5ad_convert(h5ad_file: Path = typer.Argument(..., exists=True),
     import polars as pl
     import scanpy as sc
 
+    expdata = {}
+    if expyaml is not None:
+        with open(Path(expyaml).expanduser()) as F:
+            expdata = yaml.load(F, Loader=yaml.SafeLoader)
+            for k, v in expdata.items():
+                print(k, str(v)[:80])
+
     outbase = h5ad_file
     lg.info(f"Filename for IO: {outbase}")
 
     adata = sc.read_h5ad(h5ad_file)
 
     # automatically fails if not exist
-    study_md = adata.uns['study_md']
+    if 'study_md' not in adata:
+        study_md = adata.uns['study_md']
+    else:
+        study_md = expdata
+        if 'title' not in study_md:
+            study_md['title'] = study_md['name']
+        if 'short_title' not in study_md:
+            study_md['short_title'] = study_md['title']
 
     for field in ['author', 'title', 'study', 'organism', 'datatype',
                   'short_title', 'year']:
-        assert field in study_md
+        if field not in study_md:
+            print("missing field", field)
+            return
 
     study_md['year'] = int(study_md['year'])
+    return
 
     try:
         adata.raw.to_adata()

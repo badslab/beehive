@@ -4,13 +4,14 @@ import logging
 import math
 from functools import partial
 from os.path import dirname, join
+from typing import Tuple
 
 import pandas as pd
 from bokeh.layouts import column, row
-from bokeh.models import (
-    ColumnDataSource,
-    DataTable,
-    Panel,
+from bokeh.models import ColumnDataSource, DataTable  # type: ignore[attr-defined]
+from bokeh.models import Panel as TabPanel
+from bokeh.models import (  # type: ignore[attr-defined]
+    RadioGroup,
     Range1d,
     ScientificFormatter,
     TableColumn,
@@ -22,7 +23,7 @@ from bokeh.plotting import curdoc, figure
 from bokeh.transform import CategoricalColorMapper, jitter
 
 import beehive.exceptions as bex
-from beehive import config, expset, util
+from beehive import config, expset, util  # type: ignore[attr-defined]
 
 lg = logging.getLogger('GeneExp')
 lg.setLevel(logging.DEBUG)
@@ -37,16 +38,16 @@ create_widget = partial(util.create_widget, curdoc=curdoc())
 
 datasets = expset.get_datasets(view_name=VIEW_NAME)
 
-args = curdoc().session_context.request.arguments
+args = curdoc().session_context.request.arguments   # type: ignore[union-attr]
 
 
 def elog(*args, **kwargs):
     "Print debug info"
     print("V" * 80)
-    for a in args:
-        print(a)
-    for k, v in kwargs.items():
-        print(k, v)
+    for arg in args:
+        print(arg)
+    for key, val in kwargs.items():
+        print(key, val)
     print("^" * 80)
 
 
@@ -149,7 +150,8 @@ def update_facets():
     w_facet2.options = w_facet2.options + [("--", "--")]
     w_facet3.options = w_facet3.options + [("--", "--")]
 
-    if w_facet.value not in [x[0] for x in w_facet.options]:
+    if w_facet.value not in [x[0]
+                             for x in w_facet.options]:
         # set a default
         w_facet.value = w_facet.options[0][0]
 
@@ -229,7 +231,7 @@ if curdoc().session_context.request.arguments == {}:
     set_defaults()
 
 
-def get_data() -> pd.DataFrame:
+def get_data() -> Tuple[pd.DataFrame, pd.DataFrame]:
     """Retrieve data from a dataset, gene & facet."""
     global coloring_scheme  # name of column for coloring.
     dataset_id = w_dataset_id.value
@@ -245,6 +247,17 @@ def get_data() -> pd.DataFrame:
 
     if w_facet2.value == "--":
         coloring_scheme = "cat_value"
+
+    # aggdatafields = [facet]
+    # if facet2 != "--":
+    #     aggdatafields.append(facet2)
+    # data2 = expset.get_gene_meta_multi_aggregate(
+    #     dataset_id, gene, aggdatafields,
+    #     view_name=VIEW_NAME)
+
+    # print('@' * 80)
+    # print(data2.shape)
+    # print(data2)
 
     lg.warning(f"!! Getting data for {dataset_id} {facet} {gene}")
     data = expset.get_gene_meta_three_facets(
@@ -272,7 +285,7 @@ def get_data() -> pd.DataFrame:
     # rename jitter points column
     data = data.rename(columns={f'mean_{facet3}': "jitter"})
 
-    #print(data.keys())
+    # print(data.keys())
     data = data.sort_values(by='order')
 
     return data, data_no_dups
@@ -300,7 +313,7 @@ def get_order():
     ordered_list = sorted(dict_order, key=dict_order.get)
     return ordered_list
 
-#
+
 # Create plot
 plot = figure(background_fill_color="#efefef", x_range=[], title="Plot",
               toolbar_location='right', tools="save", sizing_mode="fixed",
@@ -441,8 +454,9 @@ def cb_update_plot(attr, old, new):
     elements["vbar"].glyph.fill_color = {
         'field': coloring_scheme, 'transform': mapper}
 
+    # print(list(data['cat_value']))
+
     xrangelist = data[['cat_value', 'order']].drop_duplicates()
-    print(xrangelist)
     xrangelist = list(xrangelist['cat_value'])
     plot.x_range.factors = xrangelist
 
@@ -453,7 +467,6 @@ def cb_update_plot(attr, old, new):
         Organism: {dataset['organism']}<br>
         Datatype: {dataset['datatype']}
         """
-
 
     w_download_filename.text = f"exp_{dataset_id}_{facet}_{gene}.csv"
 
@@ -543,8 +556,8 @@ menucol = column([
     warning_experiment, ],
     sizing_mode='fixed', width=350,)
 
-PlotTab = Panel(child=plot, title="Plot")
-TableTab = Panel(child=column([table, w_download]), title="Table")
+PlotTab = TabPanel(child=plot, title="Plot")
+TableTab = TabPanel(child=column([table, w_download]), title="Table")
 
 
 curdoc().add_root(row([

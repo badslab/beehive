@@ -76,7 +76,11 @@ serve_dev: fix_templates
 #### Docker
 
 docker_build:
-	docker buildx  build  --platform linux/amd64 -f docker/Dockerfile -t bdslab/beehive  .
+	docker buildx \
+		build --platform linux/amd64 \
+		-f docker/Dockerfile \
+		-t bdslab/beehive \
+		.
 
 docker_build_mac:
 	docker  build  -f docker/Dockerfile -t bdslab/beehive:mac_m1  .
@@ -127,6 +131,24 @@ serve_mark_gene_expression:
 	bokeh serve \
 		--dev --port 15009 --allow-websocket-origin=* \
 		bokeh/gene_expression/
+
+
+.ONESHELL:
+serve_mark_scatter:
+	export BEEHIVE_DEBUG=1 ; \
+	export BEEHIVE_BASEDIR=${BEEHIVE_BASEDIR} ; \
+	while true; do bokeh serve \
+		--dev --port 15009 --allow-websocket-origin=* \
+		bokeh/scatter_expression/ ; sleep 1 ; done
+
+
+.ONESHELL:
+serve_mark_gsea:
+	export BEEHIVE_DEBUG=1 ; \
+	export BEEHIVE_BASEDIR=${BEEHIVE_BASEDIR} ; \
+	while true; do bokeh serve \
+		--dev --port 15009 --allow-websocket-origin=* \
+		bokeh/gsea_view/ ; sleep 1 ; done
 
 
 .ONESHELL:

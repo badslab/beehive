@@ -27,6 +27,15 @@ diskcache = partial(
 # variable.
 # @lru_cache(1)
 
+@lru_cache(16)
+def get_views(dsid: str):
+    datadir = util.get_datadir("h5ad")
+    yamlfile = datadir / f"{dsid}.yaml"
+    with open(yamlfile, "r") as F:
+        y = yaml.load(F, Loader=yaml.SafeLoader)
+    return y["use_in_view"]
+
+
 @lru_cache(32)
 def get_datasets(has_de: bool = False,
                  view_name: Optional[str] = None):

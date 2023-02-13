@@ -11,6 +11,7 @@ from typing import Optional
 
 import numpy as np
 import pandas as pd
+from bokeh.plotting import curdoc
 
 import beehive
 
@@ -200,6 +201,10 @@ def create_widget(name: str,
     if update_url:
         new_widget.js_on_change("value", js_onchange_value)
     return new_widget
+
+def get_dataset2():
+    args = curdoc().session_context.request.arguments
+    print(args)
 
 
 def getcolor(x, palette, vmax, vmin=None):
