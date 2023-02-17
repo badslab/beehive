@@ -1,7 +1,7 @@
 SHELL=/bin/bash
 
-BEEHIVE_BASEDIR=/Users/u0089478/data/beehive/beehive_data_intern
-
+#BEEHIVE_BASEDIR=/Users/u0089478/data/beehive/beehive_data_intern
+#BEEHIVE_BASEDIR=/Users/raghidbsat/Extras_No_Icloud_save/VIB/github_bds_lab/beehive_data_intern
 .PHONY:
 .SILENT:
 check_deployment:
