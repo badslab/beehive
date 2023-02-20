@@ -7,7 +7,6 @@ import yaml
 import matplotlib.pyplot as plt
 import numpy as np
 import matplotlib.colors as colors
-import markdown
 
 app = typer.Typer()
 
@@ -350,5 +349,5 @@ Abstract: TBD
     new_yaml_file = os.path.join(dir_path, f'{yml["author"]}{yml["year"]}.md')
     with open(new_yaml_file, 'w') as f:
         f.write(content)
-        
+
     return
