@@ -1,22 +1,28 @@
 import logging
 from functools import partial
-import logging
-import pandas as pd
-from scipy import stats
-import numpy as np
-
-from bokeh.layouts import column, row
-from bokeh.models import (ColumnDataSource, CheckboxGroup, RadioGroup, LinearColorMapper, ColorBar, Label,Slider)
-from bokeh.models.callbacks import CustomJS
-from bokeh.models.widgets import (Select, Div,
-                                  Button, AutocompleteInput)
-from bokeh.plotting import figure, curdoc
-from bokeh.transform import factor_cmap
-from bokeh.palettes import Category20
 from os.path import dirname, join
 
+import numpy as np
+import pandas as pd
+from bokeh.layouts import column, row
+from bokeh.models import (
+    CheckboxGroup,
+    ColorBar,
+    ColumnDataSource,
+    Label,
+    LinearColorMapper,
+    RadioGroup,
+    Slider,
+)
+from bokeh.models.callbacks import CustomJS
+from bokeh.models.widgets import AutocompleteInput, Button, Div, Select
+from bokeh.palettes import Category20
+from bokeh.plotting import curdoc, figure
+from bokeh.transform import factor_cmap
+from scipy import stats
 
-from beehive import config, util, expset
+from beehive import config, expset, util
+
 # import traceback
 
 
@@ -44,7 +50,7 @@ w_div_title_author = Div(text="")
 # Dataset
 dataset_options = [(k, "{short_title}, {short_author}, {datatype}".format(**v))
                    for k, v in datasets.items()]
-                   
+
 # TODO setting manually
 DATASET_NUMBER = 0
 
@@ -54,52 +60,67 @@ w_dataset_id = create_widget("dataset_id", Select, title="Dataset",
                              default=dataset_options[DATASET_NUMBER][0],
                              visible=True,)
 
+
 w_gene1 = create_widget("geneX", AutocompleteInput,
-                        completions=[], default='APOE', title="Gene", case_sensitive=False,width=100)
+                        completions=[], default='APOE', title="Gene", case_sensitive=False, width=100)
 w_gene2 = create_widget("geneY", AutocompleteInput,
-                        completions=[], default='TREM2', title="Gene", case_sensitive=False,width=100)
+                        completions=[], default='TREM2', title="Gene", case_sensitive=False, width=100)
 w_facet_numerical_1 = create_widget("num_facetX", Select,
-                                    options=[], title="Numerical Facet",width=100)
+                                    options=[], title="Numerical Facet", width=100)
 w_facet_numerical_2 = create_widget("num_facetY", Select,
-                                    options=[], title="Numerical Facet",width=100)
+                                    options=[], title="Numerical Facet", width=100)
 
 widget_axes = [w_gene1, w_gene2, w_facet_numerical_1, w_facet_numerical_2]
 
 w_regression = CheckboxGroup(labels=["Regression Lines"], active=[])
 
+
 # Widget fixed options:
-FIXED_OPTIONS = [("geneX", "Gene X"), ("geneY", "Gene Y"), ("num_facetX",
-                                                            "Numerical Facet on X"), ("num_facetY", "Numerical Facet on Y")]
+FIXED_OPTIONS = [("geneX", "Gene X"),
+                 ("geneY", "Gene Y"),
+                 ("num_facetX", "Numerical Facet on X"),
+                 ("num_facetY", "Numerical Facet on Y")]
 
 LABELS_AXIS = ["Gene", "Numerical Facet"]
-LABELS_GROUPING = ["categorical facet", "gene","numerical facet"]
+LABELS_GROUPING = ["categorical facet", "gene", "numerical facet"]
 
 w_x_axis_radio = create_widget(
-    "x_axis_radio", RadioGroup, labels=LABELS_AXIS, default=0, title="X-Axis", value_type=int,width=120)
+    "x_axis_radio", RadioGroup, labels=LABELS_AXIS, default=0,
+    title="X-Axis", value_type=int, width=120)
+
 w_y_axis_radio = create_widget(
-    "y_axis_radio", RadioGroup, labels=LABELS_AXIS, default=0, title="Y-Axis", value_type=int,width=120)
+    "y_axis_radio", RadioGroup, labels=LABELS_AXIS, default=0,
+    title="Y-Axis", value_type=int, width=120)
 
 # categorical facet grouping of data... or gene3 grouping
 w_facet = create_widget("facet", Select, options=[],
-                        title="Group by Categories",width=100)
+                        title="Group by Categories", width=100)
 
-w_gene3 = create_widget("geneZ", AutocompleteInput,
-                        completions=[], default="APOE", title="Group by Gene Expression", case_sensitive=False,width=150)
-                        
-w_facet_numerical_3 = create_widget("num_facetZ", Select,
-                                    options=[], title="Numerical Facet",width=100)
+w_gene3 = create_widget(
+    "geneZ", AutocompleteInput,
+    completions=[], default="APOE", title="Group by Gene Expression",
+    case_sensitive=False, width=150)
+
+w_facet_numerical_3 = create_widget(
+    "num_facetZ", Select, options=[], title="Numerical Facet", width=100)
 
 w_category_radio = create_widget(
-    "category_radio", RadioGroup, labels=LABELS_GROUPING, default=0, title="Grouped:", value_type=int,width=100)
+    "category_radio", RadioGroup, labels=LABELS_GROUPING, default=0,
+    title="Grouped:", value_type=int, width=100)
 
 # download button..
-w_download = Button(label='Download', align='end',width=100)
+w_download = Button(label='Download', align='end', width=100)
 
 w_download_filename = Div(text="", visible=False,
                           name="download_filename")
 
-w_alpha_slider = create_widget("alpha_picker",Slider,start=0.1, end=1, default=0.7,step=0.05,title = "Opacity",value_type = float,width=100)
-w_size_slider = create_widget("size_picker",Slider,start=2, end=15, default=5,step=1,title = "Points Size",value_type = int,width=100)
+w_alpha_slider = create_widget("alpha_picker", Slider, start=0.1, end=1,
+                               default=0.7, step=0.05, title = "Opacity",
+                               value_type = float, width=100)
+
+w_size_slider = create_widget("size_picker", Slider, start=2, end=15,
+                              default=5, step=1, title = "Points Size",
+                              value_type = int, width=100)
 
 # To display text if the gene is not found
 w_gene_not_found = Div(text="")
@@ -111,8 +132,8 @@ w_gene_not_found = Div(text="")
 
 def get_genes():
     """Get available genes for a dataset."""
-    dataset_id = w_dataset_id.value
-    genes = sorted(list(expset.get_genes(dataset_id)))
+    dsid = w_dataset_id.value
+    genes = sorted(list(expset.get_genes(dsid)))
     return genes
 
 
@@ -136,7 +157,9 @@ def update_genes():
 
 def update_facets():
     """Update interface for a specific dataset."""
-    options = expset.get_facet_options(w_dataset_id.value,view_name=VIEW_NAME,only_categorical=True)
+    options = expset.get_facet_options(
+        w_dataset_id.value, view_name=VIEW_NAME,
+        only_categorical=True)
     w_facet.options = options
     if w_facet.value not in [x[0] for x in options]:
         # set a default
@@ -147,55 +170,55 @@ update_facets()
 update_genes()
 
 
-def set_defaults():
-    defaults_dict = expset.get_defaults(w_dataset_id.value,VIEW_NAME)
-    if defaults_dict == {}:
-        return
-    for def_vals in defaults_dict[VIEW_NAME]:
-        if def_vals.get("dataset"):
-            default_dsid = def_vals.get("dataset")
-            for i in range(len(w_dataset_id.options)):
-                if default_dsid == w_dataset_id.options[i][0]:
-                    w_dataset_id.value = w_dataset_id.options[i][0]
-    
-    update_facets()
-    update_genes()
-    for def_vals in defaults_dict[VIEW_NAME]:
-        if def_vals.get("gene1"):
-            w_gene1.value =  def_vals.get("gene1")
-        if def_vals.get("gene2"):
-            w_gene2.value =  def_vals.get("gene2")
-        if def_vals.get("num_facet1"):
-            w_facet_numerical_1.value =  def_vals.get("num_facet1")
-        if def_vals.get("num_facet2"):
-            w_facet_numerical_2.value =  def_vals.get("num_facet2")
-        if def_vals.get("group_gene"):
-            w_gene3.value =  def_vals.get("group_gene")
-        if def_vals.get("group_categ"):
-            w_facet.value =  def_vals.get("group_categ")
-        if def_vals.get("group_option"):
-            w_category_radio.active =  def_vals.get("group_option")
-        if def_vals.get("x_axis"):
-            w_x_axis_radio.active = def_vals.get("x_axis")
-        if def_vals.get("y_axis"):
-            w_y_axis_radio.active = def_vals.get("y_axis")
-        if def_vals.get("points_size"):
-            w_size_slider.value = def_vals.get("points_size")
-        if def_vals.get("opacity"):
-            w_alpha_slider.value = def_vals.get("opacity")
-    return
+# def set_defaults():
+#     defaults_dict = expset.get_defaults(w_dataset_id.value, VIEW_NAME)
+#     if defaults_dict == {}:
+#         return
+#     for def_vals in defaults_dict[VIEW_NAME]:
+#         if def_vals.get("dataset"):
+#             default_dsid = def_vals.get("dataset")
+#             for i in range(len(w_dataset_id.options)):
+#                 if default_dsid == w_dataset_id.options[i][0]:
+#                     w_dataset_id.value = w_dataset_id.options[i][0]
 
-if curdoc().session_context.request.arguments == {}:
-    set_defaults()
+#     update_facets()
+#     update_genes()
+#     for def_vals in defaults_dict[VIEW_NAME]:
+#         if def_vals.get("gene1"):
+#             w_gene1.value =  def_vals.get("gene1")
+#         if def_vals.get("gene2"):
+#             w_gene2.value =  def_vals.get("gene2")
+#         if def_vals.get("num_facet1"):
+#             w_facet_numerical_1.value =  def_vals.get("num_facet1")
+#         if def_vals.get("num_facet2"):
+#             w_facet_numerical_2.value =  def_vals.get("num_facet2")
+#         if def_vals.get("group_gene"):
+#             w_gene3.value =  def_vals.get("group_gene")
+#         if def_vals.get("group_categ"):
+#             w_facet.value =  def_vals.get("group_categ")
+#         if def_vals.get("group_option"):
+#             w_category_radio.active =  def_vals.get("group_option")
+#         if def_vals.get("x_axis"):
+#             w_x_axis_radio.active = def_vals.get("x_axis")
+#         if def_vals.get("y_axis"):
+#             w_y_axis_radio.active = def_vals.get("y_axis")
+#         if def_vals.get("points_size"):
+#             w_size_slider.value = def_vals.get("points_size")
+#         if def_vals.get("opacity"):
+#             w_alpha_slider.value = def_vals.get("opacity")
+#     return
+
+# if curdoc().session_context.request.arguments == {}:
+#     set_defaults()
 
 def update_numerical_facets():
     """"Get and update numerical facets only. Helpful for the w_numerical_facet widget"""
-    options = expset.get_facet_options_numerical(w_dataset_id.value,view_name=VIEW_NAME)
+    options = expset.get_facet_options_numerical(w_dataset_id.value, view_name=VIEW_NAME)
     w_facet_numerical_1.options = options
     w_facet_numerical_2.options = options
     w_facet_numerical_3.options = options
     # some datasets might not have any numerical facets
-    if not(options): 
+    if not(options):
         return
 
     if w_facet_numerical_1.value not in [x[0] for x in options]:
@@ -240,36 +263,39 @@ def get_data() -> pd.DataFrame:
     if x_axis == GENE_OPTION:
         geneX = expset.get_gene(dataset_id, gene1)[:, 0]
     else:
-        num_facetX = expset.get_meta(dataset_id, num_facet1, raw=True,view_name=VIEW_NAME)[:, 0]
+        num_facetX = expset.get_meta(
+            dataset_id, num_facet1, raw=True, view_name=VIEW_NAME)[:, 0]
 
     if y_axis == GENE_OPTION:
         geneY = expset.get_gene(dataset_id, gene2)[:, 0]
     else:
-        num_facetY = expset.get_meta(dataset_id, num_facet2, raw=True,view_name=VIEW_NAME)[:, 0]
+        num_facetY = expset.get_meta(
+            dataset_id, num_facet2, raw=True, view_name=VIEW_NAME)[:, 0]
 
     # always fetched => for the colorbar when coloring
     # with a gene expression
     if gene3:
         geneZ = expset.get_gene(dataset_id, gene3)[:, 0]
-    
+
     if num_facet3:
-        num_facetZ = expset.get_meta(dataset_id, num_facet3, raw=True,view_name=VIEW_NAME)[:, 0]
+        num_facetZ = expset.get_meta(
+            dataset_id, num_facet3, raw=True, view_name=VIEW_NAME)[:, 0]
 
-    lg.warning(f"!! Getting data for {dataset_id} {facet} {gene1}")
+    # lg.warning(f"!! Getting data for {dataset_id} {facet} {gene1}")
 
-    lg.warning(f"!! Getting data for {dataset_id} {facet} {gene2}")
+    # lg.warning(f"!! Getting data for {dataset_id} {facet} {gene2}")
 
     data = pd.DataFrame(dict(
         geneX=geneX,
         geneY=geneY,
-        obs=expset.get_meta(dataset_id, facet,raw=True,view_name=VIEW_NAME)[:, 0],
+        obs=expset.get_meta(dataset_id, facet, raw=True, view_name=VIEW_NAME)[:, 0],
         num_facetX=num_facetX,
         num_facetY=num_facetY,
         geneZ=geneZ,
         num_facetZ = num_facetZ
     ))
     if len(w_facet_numerical_1.options) == 0:
-        data.drop("num_facetZ",axis=1,inplace = True)
+        data.drop("num_facetZ", axis=1, inplace = True)
 
     return data
 
@@ -290,7 +316,8 @@ def get_unique_obs(data):
 def get_mapper():
     """"Set up palette for ColorBar"""
 
-    if LABELS_GROUPING[w_category_radio.active] == "gene" or len(w_facet_numerical_1.options) == 0 :
+    if LABELS_GROUPING[w_category_radio.active] == "gene" \
+            or len(w_facet_numerical_1.options) == 0 :
         mapper = LinearColorMapper(
             palette='Magma256',
             low=data["geneZ"].min(),
@@ -308,7 +335,7 @@ def get_mapper():
 #
 
 
-plot = figure(output_backend="webgl",width=1000)
+plot = figure(output_backend="webgl", width=1000)
 
 data = get_data()
 
@@ -317,7 +344,7 @@ dataset_id, dataset = get_dataset()
 print(unique_obs)
 # palette for the categorical obs
 if len(unique_obs) < 3:
-    palette = ["blue","red"]
+    palette = ["blue", "red"]
 else:
     palette = Category20[len(unique_obs)]
 
@@ -342,20 +369,23 @@ if Z_AXIS == "categorical facet":
         new_source = ColumnDataSource(data.loc[(data.obs == obs)])
 
         plot.scatter(x=X_AXIS, y=Y_AXIS, source=new_source,  legend_label=obs,
-                     fill_alpha=ALPHA, size=SIZE, width=0, fill_color=index_cmap["transform"].palette[index])
+                     fill_alpha=ALPHA, size=SIZE, width=0,
+                     fill_color=index_cmap["transform"].palette[index])
     plot.legend.location = "top_right"
     plot.legend.click_policy = "hide"
 elif Z_AXIS == "gene":
     download_z_axis = "geneZ"
     plot.scatter(x=X_AXIS, y=Y_AXIS, source=ColumnDataSource(data),
-                 fill_alpha=ALPHA, size=SIZE, width=0, fill_color={'field': 'geneZ', 'transform': mapper})
+                 fill_alpha=ALPHA, size=SIZE, width=0,
+                 fill_color={'field': 'geneZ', 'transform': mapper})
 else:
     download_z_axis = "num_facetZ"
     plot.scatter(x=X_AXIS, y=Y_AXIS, source=ColumnDataSource(data),
-                 fill_alpha=ALPHA, size=ALPHA, width=0, fill_color={'field': 'num_facetZ', 'transform': mapper})
+                 fill_alpha=ALPHA, size=ALPHA, width=0,
+                 fill_color={'field': 'num_facetZ', 'transform': mapper})
 
 
-source_download = ColumnDataSource(data[[X_AXIS,Y_AXIS,download_z_axis,"obs"]])
+source_download = ColumnDataSource(data[[X_AXIS, Y_AXIS, download_z_axis, "obs"]])
 
 
 
@@ -379,16 +409,19 @@ color_bar = ColorBar(color_mapper=mapper, location=(
 plot.add_layout(color_bar, "right")
 # 2. colorbar title
 colorbar_text = Label(text=f'{text_label}', x=-20, y=520, x_units='screen',
-                      y_units='screen', text_align="center", text_font_style="italic", text_font_size="12px")
+                      y_units='screen', text_align="center",
+                      text_font_style="italic", text_font_size="12px")
 plot.add_layout(colorbar_text, "right")
 # 3. min value
 
 tick_min = Label(text=f'{min_text}:.2f', x=-40, y=15, y_units='screen',
-                 x_units="screen", text_align="left", text_baseline="middle", text_font_size="12px")
+                 x_units="screen", text_align="left",
+                 text_baseline="middle", text_font_size="12px")
 plot.add_layout(tick_min, "right")
 # 4. max value
 tick_max = Label(text=f'{max_text}:.2f', x=-50, y=510, y_units='screen',
-                 x_units="screen", text_align="left", text_baseline="middle", text_font_size="12px")
+                 x_units="screen", text_align="left",
+                 text_baseline="middle", text_font_size="12px")
 plot.add_layout(tick_max, "right")
 
 # If we plot by categorical obs, we hide all the 4 components
@@ -425,12 +458,11 @@ spinner_text = """
 @keyframes spin {
     0% { transform: rotate(0deg); }
     100% { transform: rotate(360deg); }
-} 
+}
 </style>
 </div>
 """
-div_spinner = Div(text=spinner_text,visible=True)
-
+div_spinner = Div(text=spinner_text, visible=True)
 
 
 def remove_spinner():
@@ -444,12 +476,17 @@ def get_units():
 def cb_update_plot(attr, old, new, type_change):
     """Populate and update the plot."""
     curdoc().hold()
-    global plot, index_cmap, X_AXIS, Y_AXIS, widget_axes, x_label, y_label, data, color_bar, colorbar_text, tick_min, tick_max
-    # change type: if the button clicked needs to have an update in plotting or not
-    # if type_change not in ["XYAXIS", "regression", "categorical", "geneX", "geneY", "num_facetX", "num_facetY","num_facetZ"]:
+
+    global plot, index_cmap, X_AXIS, Y_AXIS, widget_axes, \
+        x_label, y_label, data, color_bar, colorbar_text, \
+        tick_min, tick_max
+    # change type: if the button clicked needs to have an update in
+    # plotting or not
+    # if type_change not in ["XYAXIS", "regression", "categorical",
+    # "geneX", "geneY", "num_facetX", "num_facetY", "num_facetZ"]:
     #     curdoc().unhold()
     #     return
-  
+
     div_spinner.visible = True
     plot.visible = False
     if type_change == "cosmetics":
@@ -461,8 +498,18 @@ def cb_update_plot(attr, old, new, type_change):
         curdoc().unhold()
         return
 
+    if type_change == "geneX":
+        w_x_axis_radio.active = GENE_OPTION
+    elif type_change == "num_facetX":
+        w_x_axis_radio.active = FACET_OPTION
+    elif type_change == "geneY":
+        w_y_axis_radio.active = GENE_OPTION
+    elif type_change == "num_facetY":
+        w_y_axis_radio.active = FACET_OPTION
+
     data = get_data()
-    #no numerical facets. => need to add which views have numerical and which dont : updates widgets
+    #no numerical facets. => need to add which views have numerical
+    # and which dont : updates widgets
     dataset_id, dataset = get_dataset()
 
     facet = w_facet.value
@@ -470,7 +517,7 @@ def cb_update_plot(attr, old, new, type_change):
     unique_obs = get_unique_obs(data)
 
     if len(unique_obs) < 3:
-        palette = ["blue","red"]
+        palette = ["blue", "red"]
     else:
         palette = Category20[len(unique_obs)]
     index_cmap = factor_cmap('obs', palette, unique_obs)
@@ -495,11 +542,11 @@ def cb_update_plot(attr, old, new, type_change):
     # plot again:
     if Z_AXIS == "categorical facet":
         download_z_axis = "obs"
-        source_download.data = data[[X_AXIS,Y_AXIS,download_z_axis,"obs"]]
+        source_download.data = data[[X_AXIS, Y_AXIS, download_z_axis, "obs"]]
 
         for index, obs in enumerate(unique_obs):
             new_data = data.loc[(data.obs == obs)]
-            # new_data.sort_values("num_facetZ",inplace = True)
+            # new_data.sort_values("num_facetZ", inplace = True)
             new_source = ColumnDataSource(new_data)
 
             if len(w_regression.active) == 1:
@@ -508,23 +555,34 @@ def cb_update_plot(attr, old, new, type_change):
                     new_source.data[X_AXIS], y=new_source.data[Y_AXIS])
                 y_predicted = [round(slope, 3)*i + round(intercept, 3)
                                for i in new_source.data[X_AXIS]]
+                slope = round(slope, 2)
+                intercept = round(intercept, 2)
+                r_value = round(r_value, 2)
+                llabel = (f"{obs}: y={slope}x"
+                          f"+{intercept}, "
+                          f"p-value={p_value:e}, "
+                          f"r-value={r_value}")
 
-                plot.line(new_source.data[X_AXIS], np.array(y_predicted), color=index_cmap["transform"].palette[index],
-                          legend_label=f"{obs}: y={str(round(slope,2))}x+{str(round(intercept,2))}, p-value={'{:e}'.format(p_value)}, r-value={str(round(r_value,2))}")
+                plot.line(new_source.data[X_AXIS], np.array(y_predicted),
+                          color=index_cmap["transform"].palette[index],
+                          legend_label=llabel)
             else:
-
-                plot.scatter(x=X_AXIS, y=Y_AXIS, source=new_source,  legend_label=obs,
-                             fill_alpha=ALPHA, size=SIZE, width=0, fill_color=index_cmap["transform"].palette[index])
+                plot.scatter(x=X_AXIS, y=Y_AXIS,
+                             source=new_source,
+                             legend_label=obs,
+                             fill_alpha=ALPHA, size=SIZE, width=0,
+                             fill_color=index_cmap["transform"].palette[index])
         plot.legend.location = "top_right"
         plot.legend.click_policy = "hide"
     elif Z_AXIS == "gene":
         download_z_axis = "geneZ"
-        source_download.data = data[[X_AXIS,Y_AXIS,download_z_axis,"obs"]]
+        source_download.data = data[[X_AXIS, Y_AXIS, download_z_axis, "obs"]]
 
         mapper = get_mapper()
-        data.sort_values("geneZ",inplace = True)
+        data.sort_values("geneZ", inplace = True)
         plot.scatter(x=X_AXIS, y=Y_AXIS, source=ColumnDataSource(data),
-                     fill_alpha=ALPHA, size=SIZE, width=0, fill_color={'field': 'geneZ', 'transform': mapper})
+                     fill_alpha=ALPHA, size=SIZE, width=0,
+                     fill_color={'field': 'geneZ', 'transform': mapper})
 
         # change component values texts
         colorbar_text.text = f'{w_gene3.value}'
@@ -538,11 +596,12 @@ def cb_update_plot(attr, old, new, type_change):
         tick_max.visible = True
     else:
         download_z_axis = "num_facetZ"
-        source_download.data = data[[X_AXIS,Y_AXIS,download_z_axis,"obs"]]
+        source_download.data = data[[X_AXIS, Y_AXIS, download_z_axis, "obs"]]
 
         mapper = get_mapper()
         plot.scatter(x=X_AXIS, y=Y_AXIS, source=ColumnDataSource(data),
-                     fill_alpha=ALPHA, size=SIZE, width=0, fill_color={'field': 'num_facetZ', 'transform': mapper})
+                     fill_alpha=ALPHA, size=SIZE, width=0,
+                     fill_color={'field': 'num_facetZ', 'transform': mapper})
 
         # change component values texts
         colorbar_text.text = f'{w_facet_numerical_3.value}'
@@ -557,20 +616,16 @@ def cb_update_plot(attr, old, new, type_change):
 
     # title text change
     w_div_title_author.text = \
-        f"""
-        <ul>
-          <li><b>Title:</b> {dataset['title']}</li>
-          <li><b>Author:</b> {dataset['author']}</li>
-          <li><b>Organism / Datatype:</b>
-              {dataset['organism']} / {dataset['datatype']}</li>
-        </ul>
-        """
+        f"""<b>{dataset['title']}</b><br>
+          <i>{dataset['author']}</i><br>
+          <b>Organism:</b> {dataset['organism']}<br>
+          <b>Datatype:</b> {dataset['datatype']}"""
 
     title = dataset['title'][:60]
-    
+
     if X_AXIS == "geneX":
         x_units = get_units()
-    else: 
+    else:
         x_units = ""
     if Y_AXIS == "geneY":
         y_units = get_units()
@@ -619,14 +674,15 @@ w_regression.on_change("active", partial(
 # two options for coloring
 w_facet.on_change("value", partial(cb_update_plot, type_change="categorical"))
 w_gene3.on_change("value", partial(cb_update_plot, type_change="categorical"))
-w_facet_numerical_3.on_change("value",partial(cb_update_plot, type_change="categorical"))
+w_facet_numerical_3.on_change("value", partial(cb_update_plot, type_change="categorical"))
 # widgets responsible for changing the x and y axis options
+
 w_gene1.on_change("value", partial(cb_update_plot, type_change="geneX"))
 w_gene2.on_change("value", partial(cb_update_plot, type_change="geneY"))
 w_facet_numerical_1.on_change("value", partial(cb_update_plot, type_change="num_facetX"))
 w_facet_numerical_2.on_change("value", partial(cb_update_plot, type_change="num_facetY"))
 
-# widgets for changing which one of the (gene,gene,facet,facet) are we putting on x and y axis
+# widgets for changing which one of the (gene, gene, facet, facet) are we putting on x and y axis
 w_x_axis_radio.on_change("active", partial(
     cb_update_plot, type_change="XYAXIS"))
 w_y_axis_radio.on_change("active", partial(
@@ -639,17 +695,27 @@ w_size_slider.on_change("value", partial(cb_update_plot, type_change="cosmetics"
 
 w_dataset_id.on_change("value", cb_dataset_change)
 
-w_download.js_on_event("button_click", CustomJS(args=dict(source=source_download, file_name = w_download_filename, geneX = w_gene1, 
-geneY = w_gene2, geneZ = w_gene3, num_facet1 = w_facet_numerical_1, num_facet2 = w_facet_numerical_2, 
-num_facet3 = w_facet_numerical_3, obs = w_facet),
-                        code=open(join(dirname(__file__), "templates/download_scatter_expression.js")).read()))
+downjs = open(join(dirname(__file__), "templates/download_scatter_expression.js")).read()
+w_download.js_on_event(
+    "button_click",
+    CustomJS(
+        args=dict(source=source_download,
+                  file_name=w_download_filename,
+                  geneX=w_gene1,
+                  geneY=w_gene2,
+                  geneZ=w_gene3,
+                  num_facet1=w_facet_numerical_1,
+                  num_facet2=w_facet_numerical_2,
+                  num_facet3=w_facet_numerical_3,
+                  obs=w_facet),
+        code=downjs))
 
 cb = CustomJS(args=dict(div_spinner=div_spinner)
-              ,code='''
+              , code='''
               console.log('cb triggered!')
               div_spinner.change.emit()''')
-              
-div_spinner.js_on_change('visible',cb)
+
+div_spinner.js_on_change('visible', cb)
 # curdoc().add_root(
 #     column([
 #         row([
@@ -660,7 +726,7 @@ div_spinner.js_on_change('visible',cb)
 #                     sizing_mode='stretch_width'),
 #                 row([w_x_axis_radio, w_y_axis_radio],
 #                     sizing_mode='stretch_width'),
-#                 row([w_gene3, w_facet, w_facet_numerical_3, w_category_radio,w_download],
+#                 row([w_gene3, w_facet, w_facet_numerical_3, w_category_radio, w_download],
 #                     sizing_mode='stretch_width'),
 #                 row([w_alpha_slider, w_size_slider],
 #                     sizing_mode='stretch_width')],
@@ -682,17 +748,25 @@ div_spinner.js_on_change('visible',cb)
 
 curdoc().add_root(row([
             column([
-                row([w_gene1,w_gene2]),
-                row([w_facet_numerical_1,w_facet_numerical_2]),
-                row([w_x_axis_radio,w_y_axis_radio]),
-                row([w_gene3,w_facet]),
-                row([w_category_radio,w_download]),
-                row([w_alpha_slider,w_size_slider]),
                 row([w_div_title_author]),
+                row([Div(text="<b>X axis:</b>")]),
+                row([w_x_axis_radio]),
+                row([w_gene1], sizing_mode="stretch_width"),
+                row([w_facet_numerical_1], sizing_mode="stretch_width"),
+                row([Div(text="<b>Y axis:</b>")]),
+                row([w_y_axis_radio]),
+                row([w_gene2], sizing_mode="stretch_width"),
+                row([w_facet_numerical_2], sizing_mode="stretch_width"),
+                row([Div(text="<b>Color/Category:</b>")]),
+                row([w_category_radio]),
+                row([w_gene3, w_facet]),
+                row([Div(text="<b>Other:</b>")]),
+                row([w_download]),
+                row([w_alpha_slider, w_size_slider]),
                 row([w_dataset_id]),
-            ]),
+            ], sizing_mode="fixed", width=350),
             column([
-                row([plot,div_spinner], sizing_mode="stretch_width"),
+                row([plot, div_spinner], sizing_mode="stretch_width"),
                 ]),
 
 

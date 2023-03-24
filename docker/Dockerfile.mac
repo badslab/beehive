@@ -12,7 +12,7 @@ RUN set -x \
     && apt-get install -y --no-install-recommends --no-install-suggests zile gnupg1 less \
     && apt-get install -y --no-install-recommends --no-install-suggests ca-certificates build-essential nginx \
     && pip install --upgrade pip wheel \
-    && pip install --upgrade pip polars pyarrow colorcet bokeh==2.4.3 matplotlib scanpy pyyaml h5py \
+    && pip install --upgrade pip polars pyarrow colorcet bokeh==2.4.3 matplotlib pyyaml \
     && pip install --upgrade markdown pandas scikit-learn scipy statsmodels typer pelican pymed \
     && pip install -e beehive \
     && chmod a+x docker/entrypoint.sh \

@@ -1,7 +1,5 @@
 {% extends base %}
 
-{% block title %}BDSlab data visualization{% endblock %}
-
 {% block postamble %}
 
 <style>
@@ -23,6 +21,30 @@
     <span id="title">{{ config.title }}</span>
       -
     <span id="view-name">{{ view_name }}</span>
+
+
+    <span id="header_menu">
+      <nav id="navbar">
+        <ul>
+          <li>
+            Views
+            <ul>
+              <li><a href="#">Web Development</a></li>
+              <li><a href="#">Website Design</a></li>
+              <li><a href="#">Mobile Development</a></li>
+              <li><a href="#">SEO</a></li>
+            </ul>
+          </li>
+        </ul>
+      </nav>
+    </span>
+
+
+    {% if other_views %}
+     {% for view in other_views %}
+
+     {% endfor %}
+    {% endif %}
   </header>
 
   {% if warning_message %}
@@ -40,4 +62,3 @@
   </div>
 </div>
 {% endblock %}
-</div>

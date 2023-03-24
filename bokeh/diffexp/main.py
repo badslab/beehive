@@ -1,24 +1,25 @@
 """Simple diff. expression visualization."""
 
-from functools import partial
 import logging
 import math
+from functools import partial
 from pprint import pprint
 
-import pandas as pd
-
-from bokeh.layouts import column, row
-from bokeh.models import ColumnDataSource
-from bokeh.models import DataTable, TableColumn, ScientificFormatter
-from bokeh.models.callbacks import CustomJS
-from bokeh.models.widgets import Select, TextInput, Div, Button
-from bokeh.plotting import figure, curdoc
-from bokeh.models import HTMLTemplateFormatter
-
 import colorcet as cc
+import pandas as pd
+from bokeh.layouts import column, row
+from bokeh.models import (
+    ColumnDataSource,
+    DataTable,
+    HTMLTemplateFormatter,
+    ScientificFormatter,
+    TableColumn,
+)
+from bokeh.models.callbacks import CustomJS
+from bokeh.models.widgets import Button, Div, Select, TextInput
+from bokeh.plotting import curdoc, figure
 
-from beehive import config, util, expset
-
+from beehive import config, expset, util
 
 lg = logging.getLogger('DiffExp')
 lg.setLevel(logging.DEBUG)

@@ -7,9 +7,11 @@ import subprocess as sp
 import time
 from functools import lru_cache
 from pathlib import Path
+from typing import Optional
 
 import numpy as np
 import pandas as pd
+from bokeh.plotting import curdoc
 
 import beehive
 
@@ -32,8 +34,9 @@ def get_geneset_db(
         dsid: str) -> sqlite3.Connection:
     """Return database with genesets
     """
-
+    lg.info("opening a new database")
     geneset_db_folder = get_geneset_folder() / "gsdb"
+    # geneset_db_folder = get_geneset_folder() / "db"
 
     if not geneset_db_folder.exists():
         geneset_db_folder.mkdir(parents=True)
@@ -129,10 +132,14 @@ def getarg(args, name, default=None, dtype=str):
 #
 # Bokeh helper functions
 #
+def list2options(optionlist, add_none=True):
+    return [('-', '-')] + [(x, x) for x in optionlist]
+
+
 def create_widget(name: str,
                   widget,
                   default=None,
-                  title: str = None,
+                  title: Optional[str] = None,
                   curdoc=None,
                   update_url: bool = True,
                   value_type=None,
@@ -149,7 +156,7 @@ def create_widget(name: str,
     """
     import random
 
-    from bokeh.models import RadioGroup
+    from bokeh.models import RadioGroup  # type: ignore[attr-defined]
     from bokeh.models.callbacks import CustomJS
     from bokeh.models.widgets.inputs import AutocompleteInput
 
@@ -195,6 +202,10 @@ def create_widget(name: str,
     if update_url:
         new_widget.js_on_change("value", js_onchange_value)
     return new_widget
+
+def get_dataset2():
+    args = curdoc().session_context.request.arguments
+    print(args)
 
 
 def getcolor(x, palette, vmax, vmin=None):
@@ -352,8 +363,8 @@ def query_pubmed(pubmed_id):
     if len(r.authors) == 1:
         rv['author'] = afs.format(**r.authors[0])
     else:
-        rv['author'] = (afs.format(**r.authors[0])
-                        + ", " + afs.format(**r.authors[-1]))
+        rv['author'] = \
+            (afs.format(**r.authors[0]) + ", " + afs.format(**r.authors[-1]))
     rv['title'] = r.title
     rv['doi'] = r.doi
     rv['year'] = r.publication_date.year
