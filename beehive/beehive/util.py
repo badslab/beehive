@@ -33,7 +33,7 @@ def get_geneset_db(
     """Return database with genesets
     """
 
-    geneset_db_folder = get_geneset_folder() / "db"
+    geneset_db_folder = get_geneset_folder() / "gsdb"
 
     if not geneset_db_folder.exists():
         geneset_db_folder.mkdir(parents=True)
