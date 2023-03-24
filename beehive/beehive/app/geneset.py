@@ -88,6 +88,7 @@ def run_one_gsea(args):
 
 def run_one_gsea_cached(args):
     uid = util.UID(*args, length=12)
+
     cache_folder = util.get_geneset_folder() / 'cache' / 'gsea'
 
     if not cache_folder.exists():
@@ -99,10 +100,9 @@ def run_one_gsea_cached(args):
             pass
 
     cache_file = cache_folder / uid
-
     if cache_file.exists():
         with open(cache_file, 'rb') as F:
-            # lg.debug("return from cache")
+            lg.debug(f"return from cache {uid}")
             rv = pickle.load(F)
     else:
         rv = run_one_gsea(args)
@@ -159,16 +159,22 @@ def gsea(
 
     gsdict2 = get_geneset_dicts(dsid, organism=organism)
     runs = []
-    lg.info(f"No lfc columns: {len(lfc_cols)}")
 
+    no_lfc_cols = len(lfc_cols)
+    lg.warning(f"No rank columns to check {no_lfc_cols}")
+    
     for i, lfc_col in enumerate(lfc_cols):
 
         rnk = expset.get_dedata_simple(dsid, lfc_col)
-        lg.info(f"  - processing {lfc_col} ({len(rnk)} genes)")
         rnk = rnk.set_index('gene').iloc[:, 0].sort_values()
 
+        no_genesets = len(gsdict2)
+        lg.info(f"  - processing {lfc_col} ({len(rnk)} genes against {no_genesets} genesets)")
+        
         for j, (group_hash, gdict) in enumerate(gsdict2.items()):
             runs.append((group_hash, lfc_col, rnk, gdict))
+            
+        break
 
     with Pool(threads) as P:
         results = P.map(run_one_gsea_cached, runs)
@@ -190,7 +196,17 @@ def gsea(
     geneset_db.commit()
     geneset_db.close()
 
+    
 
+@ app.command('status')
+def create_db(
+        dsid: str = typer.Argument(..., help='Dataset'),):
+    
+    geneset_db = get_geneset_db(dsid)
+    groups = pd.read_sql('select * from groups', geneset_db)
+    print(groups.head(3).T)
+    
+    
 @ app.command('create-db')
 def create_db(
         dsid: str = typer.Argument(..., help='Dataset'),):
@@ -261,6 +277,7 @@ def gsea_export(
                     gs.genes as genes,
                     gr.organism as organism,
                     gr.study_title as study_title,
+                    gr.group_title as group_title,
                     gr.study_author as study_author,
                     gr.study_year as study_year
                 FROM genesets as gs, groups as gr,
