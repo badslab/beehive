@@ -7,7 +7,7 @@ import yaml
 import matplotlib.pyplot as plt
 import numpy as np
 import matplotlib.colors as colors
-
+import glob 
 app = typer.Typer()
 
 lg = logging.getLogger(__name__)
@@ -23,10 +23,14 @@ def read_yaml_helper(outbase,new):
     lg.info(f"Filename for IO: {outbase}")
 
     dir_path = os.path.dirname(outbase)
-    if new:
-        yamlfile = os.path.join(dir_path, "experiment_new.yaml")
-    else:
+    #get yaml files.
+    yaml_files = glob.glob(dir_path+str("/*.yaml"))
+    if not(new):
         yamlfile = os.path.join(dir_path, "experiment.yaml")
+    else:
+        filter_out = os.path.join(dir_path, "experiment.yaml")
+        yaml_files = list(filter(lambda x: x != filter_out, yaml_files))
+        yamlfile = yaml_files[0]
 
     if not(os.path.exists(yamlfile)):
         print("No yaml file found to print metadata. Try again.")
@@ -34,7 +38,7 @@ def read_yaml_helper(outbase,new):
     else:
         with open(yamlfile) as F:
             yml = yaml.load(F, Loader=yaml.SafeLoader)
-            return yml
+            return yml,yamlfile
 
 
 @app.command("metadata")
@@ -42,11 +46,11 @@ def h5ad_uns(h5ad_file: Path = typer.Argument(..., exists=True),
             new: bool = typer.Option(False, "--new")):
     """
     Prints out the metadata yaml from the provided h5ad file.
-    Will either look for an expermient.yaml or experiment_new.yaml
+    Will either look for an expermient.yaml or a new yaml created by prepare command.
     """
     import sys
     outbase = h5ad_file
-    yml = read_yaml_helper(outbase,new)
+    yml,filename = read_yaml_helper(outbase,new)
     if yml:
         yaml.dump(yml, sys.stdout)
     return
@@ -66,28 +70,22 @@ def h5ad_set(h5ad_file: Path = typer.Argument(..., exists=True),
     """
     Sets a new key value in the old/new yaml metadata file.
     Requires a parameter new, which is either True or False.
-    If True,  use --new. It will work on the new experiment_new.yaml. If False, skip the parameter. It will work on the old experiment.yaml file.\n
-    Note: the experiment_new.yaml file is automatically created once 'beehive h5ad prepare' is ran. \n 
-        Example: beehive h5ad set /dir/to/file/scanpy.h5ad keytoremove keytoadd valtoadd --new \n
-    This will add {'keytoadd': 'valtoadd'} to the experiment_new.yaml
+    If True,  use --new. It will work on the new new yaml. If False, skip the parameter. It will work on the old experiment.yaml file.\n
+    Note: the new yaml file is automatically created once 'beehive h5ad prepare' is ran.  It will have a default name according to the organism/groupname/version. \n 
+        Example: beehive h5ad set /dir/to/file/scanpy.h5ad keytoadd valtoadd --new \n
+    This will add {'keytoadd': 'valtoadd'} to the new yaml.
 """
     # check if the output yaml is there as well
     outbase = h5ad_file
-    yml = read_yaml_helper(outbase,new)
+    yml,filename = read_yaml_helper(outbase,new)
     if not(yml):
-        lg.warning(f"No experiment.yaml or experiment_new.yaml found! Try again.")
+        lg.warning(f"No experiment.yaml or new yaml found! Try again.")
         return
     ##set key value
     yml[key] = val
     
     #overwrite
-    dir_path = os.path.dirname(outbase)
-    if new:
-        yamlfile = os.path.join(dir_path, "experiment_new.yaml")
-    else:
-        yamlfile = os.path.join(dir_path, "experiment.yaml")
-
-    with open(yamlfile, 'w') as F:
+    with open(filename, 'w') as F:
         yaml.dump(yml, F, Dumper=yaml.SafeDumper)
     return
 
@@ -99,16 +97,16 @@ def h5ad_del(h5ad_file: Path = typer.Argument(..., exists=True),
     """
     Deletes an existing key value in the old/new yaml metadata file.
     Requires a parameter new, which is either True or False.
-    If True, it will work on the new experiment_new.yaml. If False, it will work on the old experiment.yaml file.\n
-    Note: the experiment_new.yaml file is automatically created once 'beehive h5ad prepare' is ran. \n
+    If True, it will work on the new new yaml. If False, it will work on the old experiment.yaml file.\n
+    Note: the new yaml file is automatically created once 'beehive h5ad prepare' is ran. It will have a default name according to the organism/groupname/version\n
     Example: beehive h5ad del /dir/to/file/scanpy.h5ad keytoremove --new \n
-    This will remove 'keytoremove' from the experiment_new.yaml
+    This will remove 'keytoremove' from the new yaml.
     """
 
     outbase = h5ad_file
-    yml = read_yaml_helper(outbase,new)
+    yml,filename = read_yaml_helper(outbase,new)
     if not(yml):
-        lg.warning(f"No experiment.yaml or experiment_new.yaml found! Try again.")
+        lg.warning(f"No experiment.yaml or new yaml found! Try again.")
         return
     ##delete key value
     try:
@@ -117,13 +115,7 @@ def h5ad_del(h5ad_file: Path = typer.Argument(..., exists=True),
         pass
 
     #overwrite
-    dir_path = os.path.dirname(outbase)
-    if new:
-        yamlfile = os.path.join(dir_path, "experiment_new.yaml")
-    else:
-        yamlfile = os.path.join(dir_path, "experiment.yaml")
-
-    with open(yamlfile, 'w') as F:
+    with open(filename, 'w') as F:
         yaml.dump(yml, F, Dumper=yaml.SafeDumper)
     return
 
@@ -144,7 +136,7 @@ def h5ad_convert(h5ad_file: Path = typer.Argument(..., exists=True),
     Provide a h5ad file according to the following:
     beehive h5ad prepare /example_dir/example.h5ad 
     Note: In the example_dir, you should also have a yaml file called: experiment.yaml 
-    The new yaml generated will be called experiment_new.yaml. It will also generate a simple markdown file to be viewed on the website. \n
+    The new yaml generated will have a default name according to the organism/groupname/version.yaml. It will also generate a simple markdown file to be viewed on the website. \n
     Option --num-categories will be used to dictate which obs_meta and/or var_meta categorical
     variables to include. If a categorical variable has <= num_categories, then it will be included.
     Otherwise, it will not. For example, a 'full_id' variable will have a huge number of variables, and 
@@ -175,13 +167,44 @@ def h5ad_convert(h5ad_file: Path = typer.Argument(..., exists=True),
     yml["diffexp"] = {}
     yml["dimred"] = []
 
-    keys_permanent = ["author","name","year","access","full_author_list","group_id","n_var_genes","normalised",
+    #check if normalized exists.
+    try:
+        normalised = yml["normalised"]
+    #assume false if it doesnt exist.
+    except:
+        normalised = False
+
+
+    #apply normalization if not yet.
+    if not(normalised) or normalised == "false" or normalised == "False":
+        sc.pp.normalize_total(adata, target_sum=1e4)
+        sc.pp.log1p(adata)
+        sc.pp.scale(adata, max_value=10)
+    else:
+        ##avoid normalized issue
+        adata.uns["log1p"]["base"] = None
+        pass
+
+    yml["normalised"] = True
+    
+    keys_permanent = ["author","name","year","access","full_author_list","group_id","n_var_genes",
                         "organism","published_in","target_no_clusters","url","doi","version"]
     keys_permament_types = ["string","string","int","string","string","string","int","bool",
                             "string","string","int","string","string","int"]
     for ind,key in enumerate(keys_permanent):
         if key not in yml.keys():
             yml[key] = f'TBD ({keys_permament_types[ind]})'
+    ## name is title.. rather fix here than in views.
+    yml["title"] = yml["name"]
+    yml.pop("name")
+    ## need to add "use_in_view"
+    ## default now adding it to working views only (scatter, volcano, hexbin, gene_exp)
+    yml["use_in_view"] = ["gene_expression","scatter_expression","volcano_plot","hexbin_expression"]
+    ## need a "datatype", which is usually given. if not make it a default.
+    yml["datatype"] = yml["title"]
+    ##adding slug and study, which are similar to the study_id and version
+    yml["study"] = f'{yml["group_id"]}'
+    yml["slug"] = f'{yml["group_id"]}.{yml["version"]}'
 
     #### 2. Manipulation to scanpy object to extract var obs ####
     dfx = adata.to_df()
@@ -241,10 +264,10 @@ def h5ad_convert(h5ad_file: Path = typer.Argument(..., exists=True),
                     cat_padj = [x[ind] for x in adata.uns["rank_genes_groups"]["pvals_adj"]]
                     cat_cell_frac = adata.uns["rank_genes_groups"]["pts"][cat].to_list()
                     gene_names = [x[ind] for x in adata.uns["rank_genes_groups"]["names"]]
-                    data={f'{k}_{cat}__lfc': cat_lfc, f'{k}_{cat}__padj' : cat_padj, f'{k}_{cat}__cell_frac': cat_cell_frac}
+                    data={f'{k}__{cat}__lfc': cat_lfc, f'{k}__{cat}__padj' : cat_padj, f'{k}__{cat}__cell_frac': cat_cell_frac}
                     df = pd.DataFrame(data, index = gene_names)
                     var = pd.merge(var,df,left_index=True, right_index=True)
-                    print(f'Generated {k}_{cat}__lfc, {k}_{cat}__padj, {k}_{cat}__cell_frac for group {cat} against all others.')
+                    print(f'Generated {k}__{cat}__lfc, {k}__{cat}__padj, {k}__{cat}__cell_frac for group {cat} against all others.')
                     print("********************")
 
                 obs_dict[k] = {"name": variable_name, "dtype": k_type, "values": cat_values}
@@ -303,8 +326,8 @@ def h5ad_convert(h5ad_file: Path = typer.Argument(..., exists=True),
     obs.index.name = '_cell'
     obs = obs.reset_index()
 
-    #transponse.
-    var = var.T
+    #transponse. no need anymore?
+    #var = var.T
     #rename index to 'field'
     var.index.name = 'field'
     #reset indices 0,1..
@@ -312,25 +335,29 @@ def h5ad_convert(h5ad_file: Path = typer.Argument(..., exists=True),
 
     #### 7. prepare final yaml file ####
     yml["obs_meta"] = obs_dict
-    yml["var_meta"] = var_dict
+    yml["de_data"] = var_dict
 
-
-    #### 8. Dump into .prq files and make experiment_new.yaml file ####
+    new_file_name = f'{yml["group_id"]}.{yml["version"]}'
+    #### 8. Dump into .prq files and make new yaml file ####
     lg.info("Writing output files to:")
-    lg.info(" - " + str(outbase.with_suffix('.obs.prq')))
-    pl.DataFrame(obs).write_parquet(outbase.with_suffix('.obs.prq'))
-    lg.info(" - " + str(outbase.with_suffix('.var.prq')))
-    pl.DataFrame(var).write_parquet(outbase.with_suffix('.var.prq'))
-    lg.info(" - " + str(outbase.with_suffix('.X.prq')))
-    pl.DataFrame(dfx).write_parquet(outbase.with_suffix('.X.prq'))
+    
+    lg.info(" - " + str(os.path.join(dir_path,new_file_name + ".obs.prq")))
+    pl.DataFrame(obs).write_parquet(os.path.join(dir_path,new_file_name + ".obs.prq"))
 
-    new_yaml_file = os.path.join(dir_path, "experiment_new.yaml")
+    lg.info(" - " + str(os.path.join(dir_path,new_file_name + ".var.prq")))
+    pl.DataFrame(var).write_parquet(os.path.join(dir_path,new_file_name + ".var.prq"))
+
+    lg.info(" - " + str(os.path.join(dir_path,new_file_name + ".X.prq")))
+    pl.DataFrame(dfx).write_parquet(os.path.join(dir_path,new_file_name + ".X.prq"))
+
+
+    new_yaml_file = os.path.join(dir_path,new_file_name + ".yaml")
     lg.info(" - " + "Writing new yaml file: " + new_yaml_file)
     with open(new_yaml_file, 'w') as F:
         yaml.dump(yml, F, Dumper=yaml.SafeDumper)
     
     #### 9. Make markdown file. ####
-    content = f"""Title: {yml["name"]}'
+    content = f"""Title: {yml["title"]}'
 Date: {yml["year"]}'
 Category: Papers
 Slug: {yml["author"]}{yml["year"]}'
@@ -342,11 +369,11 @@ Abstract: TBD
 
 ## Gene Expression Views:
 
-* [gene_expression1](./gene_expression?dataset_id={yml["group_id"]}.{yml["version"]}')
+* [gene_expression1](./gene_expression?dataset_id={yml["organism"][0]}.{yml["group_id"]}.{yml["version"]}')
 * [volcano_plot1](./volcano_plot?dataset_id={yml["group_id"]}.{yml["version"]}')
 * [scatter_plot1](./scatter_expression?dataset_id={yml["group_id"]}.{yml["version"]}')
     """
-    new_yaml_file = os.path.join(dir_path, f'{yml["author"]}{yml["year"]}.md')
+    new_yaml_file = os.path.join(dir_path, f'{yml["organism"][0]}.{yml["author"]}{yml["year"]}.md')
     with open(new_yaml_file, 'w') as f:
         f.write(content)
 
