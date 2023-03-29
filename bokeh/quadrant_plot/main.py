@@ -70,13 +70,16 @@ def update_genes():
 def update_vars():
     """Update interface for a specific dataset."""
     vars = expset.get_varfields(w_dataset_id.value)
+    
     #drop last column,, the one for genes.
     vars = vars[:-1]
+
     vars = list(filter(lambda x: "__padj" not in x,vars))
 
     #filter and keep only lfcs..
-    unique_vars = list(set([x.replace("__lfc","").replace("__lcpm","") for x in vars]))
-
+    unique_vars = list(set([x.replace("__lfc","").replace("__lcpm","").replace("__cell_frac","") for x in vars]))
+    print(unique_vars)
+    print("****")
     vars_options = [(x,x) for x in unique_vars]
     
     w_category1.options = vars_options

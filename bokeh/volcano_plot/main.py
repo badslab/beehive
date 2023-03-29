@@ -75,8 +75,12 @@ def update_vars():
     """Update interface for a specific dataset."""
     vars = expset.get_varfields(w_dataset_id.value)
     #drop last column,, the one for genes.
-    vars = vars[:-1]
-    unique_vars = list(set([x.replace("__lfc","").replace("__padj","").replace("__lcpm","") for x in vars]))
+    #vars = vars[:-1]
+    #filter and keep only padj and lfc related fields.
+    vars = list(filter(lambda x: "__lfc" in x or "__padj" in x, vars))
+    #unique_vars = list(set([x.replace("__lfc","").replace("__padj","").replace("__lcpm","").replace("__cell_frac","") for x in vars]))
+    unique_vars = list(set([x.replace("__lfc","").replace("__padj","") for x in vars]))
+
     vars_options = [(x,x) for x in unique_vars]
     options = vars_options
     w_category.options = options
@@ -118,7 +122,8 @@ def modify_data():
     #adjust p-value scale, for those that are 0 => assign them y_range_max.
     data["padj"] = np.log10(data["padj"])*-1
     data["padj"] = np.where(data["true_padj"] == 0, y_range_max,data["padj"])
-
+    #data["padj"] = np.where(data["padj"] == 0, y_range_max,data["padj"])
+    #data["padj"] = np.where(data["padj"] != y_range_max, np.log(data["padj"] ), data["padj"])
     #make a new column of genes that are highlighted and those that are not. (Yes No)
     data["highlight"] = data.apply(lambda x: highlight_genes(x),axis = 1)
     #store the true padj and true lfc values for hover tool
@@ -268,15 +273,16 @@ def cb_update_plot(attr, old, new,type_change = None):
     dataset_id, dataset = get_dataset()    
     data = modify_data()
     #adjust the x y ranges of the widgets!! if we are changing the group of the data
-    if type_change == "new_categ":
-        w_x_range.value = round(max(data["true_lfc"]) + max(data["true_lfc"])/2,1)
-        w_y_range.value = round(max(data["true_padj"]) + max(data["true_padj"])/4,1)
 
     source.data = data
     #update the new x and y ranges (if they got changed.)
     #if not, will be the same..
+    if type_change == "new_categ":
+        w_x_range.value = round(max(source.data["true_lfc"]) + max(source.data["true_lfc"])/2,1)
+        w_y_range.value = round(max(source.data["true_padj"]) + max(source.data["true_padj"])/4,1)
+
     plot.x_range.update(start = w_x_range.value*-1, end = w_x_range.value)
-    plot.y_range.update(start = Y_START_MIN, end = w_y_range.value + max(data["true_padj"])*0.1)
+    plot.y_range.update(start = Y_START_MIN, end = w_y_range.value + max(source.data["true_padj"])*0.1)
 
     w_div_title_author.text = \
         f"""
@@ -287,6 +293,7 @@ def cb_update_plot(attr, old, new,type_change = None):
               {dataset['organism']} / {dataset['datatype']}</li>
         </ul>
         """
+
     curdoc().unhold()
 
 w_download_filename.text = f"exp_{dataset_id}_{w_category.value}.csv"
@@ -304,6 +311,7 @@ def cb_update_plot_new_dataset(attr, old, new):
     #fetch data again
     data = modify_data()
     source.data = data
+
     #get new x y ranges
     w_x_range.value = max(data["true_lfc"]) + max(data["true_lfc"])/2
     w_y_range.value = max(data["true_padj"]) + max(data["true_padj"])/4
