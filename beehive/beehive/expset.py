@@ -592,19 +592,35 @@ def get_gsea_data(
     return rv
 
 
-def get_dedata_simple(dsid, field):
+def get_dedata_simple(dsid, field,
+                      ranktype: str ='lfc'):
+
     global WARNED_NO_GENE_COL
     cols = get_varfields(dsid)
+
     if 'gene' in cols:
         gcol = 'gene'
     else:
         gcol = cols[-1]
         if not WARNED_NO_GENE_COL:
-            lg.warning(f'Could not find a gene column, using: {gcol}')
+            lg.debug(f'Could not find a gene column, using: {gcol}')
             WARNED_NO_GENE_COL = True
 
-    rv = pl.read_parquet(find_prq(dsid, 'var'), [gcol, field])
-    rv = rv.to_pandas().rename(columns={gcol: 'gene'})
+    if ranktype == 'slp':
+        padj_col = field[:-3] + 'padj'
+        slp_col = field[:-3] + 'slp'
+        rv = pl.read_parquet(find_prq(dsid, 'var'),
+                             [gcol, field, padj_col])
+        rv = rv.to_pandas().rename(columns={gcol: 'gene'})
+        rv[slp_col] = \
+            (-1 * np.log10(rv[padj_col])).clip(0.001,100) \
+            * rv[field]
+        rv = rv[['gene', slp_col]]
+
+    else:
+        rv = pl.read_parquet(find_prq(dsid, 'var'), [gcol, field])
+        rv = rv.to_pandas().rename(columns={gcol: 'gene'})
+
     return rv
 
 
@@ -630,7 +646,8 @@ def get_dedata(dsid, categ, genes, view_name: str = ""):
     rv = rv.pivot(index="cat_value", columns="measurement", values=genes)
     return rv
 
-# TODO next two functions can  be merged into 1?
+
+## TODO: next two functions can  be merged into 1?
 
 
 def get_dedata_new(dsid, categ):

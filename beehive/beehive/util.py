@@ -9,8 +9,6 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Optional
 
-import numpy as np
-import pandas as pd
 from bokeh.plotting import curdoc
 
 import beehive
@@ -239,6 +237,9 @@ def make_hashable(o):
 
 def UID(*args, length=7):
     chs = hashlib.sha512()
+    import numpy as np
+    import pandas as pd
+
     for a in args:
         if isinstance(a, int) \
                 or isinstance(a, float) \
