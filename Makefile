@@ -201,3 +201,6 @@ serve_dev_raghid_all: fix_templates
 									bokeh/gene_expression/ \
 									bokeh/hexbin_expression/
 
+serve_dev_raghid_jitter: fix_templates
+	pipenv run bokeh serve --dev --port 5009 bokeh/jitter_expression/
+
