@@ -9,17 +9,15 @@ import pandas as pd
 from bokeh.layouts import column, row
 from bokeh.models import (
     ColumnDataSource,
-    DataTable,
     Panel,
     Range1d,
-    ScientificFormatter,
-    TableColumn,
     Tabs,
 )
 from bokeh.models.callbacks import CustomJS
 from bokeh.models.widgets import AutocompleteInput, Button, Div, Select
 from bokeh.plotting import curdoc, figure
-from bokeh.transform import CategoricalColorMapper, jitter
+#from bokeh.transform import CategoricalColorMapper
+from bokeh.transform import jitter
 
 import beehive.exceptions as bex
 from beehive import config, expset, util
@@ -28,7 +26,7 @@ lg = logging.getLogger('GeneExp')
 lg.setLevel(logging.DEBUG)
 lg.info("startup")
 
-VIEW_NAME = "gene_expression"
+VIEW_NAME = "jitter_expression"
 coloring_scheme = None
 curdoc().template_variables['config'] = config
 curdoc().template_variables['view_name'] = 'Gene/Protein Expression'
@@ -49,7 +47,7 @@ def elog(*args, **kwargs):
         print(k, v)
     print("^" * 80)
 
-
+#TODO remove unnecessary  components
 # WIDGETS
 w_div_title_author = Div(text="", sizing_mode='stretch_width')
 warning_div = Div(text="nothing good about this",
@@ -100,7 +98,7 @@ def update_sibling_options():
 
 update_sibling_options()
 
-
+#TODO remove unnecessary  components
 w_gene = create_widget("gene", AutocompleteInput, restrict=False,
                        completions=[], default='APOE', case_sensitive=False,
                        sizing_mode='stretch_width')
@@ -111,6 +109,9 @@ w_facet = create_widget("facet", Select, options=[],
 w_facet2 = create_widget("facet2", Select, options=[],
                          title="Group by level 2:",
                          sizing_mode='stretch_width')
+# w_facet3 = create_widget("facet3", Select, options=[],
+#                          title="Jitter points Average:",
+#                          sizing_mode='stretch_width')
 w_download = Button(label='Download', align='end')
 
 w_download_filename = Div(text="", visible=False,
@@ -130,7 +131,7 @@ def get_genes():
     genes = sorted(list(expset.get_genes(dataset_id)))
     return genes
 
-
+#TODO rewrite some facet fetching.. currently mouse.id is set as fixed
 def update_facets():
     """Update interface for a specific dataset."""
     options = expset.get_facet_options(
@@ -141,8 +142,10 @@ def update_facets():
 
     w_facet.options = options
     w_facet2.options = options
+    #w_facet3.options = options_with_skip
 
     w_facet2.options = w_facet2.options + [("--", "--")]
+    #w_facet3.options = w_facet3.options + [("--", "--")]
 
     if w_facet.value not in [x[0] for x in w_facet.options]:
         # set a default
@@ -150,7 +153,6 @@ def update_facets():
 
     w_facet2.options = list(
         filter(lambda x: x[0] != w_facet.value, w_facet2.options))
-
     if w_facet2.value not in [x[0] for x in w_facet2.options]:
         # set a default
         w_facet2.value = w_facet2.options[0][0]
@@ -158,6 +160,31 @@ def update_facets():
     w_facet.options = list(
         filter(lambda x: x[0] != w_facet2.value, w_facet.options))
 
+    # w_facet3.options = list(
+    #     filter(lambda x: x[0] != w_facet.value, w_facet3.options))
+    # w_facet3.options = list(
+    #     filter(
+    #         lambda x: x[0] != w_facet2.value or x[0] == "--",
+    #         w_facet3.options))
+
+    # if w_facet3.value not in [x[0] for x in w_facet3.options]:
+    #     # set a default
+    #     w_facet3.value = w_facet3.options[0][0]
+
+    # w_facet2.options = list(
+    #     filter(
+    #         lambda x: x[0] != w_facet3.value or x[0] == "--",
+    #         w_facet2.options))
+    # w_facet.options = list(
+    #     filter(lambda x: x[0] != w_facet3.value, w_facet.options))
+    
+    # w_facet3.options = list(
+    #     filter(
+    #         lambda x: x[0]  in w_facet2.options,
+    #         w_facet3.options))
+    
+    # w_facet2.value = "--"
+    # w_facet3.value = "--"
 
 
 def update_genes():
@@ -174,7 +201,7 @@ def update_genes():
 update_facets()
 update_genes()
 
-
+# TODO re-set defaults
 def set_defaults():
     defaults_dict = expset.get_defaults(w_dataset_id.value, VIEW_NAME)
     if defaults_dict == {}:
@@ -196,13 +223,15 @@ def set_defaults():
             w_facet.value = def_vals.get("meta1")
         if def_vals.get("meta2"):
             w_facet2.value = def_vals.get("meta2")
+        # if def_vals.get("jitter"):
+        #     w_facet3.value = def_vals.get("jitter")
     return
 
 
 if curdoc().session_context.request.arguments == {}:
     set_defaults()
 
-
+# TODO get new data, need to re-adjust the grouping
 def get_data() -> pd.DataFrame:
     """Retrieve data from a dataset, gene & facet."""
     global coloring_scheme  # name of column for coloring.
@@ -210,26 +239,26 @@ def get_data() -> pd.DataFrame:
     gene = w_gene.value
     facet = w_facet.value
     facet2 = w_facet2.value
-
+    #facet3 = w_facet3.value
     if w_facet.value == gene:
-        coloring_scheme = f'{w_facet.value}_category'
+        coloring_scheme = f'{w_facet.value}_category_y'
     else:
-        coloring_scheme = f'{w_facet.value}'
+        coloring_scheme = f'{w_facet.value}_x'
 
     if w_facet2.value == "--":
         coloring_scheme = "cat_value"
 
     lg.warning(f"!! Getting data for {dataset_id} {facet} {gene}")
     data = expset.get_gene_meta_three_facets(
-        dataset_id, gene, facet, facet2, "--", view_name=VIEW_NAME)
-
+        dataset_id, gene, facet, facet2, "mouse.id", view_name=VIEW_NAME)
+    
+    expset.get_gene_meta_three_facets_jitter(dsid = dataset_id, gene = gene, meta2 = facet2, meta3 = facet,view_name = VIEW_NAME)
+   
     def fixNone(t):
         def fixNone1(a):
             return 'NONE' if a is None else a
         return fixNone1(t[0]), fixNone1(t[1])
 
-    # TODO: Figure out why this is necessary!
-    # TODO2: Figure out if this is necessary??
     # data['cat_value'] = data['cat_value'].apply(fixNone)
     # elog(data['cat_value'])
 
@@ -239,9 +268,13 @@ def get_data() -> pd.DataFrame:
     data = data.loc[data["cat_value"] != "NONE"]
 
     # for table
-    # TODO; Why are there duplicates here? There shouldn't be, right?
     data_no_dups = data.drop_duplicates("cat_value")
 
+    # rename jitter points column
+    #data = data.rename(columns={f'mean_{facet3}': "jitter"})
+    data = data.rename(columns={f'mean_mouse.id': "jitter"})
+
+    #print(data.keys())
     data = data.sort_values(by='order')
 
     return data, data_no_dups
@@ -253,15 +286,15 @@ def get_dataset():
     return dataset_id, datasets[dataset_id]
 
 
-def get_mapper():
-    dataset = w_dataset_id.value
-    meta = w_facet.value
-    dict_colors = expset.get_colors_of_obs(dataset, meta,special = True)
-    mapper = CategoricalColorMapper(palette=list(
-        dict_colors.values()), factors=list(dict_colors.keys()))
-    return mapper
+# def get_mapper():
+#     dataset = w_dataset_id.value
+#     meta = w_facet.value
+#     dict_colors = expset.get_colors_of_obs(dataset, meta)
+#     mapper = CategoricalColorMapper(palette=list(
+#         dict_colors.values()), factors=list(dict_colors.keys()))
+#     return mapper
 
-
+#TODO change order, default from yaml if not then numeric / alpha numeric
 def get_order():
     dataset = w_dataset_id.value
     meta = w_facet.value
@@ -285,7 +318,6 @@ warning_experiment = Div(
 # can we plot the data?
 if len(data) == 0:
     # no..
-    
     warning_experiment.visible = True
     # fix the default facets and get data again.
     w_facet.value = w_facet.options[0][0]
@@ -294,55 +326,36 @@ if len(data) == 0:
 
 # Plotting#
 source = ColumnDataSource(data)
-source_no_dups = ColumnDataSource(data_no_dups)
-table = DataTable(source=source_no_dups,
-                  margin=10,
-                  index_position=None,
-                  #   sizing_mode = "fixed",
-                  width=500,
-                  height=600,
-                  columns=[
-                      TableColumn(field='cat_value', title='Category'),
-                      TableColumn(field='count', title='Number of Cells',
-                                  formatter=ScientificFormatter(precision=0)),
-                      TableColumn(field='perc', title='% Samples/Cells',
-                                  formatter=ScientificFormatter(precision=1)),
-                      TableColumn(field='mean', title='Mean',
-                                  formatter=ScientificFormatter(precision=2)),
-                      TableColumn(field='median', title='Median',
-                                  formatter=ScientificFormatter(precision=2)),
-                      TableColumn(field='q01', title='1% Quantile',
-                                  formatter=ScientificFormatter(precision=2)),
-                      TableColumn(field='q25', title='20% Quantile',
-                                  formatter=ScientificFormatter(precision=2)),
-                      TableColumn(field='q75', title='80% Quantile',
-                                  formatter=ScientificFormatter(precision=2)),
-                      TableColumn(field='q99', title='99% Quantile',
-                                  formatter=ScientificFormatter(precision=2)),
-                  ])
 
-mapper = get_mapper()
+
+# meta3 = w_facet3.value
+# meta3 = w_facet3.value
+#mapper = get_mapper()
 
 # create plot elements - these are the same for boxplots as mean/std type plots
 elements = dict(
-    vbar=plot.vbar(x="cat_value", top='_bar_top',
-                   bottom='_bar_bottom', source=source, width=0.85,
-                   name="barplot",
-                   fill_color={'field': coloring_scheme, 'transform': mapper},
-                   line_color="black"),
-    seg_v_up=plot.segment(source=source, x0='cat_value', x1='cat_value',
-                          y0='_bar_top', y1='_segment_top',
-                          line_color='black'),
-    seg_h_up=plot.rect(source=source, x='cat_value', height=0.001,
-                       y='_segment_top', width=0.4, line_color='black'),
-    seg_v_dw=plot.segment(source=source, x0='cat_value', x1='cat_value',
-                          y0='_segment_bottom', y1='_bar_bottom',
-                          line_color='black'),
-    seg_h_dw=plot.rect(source=source, x='cat_value', height=0.001,
-                       y='_segment_bottom', width=0.4, line_color='black'),
-    seg_h_med=plot.rect(source=source, x='cat_value', height=0.001,
-                        y='_bar_median', width=0.85, line_width=2,
-                        line_color='black'),
+    # vbar=plot.vbar(x="cat_value", top='_bar_top',
+    #                bottom='_bar_bottom', source=source, width=0.85,
+    #                name="barplot",
+    #                fill_color={'field': coloring_scheme, 'transform': mapper},
+    #                line_color="black"),
+    # seg_v_up=plot.segment(source=source, x0='cat_value', x1='cat_value',
+    #                       y0='_bar_top', y1='_segment_top',
+    #                       line_color='black'),
+    # seg_h_up=plot.rect(source=source, x='cat_value', height=0.001,
+    #                    y='_segment_top', width=0.4, line_color='black'),
+    # seg_v_dw=plot.segment(source=source, x0='cat_value', x1='cat_value',
+    #                       y0='_segment_bottom', y1='_bar_bottom',
+    #                       line_color='black'),
+    # seg_h_dw=plot.rect(source=source, x='cat_value', height=0.001,
+    #                    y='_segment_bottom', width=0.4, line_color='black'),
+    # seg_h_med=plot.rect(source=source, x='cat_value', height=0.001,
+    #                     y='_bar_median', width=0.85, line_width=2,
+    #                     line_color='black'),
+
+    jitter_points=plot.scatter(x=jitter(
+        'cat_value', width=0.4, range=plot.x_range), y="jitter", size=5,
+        alpha=0.4, source=source)
 
 )
 
@@ -367,10 +380,12 @@ def cb_update_plot(attr, old, new):
     curdoc().hold()
     global plot, source, data, data_no_dups, w_download_filename
     update_facets()
+
     lg.warning("Update plot")
     # keeping old data and getting new data
     old_data = data
     old_data_no_dups = data_no_dups
+
     try:
         new_data, new_data_no_dups = get_data()
     except bex.GeneNotFoundException:
@@ -381,29 +396,29 @@ def cb_update_plot(attr, old, new):
     dataset_id, dataset = get_dataset()
     facet = w_facet.value
     gene = w_gene.value
+
     # can we plot the new data?
     if len(new_data) == 0:
         # no..
         # keep the old data.
         warning_experiment.visible = True
-        new_data = old_data
-        new_data_no_dups = old_data_no_dups
-        
+        data = old_data
+        data_no_dups = old_data_no_dups
+        return
 
     # yes, update everything.
     warning_experiment.visible = False
     data = new_data
     data_no_dups = new_data_no_dups
     source.data = data
-    source_no_dups.data = data_no_dups
+    #source_no_dups.data = data_no_dups
 
     # mapper for color, and mapper for order. if found.
-    mapper = get_mapper()
-    elements["vbar"].glyph.fill_color = {
-        'field': coloring_scheme, 'transform': mapper}
+    #mapper = get_mapper()
 
+    #print(data)
     xrangelist = data[['cat_value', 'order']].drop_duplicates()
-
+    #print(xrangelist)
     xrangelist = list(xrangelist['cat_value'])
     plot.x_range.factors = xrangelist
 
@@ -471,7 +486,7 @@ def cb_sibling_change(attr, old, new):
     update_genes()
     update_plot()
 
-
+#TODO remove unnecessary  components
 w_gene.on_change("value", cb_update_plot)
 w_sibling.on_change("value", cb_sibling_change)
 w_dataset_id.on_change("value", cb_dataset_change)
@@ -479,36 +494,34 @@ w_facet.on_change("value", cb_update_plot)
 w_facet2.on_change("value", cb_update_plot)
 w_download.js_on_event("button_click", CustomJS(
     args=dict(source=source, file_name=w_download_filename,
-              facet1=w_facet, facet2=w_facet2),
-
+              jitter_name="mouse.id", facet1=w_facet, facet2=w_facet2),
     code=open(join(dirname(__file__),
                    "templates/download_gene_expression.js")).read()))
 
+#w_facet3.on_change("value", cb_update_plot)
 
 #
 # Build the document
 #
 
-# column([warning_div],
-#        sizing_mode="stretch_width",
-#        ),
 
+#TODO remove unnecessary  components
 menucol = column([
     w_div_title_author,
     w_gene,
     w_facet,
     w_facet2,
+    #w_facet3,
     w_sibling,
     w_dataset_id,
     warning_experiment, ],
     sizing_mode='fixed', width=350,)
 
-PlotTab = Panel(child=plot, title="Plot")
-TableTab = Panel(child=column([table, w_download]), title="Table")
 
+PlotTab = Panel(child=plot, title="Plot")
 
 curdoc().add_root(row([
     menucol,
-    Tabs(tabs=[PlotTab, TableTab], tabs_location='right')
+    Tabs(tabs=[PlotTab], tabs_location='right')
 ], sizing_mode='stretch_both')
 )

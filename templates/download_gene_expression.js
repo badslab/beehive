@@ -1,12 +1,12 @@
 //Taken from: https://github.com/bokeh/bokeh/blob/branch-3.0/examples/app/export_csv/main.py
-const actual_jitter = jitter_name.properties.value.spec.value
+//const actual_jitter = jitter_name.properties.value.spec.value
 const remove_facet1 = facet1.properties.value.spec.value
 const remove_facet2 = facet2.properties.value.spec.value
 
 function table_to_csv(source) {
     const columns = Object.keys(source.data)
 
-    columns[columns.indexOf("jitter")] = `${actual_jitter}_jitter_points`
+    //columns[columns.indexOf("jitter")] = `${actual_jitter}_jitter_points`
     columns[columns.indexOf(`${remove_facet1}_x`)] = remove_facet1
     columns[columns.indexOf(`${remove_facet2}_x`)] = remove_facet2
     columns.splice(columns.indexOf(`${remove_facet1}_y`), 1)
@@ -28,8 +28,8 @@ function table_to_csv(source) {
             } else if (column == remove_facet2) {
                 row.push(source.data[`${remove_facet2}_x`][i].toString())
 
-            } else if (column == `${actual_jitter}_jitter_points`) {
-                row.push(source.data[`jitter`][i].toString())
+            // } else if (column == `${actual_jitter}_jitter_points`) {
+            //     row.push(source.data[`jitter`][i].toString())
 
             } else if (column ==`cat_value`){
                 row.push(source.data[column][i].toString().replace(",","|"))
