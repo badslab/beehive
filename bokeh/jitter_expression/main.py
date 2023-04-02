@@ -14,7 +14,7 @@ from bokeh.models import (
     Tabs,
 )
 from bokeh.models.callbacks import CustomJS
-from bokeh.models.widgets import AutocompleteInput, Button, Div, Select
+from bokeh.models.widgets import AutocompleteInput, Button, Div, Select, RadioGroup
 from bokeh.plotting import curdoc, figure
 #from bokeh.transform import CategoricalColorMapper
 from bokeh.transform import jitter
@@ -109,9 +109,7 @@ w_facet = create_widget("facet", Select, options=[],
 w_facet2 = create_widget("facet2", Select, options=[],
                          title="Group by level 2:",
                          sizing_mode='stretch_width')
-# w_facet3 = create_widget("facet3", Select, options=[],
-#                          title="Jitter points Average:",
-#                          sizing_mode='stretch_width')
+
 w_download = Button(label='Download', align='end')
 
 w_download_filename = Div(text="", visible=False,
@@ -119,7 +117,11 @@ w_download_filename = Div(text="", visible=False,
 
 # To display text if the gene is not found
 w_gene_not_found = Div(text="")
+MEAN_VAL = 0
+MEDIAN_VAL = 1
 
+w_mean_median = create_widget(
+    "mean_median", RadioGroup, labels=["mean","median"], default=0, title="Display by:", value_type=int,width = 120)
 #
 # Data handling & updating interface
 #
@@ -159,33 +161,6 @@ def update_facets():
 
     w_facet.options = list(
         filter(lambda x: x[0] != w_facet2.value, w_facet.options))
-
-    # w_facet3.options = list(
-    #     filter(lambda x: x[0] != w_facet.value, w_facet3.options))
-    # w_facet3.options = list(
-    #     filter(
-    #         lambda x: x[0] != w_facet2.value or x[0] == "--",
-    #         w_facet3.options))
-
-    # if w_facet3.value not in [x[0] for x in w_facet3.options]:
-    #     # set a default
-    #     w_facet3.value = w_facet3.options[0][0]
-
-    # w_facet2.options = list(
-    #     filter(
-    #         lambda x: x[0] != w_facet3.value or x[0] == "--",
-    #         w_facet2.options))
-    # w_facet.options = list(
-    #     filter(lambda x: x[0] != w_facet3.value, w_facet.options))
-    
-    # w_facet3.options = list(
-    #     filter(
-    #         lambda x: x[0]  in w_facet2.options,
-    #         w_facet3.options))
-    
-    # w_facet2.value = "--"
-    # w_facet3.value = "--"
-
 
 def update_genes():
     """Update genes widget for a dataset."""
@@ -249,11 +224,10 @@ def get_data() -> pd.DataFrame:
         coloring_scheme = "cat_value"
 
     lg.warning(f"!! Getting data for {dataset_id} {facet} {gene}")
+    mean_option = w_mean_median.active
     data = expset.get_gene_meta_three_facets(
-        dataset_id, gene, facet, facet2, "mouse.id", view_name=VIEW_NAME)
+        dataset_id, gene, facet, facet2, "mouse.id", view_name=VIEW_NAME, mean_option = mean_option)
     
-    expset.get_gene_meta_three_facets_jitter(dsid = dataset_id, gene = gene, meta2 = facet2, meta3 = facet,view_name = VIEW_NAME)
-   
     def fixNone(t):
         def fixNone1(a):
             return 'NONE' if a is None else a
@@ -272,7 +246,10 @@ def get_data() -> pd.DataFrame:
 
     # rename jitter points column
     #data = data.rename(columns={f'mean_{facet3}': "jitter"})
-    data = data.rename(columns={f'mean_mouse.id': "jitter"})
+    if mean_option == MEAN_VAL:
+        data = data.rename(columns={f'mean_mouse.id': "jitter"})
+    else:
+        data = data.rename(columns={f'median_mouse.id': "jitter"})
 
     #print(data.keys())
     data = data.sort_values(by='order')
@@ -380,7 +357,7 @@ def cb_update_plot(attr, old, new):
     curdoc().hold()
     global plot, source, data, data_no_dups, w_download_filename
     update_facets()
-
+    flag = False
     lg.warning("Update plot")
     # keeping old data and getting new data
     old_data = data
@@ -401,13 +378,12 @@ def cb_update_plot(attr, old, new):
     if len(new_data) == 0:
         # no..
         # keep the old data.
-        warning_experiment.visible = True
-        data = old_data
-        data_no_dups = old_data_no_dups
-        return
+        flag = True
+        new_data = old_data
+        new_data_no_dups = old_data_no_dups
 
     # yes, update everything.
-    warning_experiment.visible = False
+    warning_experiment.visible = flag
     data = new_data
     data_no_dups = new_data_no_dups
     source.data = data
@@ -492,6 +468,7 @@ w_sibling.on_change("value", cb_sibling_change)
 w_dataset_id.on_change("value", cb_dataset_change)
 w_facet.on_change("value", cb_update_plot)
 w_facet2.on_change("value", cb_update_plot)
+w_mean_median.on_change("active", cb_update_plot)
 w_download.js_on_event("button_click", CustomJS(
     args=dict(source=source, file_name=w_download_filename,
               jitter_name="mouse.id", facet1=w_facet, facet2=w_facet2),
@@ -511,9 +488,9 @@ menucol = column([
     w_gene,
     w_facet,
     w_facet2,
-    #w_facet3,
     w_sibling,
     w_dataset_id,
+    w_mean_median,
     warning_experiment, ],
     sizing_mode='fixed', width=350,)
 
