@@ -192,8 +192,6 @@ def get_gene_meta_multi_aggregate(
         [np.mean, np.median, max, min, np.std,
          q01, q25, q75, q99
         ])
-    # print(aggdata.index.to_series())
-    # print(aggdata)
     return aggdata
 
 
@@ -226,104 +224,9 @@ def get_gene_meta_multi(
 
     return rv
 
-
-def get_gene_meta_three_facets_jitter(dsid: str, gene: str,  meta2: str, meta3: str,
-        nobins: int = 8, view_name: str = "",meta1: str = "mouse.id",):
-    """"
-    function to return the (mean) aggregate of 3 metadata options
-    first metadata is limited to the replicates of an experiment,
-    the two metadatas will be displayed in jitter datapoints.
-    """
-    genedata = get_gene(dsid, gene)
-    if genedata is None:
-        raise bex.GeneNotFoundException
-    
-    emptyDF = False
-    metadata = get_meta(dsid, meta1, nobins=nobins,
-                        view_name=view_name, raw=True)  # facet1
-    metadata = metadata.select((pl.col(meta1)).cast(str))
-    
-    #looking at name of metadata column and name of gene.. sometimes they are the same.
-    #need to modify the data itself!! name of metadata should not be gene name.
-    if genedata.columns == metadata.columns:
-        metadata.columns = [metadata.columns[0] + "_category"]
-        new_meta = metadata.columns[0]
-    else:
-        new_meta = meta1
-
-    groupby_columns1 = [new_meta]
-    groupby_columns2 = [new_meta]
-
-    if meta2 == "--":
-        metadata2 = pl.DataFrame([])
-        new_meta2 = meta2
-        emptyDF = True
-
-    else:
-        metadata2 = get_meta(dsid, meta2, nobins=nobins,
-                             view_name=view_name, raw=True)  # facet2
-        metadata2 = metadata2.select((pl.col(meta2)).cast(str))
-        if genedata.columns == metadata2.columns:
-            metadata2.columns = [metadata2.columns[0] + "_category"]
-        new_meta2 = metadata2.columns[0]
-
-    if meta3 == "--":
-        metadata3 = pl.DataFrame([])
-        new_meta3 = meta3
-    else:
-        metadata3 = get_meta(dsid, meta3, nobins=nobins,
-                             view_name=view_name, raw=True)
-        metadata3 = metadata3.select((pl.col(meta3)).cast(str))
-        if genedata.columns == metadata3.columns:
-            metadata3.columns = [metadata3.columns[0] + "_category"]
-        new_meta3 = metadata3.columns[0]
-
-    if new_meta2 != "--":
-        groupby_columns1 = groupby_columns1 + [new_meta2]
-        groupby_columns2 = groupby_columns2 + [new_meta2]
-    if new_meta3 != "--":
-        groupby_columns2 = groupby_columns2 + [new_meta3]
-
-
-    rv_combined = (
-        pl.concat([genedata, metadata, metadata2, metadata3], how="horizontal")
-        .groupby(groupby_columns2)
-        .agg(
-            [
-                pl.count().alias("count"),  # count_mouseid
-                pl.mean(gene).alias("mean"),  # mean_mouseid
-            ]
-        )
-    )
-    
-    gc1 = groupby_columns1[0]
-    go1 = get_order_of_obs(dsid, meta2)
-    go1x = max(go1.values()) + 2 if go1 else 2
-
-    rv_combined = rv_combined.with_column(
-        pl.col(gc1).apply(lambda x: go1.get(x, go1x)).alias('order1'))
-
-    if len(groupby_columns1) == 1:
-        rv_combined = rv_combined.rename({"order1": "order"})
-    else:
-        gc2 = groupby_columns1[1]
-        go2 = get_order_of_obs(dsid, gc2)
-        go2x = max(go2.values()) + 2 if go2 else 2
-        rv_combined = rv_combined.with_column(
-            pl.col(gc2).apply(lambda x: go2.get(x, go2x)).alias('order2'))
-        rv_combined = rv_combined.with_column(
-            ((rv_combined['order2'] * go2x) + rv_combined['order1'])
-            .alias('order'))
-        rv_combined = rv_combined.drop(["order1", "order2"])
-
-    df_combined = rv_combined.to_pandas()
-    
-    return df_combined
-
-
 def get_gene_meta_three_facets(
         dsid: str, gene: str, meta1: str, meta2: str, meta3: str = "mouse.id",
-        nobins: int = 8, view_name: str = ""):
+        nobins: int = 8, view_name: str = "",mean_option: int = 0):
     """"
     function to return the aggregate of 3 metadata options
     first two metadatas will be displayed in a boxplot doubled
@@ -397,7 +300,6 @@ def get_gene_meta_three_facets(
             or metadata3 is None:
         return None
 
-    # print(groupby_columns1)
 
     rv_combined = (
         pl.concat([genedata, metadata, metadata2, metadata3], how="horizontal")
@@ -417,20 +319,32 @@ def get_gene_meta_three_facets(
             ]
         )
     )
-
+    
     if meta3 == "--":
         rv_mouseid = pl.DataFrame([])
     else:
-        rv_mouseid = (
-            pl.concat([genedata, metadata, metadata2, metadata3], how="horizontal")
+        if mean_option == 0:
+            rv_mouseid = (
+                pl.concat([genedata, metadata, metadata2, metadata3], how="horizontal")
+                .groupby(groupby_columns2)
+                .agg(
+                    [
+                        pl.count().alias("count_" + new_meta3),  # count_mouseid
+                        pl.mean(gene).alias("mean_" + new_meta3),  # mean_mouseid
+                    ]
+                )
+            )
+        else:
+            rv_mouseid = (
+                pl.concat([genedata, metadata, metadata2, metadata3], how="horizontal")
             .groupby(groupby_columns2)
             .agg(
                 [
                     pl.count().alias("count_" + new_meta3),  # count_mouseid
-                    pl.mean(gene).alias("mean_" + new_meta3),  # mean_mouseid
+                    pl.median(gene).alias("median_" + new_meta3),  # mean_mouseid
                 ]
-            )
-        )
+            ) 
+            )  
 
     gc1 = groupby_columns1[0]
     go1 = get_order_of_obs(dsid, meta1)
@@ -581,7 +495,8 @@ def get_colors_of_obs(dsid: str, meta: str,special = False,view_name = ""):
 def get_order_of_obs(dsid: str, meta: str):
     final_dict: Dict[str, Any] = {}
     datadir = util.get_datadir("h5ad")
-
+    if meta == "--": ##only one level to show in x axis..
+        return final_dict
     for yamlfile in datadir.glob("*.yaml"):
         basename = yamlfile.name.replace(".yaml", "")
         if dsid == basename:
