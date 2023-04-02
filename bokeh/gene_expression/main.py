@@ -377,7 +377,8 @@ def cb_update_plot(attr, old, new):
         lg.warning("!! GENE NOT FOUND!")
         curdoc().unhold()
         return
-
+    
+    flag = False
     dataset_id, dataset = get_dataset()
     facet = w_facet.value
     gene = w_gene.value
@@ -385,13 +386,13 @@ def cb_update_plot(attr, old, new):
     if len(new_data) == 0:
         # no..
         # keep the old data.
-        warning_experiment.visible = True
+        flag = True
         new_data = old_data
         new_data_no_dups = old_data_no_dups
         
 
     # yes, update everything.
-    warning_experiment.visible = False
+    warning_experiment.visible = flag
     data = new_data
     data_no_dups = new_data_no_dups
     source.data = data
