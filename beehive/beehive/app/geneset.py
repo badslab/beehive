@@ -66,7 +66,7 @@ def run_one_gsea(args):
     import gseapy as gp
     logging.getLogger("gseapy").setLevel(logging.ERROR)
 
-    group_hash, lfc_col, rnk, genedict = args
+    group_hash, group_title, lfc_col, rnk, genedict = args
 
     results = gp.prerank(
         rnk=rnk, gene_sets=genedict,
@@ -85,8 +85,12 @@ def run_one_gsea(args):
 
 
 def run_one_gsea_cached(args):
-    uid = util.UID(*args, length=12)
-
+    #for a in args:
+    #    aa = str(type(a)) + "--" + " ".join(str(a).split())[:50]
+    #    print('xx--', aa)
+    # exit()
+    uargs = [args[0]] + list(args[2:])
+    uid = util.UID(*uargs, length=12)
     cache_folder = util.get_geneset_folder() / 'cache' / 'gsea'
 
     if not cache_folder.exists():
@@ -100,11 +104,12 @@ def run_one_gsea_cached(args):
     cache_file = cache_folder / uid
     if cache_file.exists():
         with open(cache_file, 'rb') as F:
-            lg.debug(f"return from cache {uid}")
+            lg.warning(f"return from cache {args[1]} {uid}")
             rv = pickle.load(F)
     else:
+        lg.warning(f"Starting run {args[1]} {uid}")
         rv = run_one_gsea(args)
-        # lg.debug(f"saving to cache: {uid}")
+        #lg.info(f"Starting run {args[1]} {uid}")
         with open(cache_file, 'wb') as F:
             pickle.dump(rv, F)
 
@@ -118,9 +123,9 @@ def get_geneset_dicts(dsid: str,
     """
 
     rv = {}
-
     for _, g in get_geneset_groups(dsid, organism=organism):
 
+        group_title = g['group_title']
         gsets = get_geneset_genes(dsid, g['group_hash'])
         lg.info(
             f"    | {g['study_title'][:40]} "
@@ -133,15 +138,38 @@ def get_geneset_dicts(dsid: str,
             row['geneset_hash']: list(sorted(gg(row['genes'])))
             for (_, row) in gsets.iterrows()}
 
-        rv[g['group_hash']] = genedict
+        rv[(g['group_hash'], group_title)] = genedict
 
     return rv
+
+
+
+@ app.command('list-cols')
+def list_de_cols(
+    dsid: str = typer.Argument(..., help='Dataset')):
+    """List all DE columns in a dataset"""
+
+    import pandas as pd
+
+    from beehive import expset
+
+    var_cols = expset.get_varfields(dsid)
+    decols = [x for x in var_cols
+                if x.endswith('__lfc')
+             ]
+
+    for decol in decols:
+        print(decol)
 
 
 @ app.command('gsea')
 def gsea(
         dsid: str = typer.Argument(..., help='Dataset'),
-        threads: int = typer.Option(32, '-j', '--threads'), ):
+        threads: int = typer.Option(32, '-j', '--threads'),
+        column: str = typer.Option(None, '-c', '--column'),
+            ):
+    """Typer commeand to run all GSEA's
+    """
 
     from multiprocessing import Pool
 
@@ -164,15 +192,17 @@ def gsea(
     lg.warning(f"No rank columns to check {no_lfc_cols}")
 
     for lfc_col in lfc_cols:
-
+        if column is not None and lfc_col != column:
+            continue
         rnk = expset.get_dedata_simple(dsid, lfc_col)
         rnk = rnk.set_index('gene').iloc[:, 0].sort_values()
 
         no_genesets = len(gsdict2)
-        lg.info(f"  - processing {lfc_col} ({len(rnk)} genes against {no_genesets} genesets)")
+        lg.info(f"  - processing {lfc_col} ({len(rnk)} genes "
+                + "against {no_genesets} genesets)")
 
-        for group_hash, gdict in gsdict2.items():
-            runs.append((group_hash, lfc_col, rnk, gdict))
+        for (group_hash, group_title), gdict in gsdict2.items():
+            runs.append((group_hash, group_title, lfc_col, rnk, gdict))
 
         # do also the SLP rank - to be complete.
         rnk = expset.get_dedata_simple(dsid, lfc_col, ranktype='slp')
@@ -181,8 +211,8 @@ def gsea(
         no_genesets = len(gsdict2)
         lg.info(f"  - processing SLP {lfc_col} ({len(rnk)} genes against {no_genesets} genesets)")
 
-        for group_hash, gdict in gsdict2.items():
-            runs.append((group_hash, slp_col, rnk, gdict))
+        for (group_hash, group_title), gdict in gsdict2.items():
+            runs.append((group_hash, group_title, lfc_col, rnk, gdict))
 
     with Pool(threads) as P:
         results = P.map(run_one_gsea_cached, runs)
