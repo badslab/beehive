@@ -237,6 +237,8 @@ def create_db(
             continue
 
         group_info = load_yaml(group_folder / 'group.yaml')
+        if not (group_folder / 'genes.tsv').exists():
+            continue
         all_group_data.append(group_info)
         gene_data = pd.read_csv(group_folder / 'genes.tsv', sep="\t")
         all_gene_data.append(gene_data)
