@@ -67,6 +67,8 @@ def run_one_gsea(args):
     logging.getLogger("gseapy").setLevel(logging.ERROR)
 
     group_hash, lfc_col, rnk, genedict = args
+    gdk = " ".join(map(str, list(genedict.keys())[:3]))
+    lg.info(f'Start gsea run {group_hash} {lfc_col} {gdk}')
 
     results = gp.prerank(
         rnk=rnk, gene_sets=genedict,
@@ -98,15 +100,21 @@ def run_one_gsea_cached(args):
             pass
 
     cache_file = cache_folder / uid
+
     if cache_file.exists():
         with open(cache_file, 'rb') as F:
-            lg.debug(f"return from cache {uid}")
-            rv = pickle.load(F)
-    else:
-        rv = run_one_gsea(args)
-        # lg.debug(f"saving to cache: {uid}")
-        with open(cache_file, 'wb') as F:
-            pickle.dump(rv, F)
+            lg.debug(f"return {args[0]} {args[1]} from cache {uid}")
+            try:
+                rv = pickle.load(F)
+                return rv
+            except Exception as e:
+                lg.warning(f"invalid {args[:2]} cache file {uid}")
+
+    lg.debug(f"Running GSEA {args[0]} {args[1]} -- {uid}")
+    rv = run_one_gsea(args)
+    # lg.debug(f"saving to cache: {uid}")
+    with open(cache_file, 'wb') as F:
+        pickle.dump(rv, F)
 
     return rv
 
@@ -167,7 +175,6 @@ def gsea(
 
         rnk = expset.get_dedata_simple(dsid, lfc_col)
         rnk = rnk.set_index('gene').iloc[:, 0].sort_values()
-
         no_genesets = len(gsdict2)
         lg.info(f"  - processing {lfc_col} ({len(rnk)} genes against {no_genesets} genesets)")
 
@@ -184,9 +191,12 @@ def gsea(
         for group_hash, gdict in gsdict2.items():
             runs.append((group_hash, slp_col, rnk, gdict))
 
-    with Pool(threads) as P:
-        results = P.map(run_one_gsea_cached, runs)
-
+    if threads > 1:
+        with Pool(threads) as P:
+            results = P.map(run_one_gsea_cached, runs)
+    else:
+        results = map(run_one_gsea_cached, runs)
+        
     allres_raw = []
     for _, lfc, res in sorted(results, key=lambda x: x[1]):
         res['column'] = lfc
