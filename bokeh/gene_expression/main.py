@@ -19,7 +19,7 @@ from bokeh.models import (
 from bokeh.models.callbacks import CustomJS
 from bokeh.models.widgets import AutocompleteInput, Button, Div, Select
 from bokeh.plotting import curdoc, figure
-from bokeh.transform import CategoricalColorMapper, jitter
+from bokeh.transform import CategoricalColorMapper
 
 import beehive.exceptions as bex
 from beehive import config, expset, util
