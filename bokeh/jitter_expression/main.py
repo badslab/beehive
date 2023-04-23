@@ -16,8 +16,7 @@ from bokeh.models import (
 from bokeh.models.callbacks import CustomJS
 from bokeh.models.widgets import AutocompleteInput, Button, Div, Select, RadioGroup
 from bokeh.plotting import curdoc, figure
-#from bokeh.transform import CategoricalColorMapper
-from bokeh.transform import jitter
+from bokeh.transform import CategoricalColorMapper, jitter
 
 import beehive.exceptions as bex
 from beehive import config, expset, util
@@ -29,7 +28,7 @@ lg.info("startup")
 VIEW_NAME = "jitter_expression"
 coloring_scheme = None
 curdoc().template_variables['config'] = config
-curdoc().template_variables['view_name'] = 'Gene/Protein Expression'
+curdoc().template_variables['view_name'] = 'Per Mouse Replicate Expression'
 
 create_widget = partial(util.create_widget, curdoc=curdoc())
 
@@ -130,7 +129,13 @@ w_mean_median = create_widget(
 def get_genes():
     """Get available genes for a dataset."""
     dataset_id = w_dataset_id.value
+    #all_other_genes = []
+
     genes = sorted(list(expset.get_genes(dataset_id)))
+    # for siblingid, siblingname in w_sibling.options:
+    #     all_other_genes.extend(list(expset.get_genes(siblingid)))
+    
+    #return sorted(list(dict.fromkeys(all_other_genes)))
     return genes
 
 #TODO rewrite some facet fetching.. currently mouse.id is set as fixed
@@ -251,8 +256,25 @@ def get_data() -> pd.DataFrame:
     else:
         data = data.rename(columns={f'median_mouse.id': "jitter"})
 
-    #print(data.keys())
+
     data = data.sort_values(by='order')
+
+    #calculate mean of means and mean standard error:
+    grouped = data.groupby('cat_value')['jitter']
+    meansMEAN = grouped.mean()
+    SEMeans = grouped.sem()
+    SEMeans.fillna(0, inplace=  True)
+    meansMEAN = meansMEAN.reset_index()
+    SEMeans = SEMeans.reset_index()
+    data_no_dups = data_no_dups.merge(meansMEAN, on='cat_value', suffixes=('', '_mean'))
+    data_no_dups = data_no_dups.merge(SEMeans, on='cat_value', suffixes=('', '_sem'))
+    data_no_dups['cat_value_x'] = data_no_dups['cat_value'].apply(lambda x: (x, x))
+
+    if len(meansMEAN) != 0 and len(SEMeans) != 0:
+        data_no_dups['errors'] = data_no_dups.apply(lambda row: (row['jitter'] + row['jitter_sem'], row['jitter'] - row['jitter_sem']), axis=1)
+    else:
+        #not possible to calculate them.. put 0 anyway, the "warning_Div" will take care of it.
+        data_no_dups['errors'] = 0
 
     return data, data_no_dups
 
@@ -263,13 +285,13 @@ def get_dataset():
     return dataset_id, datasets[dataset_id]
 
 
-# def get_mapper():
-#     dataset = w_dataset_id.value
-#     meta = w_facet.value
-#     dict_colors = expset.get_colors_of_obs(dataset, meta)
-#     mapper = CategoricalColorMapper(palette=list(
-#         dict_colors.values()), factors=list(dict_colors.keys()))
-#     return mapper
+def get_mapper():
+    dataset = w_dataset_id.value
+    meta = w_facet.value
+    dict_colors = expset.get_colors_of_obs(dataset, meta)
+    mapper = CategoricalColorMapper(palette=list(
+        dict_colors.values()), factors=list(dict_colors.keys()))
+    return mapper
 
 #TODO change order, default from yaml if not then numeric / alpha numeric
 def get_order():
@@ -291,6 +313,8 @@ warning_experiment = Div(
     text="<b>The selected combination of conditions was not tested in "
     "the manuscript, please see experimental design and select an "
     "alternative view.</b>""", visible=False, style={'color': 'red'})
+legend = Div(
+    text="<b>Legend Place Holder.</b>""", visible=True, style={'color': 'black'})
 
 # can we plot the data?
 if len(data) == 0:
@@ -303,36 +327,21 @@ if len(data) == 0:
 
 # Plotting#
 source = ColumnDataSource(data)
-
+source_no_dups = ColumnDataSource(data_no_dups)
 
 # meta3 = w_facet3.value
 # meta3 = w_facet3.value
-#mapper = get_mapper()
+mapper = get_mapper()
 
 # create plot elements - these are the same for boxplots as mean/std type plots
-elements = dict(
-    # vbar=plot.vbar(x="cat_value", top='_bar_top',
-    #                bottom='_bar_bottom', source=source, width=0.85,
-    #                name="barplot",
-    #                fill_color={'field': coloring_scheme, 'transform': mapper},
-    #                line_color="black"),
-    # seg_v_up=plot.segment(source=source, x0='cat_value', x1='cat_value',
-    #                       y0='_bar_top', y1='_segment_top',
-    #                       line_color='black'),
-    # seg_h_up=plot.rect(source=source, x='cat_value', height=0.001,
-    #                    y='_segment_top', width=0.4, line_color='black'),
-    # seg_v_dw=plot.segment(source=source, x0='cat_value', x1='cat_value',
-    #                       y0='_segment_bottom', y1='_bar_bottom',
-    #                       line_color='black'),
-    # seg_h_dw=plot.rect(source=source, x='cat_value', height=0.001,
-    #                    y='_segment_bottom', width=0.4, line_color='black'),
-    # seg_h_med=plot.rect(source=source, x='cat_value', height=0.001,
-    #                     y='_bar_median', width=0.85, line_width=2,
-    #                     line_color='black'),
 
+elements = dict(
     jitter_points=plot.scatter(x=jitter(
-        'cat_value', width=0.4, range=plot.x_range), y="jitter", size=5,
-        alpha=0.4, source=source)
+        'cat_value', width=0.4, range=plot.x_range), y="jitter", size=5, fill_color={'field': coloring_scheme, 'transform': mapper},
+        alpha=1, source=source, line_color = "black",line_alpha = 0),
+    #mean_jitter = plot.circle(x = 'cat_value', y = "jitter",color = "black",source=source_no_dups,alpha =1, marker='hline'),
+    mean_jitter = plot.scatter(x = "cat_value", y = "jitter", color='black', source = source_no_dups, size = 5),
+    sem_jitter = plot.multi_line(xs = "cat_value_x", ys = "errors", source=source_no_dups, alpha = 1, color = "black", width = 2)
 
 )
 
@@ -387,14 +396,18 @@ def cb_update_plot(attr, old, new):
     data = new_data
     data_no_dups = new_data_no_dups
     source.data = data
+    source_no_dups.data = data_no_dups
     #source_no_dups.data = data_no_dups
 
     # mapper for color, and mapper for order. if found.
-    #mapper = get_mapper()
+    mapper = get_mapper()
 
-    #print(data)
+    elements["jitter_points"].glyph.fill_color = {
+        'field': coloring_scheme, 'transform': mapper}
+
+
     xrangelist = data[['cat_value', 'order']].drop_duplicates()
-    #print(xrangelist)
+
     xrangelist = list(xrangelist['cat_value'])
     plot.x_range.factors = xrangelist
 
@@ -491,7 +504,8 @@ menucol = column([
     w_sibling,
     w_dataset_id,
     w_mean_median,
-    warning_experiment, ],
+    warning_experiment, 
+    legend],
     sizing_mode='fixed', width=350,)
 
 
