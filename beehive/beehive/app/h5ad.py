@@ -247,7 +247,7 @@ def h5ad_convert(h5ad_file: Path = typer.Argument(..., exists=True),
 
             #apply test
                 print(f'applying gene expression ranking method using Wilcoxon Test.')
-                sc.tl.rank_genes_groups(adata,k,method="wilcoxon",pts = True)
+                sc.tl.rank_genes_groups(adata,k,method="wilcoxon",pts = True, use_raw = False)
             ##use this list to make var columns.
                 cat_list_ranked_genes_groups = list(adata.uns["rank_genes_groups"]["logfoldchanges"].dtype.names)
 
