@@ -516,3 +516,5 @@ curdoc().add_root(row([
     Tabs(tabs=[PlotTab], tabs_location='right')
 ], sizing_mode='stretch_both')
 )
+
+plot.output_backend = "svg"
