@@ -693,16 +693,27 @@ def get_dedata(dsid, categ, genes, view_name: str = ""):
 def get_dedata_new(dsid, categ):
 
     # to get 'gene' column
-    # TODO: gene column MUST be called 'gene' - not be the last col!
+
+    # TODO: gene column MUST be called 'gene'
+    ### SOME datasets have it called field
+    ### Some datasets have it called gene
+    ### some datasets have it at the last columns with __index__level..
+    ## loss of ".index" when switched to prqs on old and new datasets.
+
     last_col = len(pl.read_parquet(find_prq(dsid, 'var')).columns)
-
-    rv1 = pl.read_parquet(find_prq(dsid, 'var'), [last_col - 1])
-
+    #rv1 = pl.read_parquet(find_prq(dsid, 'var'), [last_col - 1])
+    try:
+        rv1 = pl.read_parquet(find_prq(dsid, 'var'), ["gene"])
+    except:
+        try:
+            rv1 = pl.read_parquet(find_prq(dsid, 'var'), ["field"])
+        except:
+            rv1 = pl.read_parquet(find_prq(dsid, 'var'), [last_col - 1])
     # get logfoldchange and padjusted for one category
     # (example injection__None)
     rv2 = pl.read_parquet(find_prq(dsid, 'var'),
                           [categ + "__lfc"] + [categ + "__padj"])
-    
+
     rv = pl.concat([rv2, rv1], how="horizontal")
 
     rv = rv.to_pandas()
