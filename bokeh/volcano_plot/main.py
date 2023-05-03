@@ -63,6 +63,7 @@ def get_genes():
     """Get available genes for a dataset."""
     dataset_id = w_dataset_id.value
     genes = sorted(list(expset.get_genes(dataset_id)))
+
     return genes
 
 def update_genes():
@@ -101,6 +102,7 @@ def get_data() -> pd.DataFrame:
     data = expset.get_dedata_new(dataset_id,categ)
     data.columns = ["lfc","padj","gene"]
     data.dropna(inplace = True)
+
     return data
 
 def highlight_genes(x):
@@ -350,3 +352,5 @@ curdoc().add_root(row([
         column([plot],sizing_mode="stretch_both")
         ],sizing_mode="stretch_both")
 )
+
+plot.output_backend = "svg"

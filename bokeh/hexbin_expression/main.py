@@ -642,3 +642,5 @@ curdoc().add_root(row([
                 ]),
     ])
 )
+
+plot.output_backend = "svg"
