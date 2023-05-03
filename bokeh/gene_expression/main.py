@@ -21,6 +21,7 @@ from bokeh.models.widgets import AutocompleteInput, Button, Div, Select
 from bokeh.plotting import curdoc, figure
 from bokeh.transform import CategoricalColorMapper
 
+
 import beehive.exceptions as bex
 from beehive import config, expset, util
 
@@ -501,7 +502,8 @@ menucol = column([
     w_facet2,
     w_sibling,
     w_dataset_id,
-    warning_experiment, ],
+    warning_experiment, 
+    w_download],
     sizing_mode='fixed', width=350,)
 
 PlotTab = Panel(child=plot, title="Plot")
@@ -513,3 +515,7 @@ curdoc().add_root(row([
     Tabs(tabs=[PlotTab, TableTab], tabs_location='right')
 ], sizing_mode='stretch_both')
 )
+
+plot.output_backend = "svg"
+
+
