@@ -161,8 +161,12 @@ def h5ad_convert(h5ad_file: Path = typer.Argument(..., exists=True),
         yml = yaml.load(F, Loader=yaml.SafeLoader)
 
     ### 1. Cleanup yaml with basic metadata such as author title...###
-    yml.pop("cat_covariates")
-    yml.pop("cont_covariates")
+    try:
+        yml.pop("cat_covariates")
+        yml.pop("cont_covariates")
+    except:
+        pass
+
     yml["meta"] = {}
     yml["diffexp"] = {}
     yml["dimred"] = []
@@ -173,17 +177,19 @@ def h5ad_convert(h5ad_file: Path = typer.Argument(..., exists=True),
     #assume false if it doesnt exist.
     except:
         normalised = False
-
-
-    #apply normalization if not yet.
+    
+	#apply normalization if not yet.
     if not(normalised) or normalised == "false" or normalised == "False":
         sc.pp.normalize_total(adata, target_sum=1e4)
         sc.pp.log1p(adata)
         sc.pp.scale(adata, max_value=10)
     else:
+        try:
         ##avoid normalized issue
-        adata.uns["log1p"]["base"] = None
-        pass
+                adata.uns["log1p"]["base"] = None
+        except:
+                pass
+
 
     yml["normalised"] = True
     
@@ -229,11 +235,13 @@ def h5ad_convert(h5ad_file: Path = typer.Argument(..., exists=True),
         if k == "full_id" or k == "subject":
             continue
         # polars/parquest does not like categories
-        if str(v.dtype) == 'category':
+        if str(v.dtype) == 'category' or str(v.dtype) == "object":
             print(f'Found categorical variable: {k}.')
-
-            list_cats = obs[k].cat.categories.tolist()
-            if len(list_cats) <= num_categories:
+            try:
+                list_cats = obs[k].cat.categories.tolist()
+            except:
+                list_cats = np.unique(np.array(obs[k])).tolist()
+            if len(list_cats) <= num_categories and len(list_cats) > 1:
                 obs[k] = v.astype('str')
                 k_type = 'categorical'
                 cat_values = {}
@@ -284,8 +292,11 @@ def h5ad_convert(h5ad_file: Path = typer.Argument(..., exists=True),
         k_type = "numerical"
         variable_name = string_cleanup(k)
 
-        if str(v.dtype) == "category":
-            list_cats = var[k].cat.categories.tolist()
+        if str(v.dtype) == "category" or str(v.dtype) == "object":
+            try:
+                list_cats = var[k].cat.categories.tolist()
+            except:
+                list_cats = np.unique(np.array(var[k])).tolist()
             if len(list_cats) <= num_categories:
                 var[k] = v.astype('str')
                 k_type = 'categorical'
