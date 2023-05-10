@@ -20,6 +20,7 @@ while true; do
     bokeh/scatter_expression/ \
     bokeh/hexbin_expression/ \
     bokeh/quadrant_plot/ \
+    bokeh/jitter_expression/ \
     bokeh/gsea_view/
     echo "Crashed? That's not good..."
     echo "-------------------------------------"
