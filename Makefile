@@ -1,7 +1,7 @@
 SHELL=/bin/bash
 
-BEEHIVE_BASEDIR=/Users/u0089478/data/beehive/beehive_data_intern
-
+#BEEHIVE_BASEDIR=/Users/u0089478/data/beehive/beehive_data_intern
+#BEEHIVE_BASEDIR=/Users/raghidbsat/Extras_No_Icloud_save/VIB/github_bds_lab/beehive_data_intern
 .PHONY:
 .SILENT:
 check_deployment:
@@ -85,8 +85,10 @@ docker_build:
 docker_build_mac:
 	docker  build  -f docker/Dockerfile -t bdslab/beehive:mac_m1  .
 
+
 docker_push:
 	docker push bdslab/beehive:latest
+
 
 docker_logs:
 	export iid=$$(docker container ls -q  | head -1) ; \
@@ -110,12 +112,10 @@ docker_kill_mac:
 .ONESHELL:
 docker_run_mac:
 	set -v ; \
-	export iid=$$(docker image ls -q  | head -1) ; \
-	echo "running $$iid" ; \
 	docker run --restart unless-stopped -d -p 5010:5010 \
 		-e VISUALIZATION_WEBSOCKET_ORIGIN="*" \
-		--mount type=bind,source=${BEEHIVE_BASEDIR},target=/beehive/data \
-		$$iid
+		--volume ${BEEHIVE_BASEDIR}:/beehive/data \
+		bdslab/beehive:mac_m1
 
 .ONESHELL:
 serve_mark_all:
@@ -221,5 +221,9 @@ serve_dev_raghid_all: fix_templates
 									bokeh/volcano_plot/ \
 									bokeh/scatter_expression/ \
 									bokeh/gene_expression/ \
-									bokeh/hexbin_expression/
+									bokeh/hexbin_expression/ \
+									bokeh/jitter_expression/
+
+serve_dev_raghid_jitter: fix_templates
+	pipenv run bokeh serve --dev --port 5009 bokeh/jitter_expression/
 

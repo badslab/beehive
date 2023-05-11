@@ -201,8 +201,6 @@ def get_gene_meta_multi_aggregate(
         [np.mean, np.median, max, min, np.std,
          q01, q25, q75, q99
         ])
-    # print(aggdata.index.to_series())
-    # print(aggdata)
     return aggdata
 
 
@@ -235,10 +233,9 @@ def get_gene_meta_multi(
 
     return rv
 
-
 def get_gene_meta_three_facets(
         dsid: str, gene: str, meta1: str, meta2: str, meta3: str = "mouse.id",
-        nobins: int = 8, view_name: str = ""):
+        nobins: int = 8, view_name: str = "",mean_option: int = 0):
     """"
     function to return the aggregate of 3 metadata options
     first two metadatas will be displayed in a boxplot doubled
@@ -285,6 +282,7 @@ def get_gene_meta_three_facets(
         metadata2 = get_meta(dsid, meta2, nobins=nobins,
                              view_name=view_name, raw=True)  # facet2
         metadata2 = metadata2.select((pl.col(meta2)).cast(str))
+
         if genedata.columns == metadata2.columns:
             metadata2.columns = [metadata2.columns[0] + "_category"]
         new_meta2 = metadata2.columns[0]
@@ -311,7 +309,6 @@ def get_gene_meta_three_facets(
             or metadata3 is None:
         return None
 
-    # print(groupby_columns1)
 
     rv_combined = (
         pl.concat([genedata, metadata, metadata2, metadata3], how="horizontal")
@@ -331,20 +328,48 @@ def get_gene_meta_three_facets(
             ]
         )
     )
-
-    rv_mouseid = (
-        pl.concat([genedata, metadata, metadata2, metadata3], how="horizontal")
-        .groupby(groupby_columns2)
-        .agg(
-            [
-                pl.count().alias("count_" + new_meta3),  # count_mouseid
-                pl.mean(gene).alias("mean_" + new_meta3),  # mean_mouseid
-            ]
-        )
-    )
+    
+    if meta3 == "--":
+        rv_mouseid = pl.DataFrame([])
+    else:
+        if mean_option == 0:
+            rv_mouseid = (
+                pl.concat([genedata, metadata, metadata2, metadata3], how="horizontal")
+                .groupby(groupby_columns2)
+                .agg(
+                    [
+                        pl.count().alias("count_" + new_meta3),  # count_mouseid
+                        pl.mean(gene).alias("mean_" + new_meta3),  # mean_mouseid
+                    ]
+                )
+            )
+        else:
+            rv_mouseid = (
+                pl.concat([genedata, metadata, metadata2, metadata3], how="horizontal")
+            .groupby(groupby_columns2)
+            .agg(
+                [
+                    pl.count().alias("count_" + new_meta3),  # count_mouseid
+                    pl.median(gene).alias("median_" + new_meta3),  # mean_mouseid
+                ]
+            ) 
+            )  
 
     gc1 = groupby_columns1[0]
     go1 = get_order_of_obs(dsid, meta1)
+
+    if not(go1): #no ordering available
+                #check if they are digits.
+        list_of_gc1_labels = list(filter(lambda x: x != "NONE",list(metadata.unique())[0]))
+        if all(elem.isdigit() for elem in list_of_gc1_labels):
+                #sort it numerically
+            list_of_gc1_labels = sorted(list_of_gc1_labels, key=int)
+        else:
+            #sort it alphanumerically
+            list_of_gc1_labels = sorted(list_of_gc1_labels)
+
+        go1 = {value: index for index, value in enumerate(list_of_gc1_labels)}
+
     go1x = max(go1.values()) + 2 if go1 else 2
 
     rv_combined = rv_combined.with_column(
@@ -355,7 +380,21 @@ def get_gene_meta_three_facets(
     else:
         gc2 = groupby_columns1[1]
         go2 = get_order_of_obs(dsid, gc2)
+        if not(go2): #no ordering available
+                #check if they are digits.
+            list_of_gc2_labels = list(filter(lambda x: x != "NONE",list(metadata2.unique())[0]))
+            if all(elem.isdigit() for elem in list_of_gc2_labels):
+                    #sort it numerically
+                list_of_gc2_labels = sorted(list_of_gc2_labels, key=int)
+            else:
+                #sort it alphanumerically
+                list_of_gc2_labels = sorted(list_of_gc2_labels)
+
+            go2 = {value: index for index, value in enumerate(list_of_gc2_labels)}
+
+
         go2x = max(go2.values()) + 2 if go2 else 2
+
         rv_combined = rv_combined.with_column(
             pl.col(gc2).apply(lambda x: go2.get(x, go2x)).alias('order2'))
         rv_combined = rv_combined.with_column(
@@ -365,7 +404,8 @@ def get_gene_meta_three_facets(
 
     # switch to dfs
     df_combined = rv_combined.to_pandas()
-    df_mouseid = rv_mouseid.to_pandas()
+    if meta3 != "--":
+        df_mouseid = rv_mouseid.to_pandas()
 
     # calculate other measures
     df_combined['perc'] = 100 * df_combined['count'] / \
@@ -384,16 +424,20 @@ def get_gene_meta_three_facets(
             by="x", key=lambda col: col.str[0], inplace=True)
         df_combined.sort_values(
             by="x", key=lambda col: col.str[1], inplace=True)
-
-        df_mouseid["x"] = df_mouseid[[
-            new_meta2, new_meta]].apply(tuple, axis=1)
-        df_mouseid.sort_values(
-            by="x", key=lambda col: col.str[0], inplace=True)
-        df_mouseid.sort_values(
-            by="x", key=lambda col: col.str[1], inplace=True)
+        
+        if meta3 != "--":
+            df_mouseid["x"] = df_mouseid[[
+                new_meta2, new_meta]].apply(tuple, axis=1)
+            df_mouseid.sort_values(
+                by="x", key=lambda col: col.str[0], inplace=True)
+            df_mouseid.sort_values(
+                by="x", key=lambda col: col.str[1], inplace=True)
 
     # merge on the just created ["X"] column
-        final_rv = pd.merge(df_combined, df_mouseid, on="x")
+        if meta3 != "--":
+            final_rv = pd.merge(df_combined, df_mouseid, on="x")
+        else:
+            final_rv = df_combined
         # sort..
         final_rv.sort_values(by="x", key=lambda col: col.str[0], inplace=True)
         final_rv.sort_values(by="x", key=lambda col: col.str[1], inplace=True)
@@ -401,9 +445,15 @@ def get_gene_meta_three_facets(
         final_rv = final_rv.rename(columns={"x": "cat_value"})
 
         # sort the column for colors to be displayed..
-        final_rv.sort_values(by=f'{new_meta}_y', inplace=True)
+        if meta3 != "--":
+            final_rv.sort_values(by=f'{new_meta}_y', inplace=True)
+        else:
+            final_rv.sort_values(by=f'{new_meta}', inplace=True)
     else:
-        final_rv = pd.merge(df_combined, df_mouseid, on=new_meta)
+        if meta3 != "--":
+            final_rv = pd.merge(df_combined, df_mouseid, on=new_meta)
+        else:
+            final_rv = df_combined
         final_rv = final_rv.rename(columns={new_meta: "cat_value"})
 
     return final_rv
@@ -412,11 +462,14 @@ def get_gene_meta_three_facets(
 # might be better to merge these two functions into one:
 # get_colors_of_obs()
 # get_order_of_obs()
-def get_colors_of_obs(dsid: str, meta: str):
+def get_colors_of_obs(dsid: str, meta: str,special = False,view_name = ""):
     final_dict = {}
     import matplotlib as mpl
     import matplotlib.pyplot as plt
     backup_palette = plt.cm.Dark2
+    # TODO need to incorporate it into yaml... cant just have it here, special for one dataset/one facet.
+    #backup_palette2 = ["#ce4d19","#e4561c","#fa5e1f","#ff7e33","#ff931f”,”#FFA029","#ffad33","#ffbf60","#ffcf87","#ffd79a","#ffdead","#FFE8C2"]
+    
     ii = 0
 
     datadir = util.get_datadir("h5ad")
@@ -425,6 +478,7 @@ def get_colors_of_obs(dsid: str, meta: str):
         if dsid == basename:
             with open(yamlfile, "r") as F:
                 y = yaml.load(F, Loader=yaml.SafeLoader)
+                #if there are no values in the yaml, means that there is no coloring..
                 if y["obs_meta"][meta].get("values"):
                     for key, data in y["obs_meta"][meta]["values"].items():
                         name = key
@@ -436,6 +490,13 @@ def get_colors_of_obs(dsid: str, meta: str):
                             ii += 1
                         else:
                             final_dict[name] = color
+                else:
+                    metadata = get_meta(dsid, meta, view_name=view_name, raw=True)
+                    metadata = metadata.select((pl.col(meta)).cast(str))
+                    list_of_gc1_labels = list(filter(lambda x: x != "NONE",list(metadata.unique())[0]))
+                    for key in list_of_gc1_labels:
+                        final_dict[key] = mpl.colors.to_hex(backup_palette(ii))
+                        ii+=1
 
     return final_dict
 
@@ -443,16 +504,21 @@ def get_colors_of_obs(dsid: str, meta: str):
 def get_order_of_obs(dsid: str, meta: str):
     final_dict: Dict[str, Any] = {}
     datadir = util.get_datadir("h5ad")
+    if meta == "--": ##only one level to show in x axis..
+        return final_dict
     for yamlfile in datadir.glob("*.yaml"):
         basename = yamlfile.name.replace(".yaml", "")
         if dsid == basename:
             with open(yamlfile, "r") as F:
                 y = yaml.load(F, Loader=yaml.SafeLoader)
+                if "category" in meta:
+                    meta = meta.split("_category")[0]
                 if y["obs_meta"][meta].get("values"):
                     for key, data in y["obs_meta"][meta]["values"].items():
                         name = key
                         order = data.get("order")
                         # there is no order in the yaml..
+                        
                         if not (order):
                             return final_dict
                         final_dict[name] = order
@@ -653,11 +719,22 @@ def get_dedata(dsid, categ, genes, view_name: str = ""):
 def get_dedata_new(dsid, categ):
 
     # to get 'gene' column
-    # TODO: gene column MUST be called 'gene' - not be the last col!
+
+    # TODO: gene column MUST be called 'gene'
+    ### SOME datasets have it called field
+    ### Some datasets have it called gene
+    ### some datasets have it at the last columns with __index__level..
+    ## loss of ".index" when switched to prqs on old and new datasets.
+
     last_col = len(pl.read_parquet(find_prq(dsid, 'var')).columns)
-
-    rv1 = pl.read_parquet(find_prq(dsid, 'var'), [last_col - 1])
-
+    #rv1 = pl.read_parquet(find_prq(dsid, 'var'), [last_col - 1])
+    try:
+        rv1 = pl.read_parquet(find_prq(dsid, 'var'), ["gene"])
+    except:
+        try:
+            rv1 = pl.read_parquet(find_prq(dsid, 'var'), ["field"])
+        except:
+            rv1 = pl.read_parquet(find_prq(dsid, 'var'), [last_col - 1])
     # get logfoldchange and padjusted for one category
     # (example injection__None)
     rv2 = pl.read_parquet(find_prq(dsid, 'var'),
@@ -751,7 +828,7 @@ def get_meta(dsid, col, raw=False, nobins=8,
              view_name: str = ""):
     """Return one obs column."""
     rv = pl.read_parquet(find_prq(dsid, 'obs'), [col])
-
+    
     if raw:
         # just return whatever is in the db.
         return rv
@@ -810,6 +887,8 @@ def get_obsfields(dsid):
 
 def get_varfields(dsid):
     """Return a list of var columns for this datset."""
+    var = find_prq(dsid, 'var')
+    
     X = pl.scan_parquet(find_prq(dsid, 'var'))
     return X.columns
 
