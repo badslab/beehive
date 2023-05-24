@@ -343,14 +343,17 @@ w_download.js_on_event("button_click", CustomJS(args=dict(source=source, file_na
 
 curdoc().add_root(row([
         column([
-            row([w_genes,w_category]),
-            row([w_x_range,w_y_range]),
-            row([w_download,w_dataset_id]),
-            row([w_div_title_author],sizing_mode="stretch_width"),
-            row([w_color_coding],sizing_mode="stretch_width"),
-                ]),
-        column([plot],sizing_mode="stretch_both")
-        ],sizing_mode="stretch_both")
+            row([w_genes]),
+            row([w_category]),
+            row([w_x_range]),
+            row([w_y_range]),
+            row([w_download]),
+            row([w_dataset_id]),
+            row([w_div_title_author]),
+            row([w_color_coding]),
+                ],sizing_mode="fixed", width=350,),
+        column([plot],sizing_mode="stretch_both"),
+        ])
 )
 
 plot.output_backend = "svg"
