@@ -753,9 +753,8 @@ def get_dedata_quadrant(dsid, categ1, categ2):
 
     # to get 'gene' column
     last_col = len(pl.read_parquet(find_prq(dsid, 'var')).columns)
-
-    rv1 = pl.read_parquet(find_prq(dsid, 'var'), columns=[last_col - 1])
-
+    rv1 = pl.read_parquet(find_prq(dsid, 'var'), columns=["gene"])
+    
     # get logfoldchange and padjusted for one category
     # (example injection__None)
     rv2 = pl.read_parquet(
@@ -773,7 +772,7 @@ def get_dedata_quadrant(dsid, categ1, categ2):
     rv = rv.to_pandas()
     # in new format, padjusted and lfc are already on columns, genes on rows.
     # get genes has same index as that for the rows.
-    return rv
+    return rv1
 
 
 def get_dedata_abundance(dsid, categ):
