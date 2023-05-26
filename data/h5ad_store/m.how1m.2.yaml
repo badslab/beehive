@@ -1,6 +1,5 @@
 use_in_view:
 - scatter_expression
-- quadrant_plot
 - hexbin_expression
 - volcano_plot
 - gene_expression
