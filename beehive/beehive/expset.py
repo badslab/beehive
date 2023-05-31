@@ -359,8 +359,10 @@ def get_gene_meta_three_facets(
     go1 = get_order_of_obs(dsid, meta1)
 
     if not(go1): #no ordering available
-                #check if they are digits.
+                #check if they are digits. remove None if there is any...
         list_of_gc1_labels = list(filter(lambda x: x != "NONE",list(metadata.unique())[0]))
+        list_of_gc1_labels =  list(filter(lambda x: x is not None, list_of_gc1_labels))
+
         if all(elem.isdigit() for elem in list_of_gc1_labels):
                 #sort it numerically
             list_of_gc1_labels = sorted(list_of_gc1_labels, key=int)
@@ -381,8 +383,10 @@ def get_gene_meta_three_facets(
         gc2 = groupby_columns1[1]
         go2 = get_order_of_obs(dsid, gc2)
         if not(go2): #no ordering available
-                #check if they are digits.
-            list_of_gc2_labels = list(filter(lambda x: x != "NONE",list(metadata2.unique())[0]))
+                #check if they are digits... remove None if there is any....
+            list_of_gc2_labels = list(filter(lambda x: x != "NONE" or x is not None or x != "None", list(metadata2.unique())[0]))
+            list_of_gc2_labels =  list(filter(lambda x: x is not None, list_of_gc2_labels))
+
             if all(elem.isdigit() for elem in list_of_gc2_labels):
                     #sort it numerically
                 list_of_gc2_labels = sorted(list_of_gc2_labels, key=int)

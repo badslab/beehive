@@ -426,6 +426,9 @@ def cb_update_plot(attr, old, new):
 
     xrangelist = data[['cat_value', 'order']].drop_duplicates()
     xrangelist = list(xrangelist['cat_value'])
+    #remove None if there is any....
+    xrangelist = list(filter(lambda x: x[0] is not None, xrangelist))
+    xrangelist = list(filter(lambda x: x[1] is not None, xrangelist))
     plot.x_range.factors = xrangelist
 
     w_div_title_author.text = \
