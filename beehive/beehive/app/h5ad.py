@@ -128,16 +128,6 @@ def string_cleanup(variable_str):
     return variable_str.title().replace("_"," ")
     
 
-
-
-#@
-#                 expyaml: Optional[Path] = None,
-#                 author: Optional[str] = None,
-#                 title: Optional[str] = None,
-#                 ):
-#    """Convert to polars/parquet dataframes."""
-
-
 @ app.command("prepare")
 def h5ad_convert(h5ad_file: Path = typer.Argument(..., exists=True),
                  num_categories: int = 20):
@@ -158,37 +148,11 @@ def h5ad_convert(h5ad_file: Path = typer.Argument(..., exists=True),
     import polars as pl
     import scanpy as sc
 
-    expdata = {}
-    if expyaml is not None:
-        with open(Path(expyaml).expanduser()) as F:
-            expdata = yaml.load(F, Loader=yaml.SafeLoader)
-            for k, v in expdata.items():
-                print(k, str(v)[:80])
-
     outbase = h5ad_file
     lg.info(f"Filename for IO: {outbase}")
 
     adata = sc.read_h5ad(h5ad_file)
     dir_path = os.path.dirname(outbase)
-
-    # # automatically fails if not exist
-    # if 'study_md' not in adata:
-    #     study_md = adata.uns['study_md']
-    # else:
-    #     study_md = expdata
-    #     if 'title' not in study_md:
-    #         study_md['title'] = study_md['name']
-    #     if 'short_title' not in study_md:
-    #         study_md['short_title'] = study_md['title']
-
-    # for field in ['author', 'title', 'study', 'organism', 'datatype',
-    #               'short_title', 'year']:
-    #     if field not in study_md:
-    #         print("missing field", field)
-    #         return
-
-    # study_md['year'] = int(study_md['year'])
-    # return
 
     # check if the output yaml is there as well
     yamlfile = os.path.join(dir_path, "experiment.yaml")
@@ -255,16 +219,10 @@ def h5ad_convert(h5ad_file: Path = typer.Argument(..., exists=True),
     var.index = adata.var_names #gene names.
     var.index.name = 'gene'
 
-    #### 3. Add obs variables to yaml. Type will be determined from
-    #### the value of the columns.
-
-    #### Categorical variables have a special case. An order will be
-    #### assigned, a color will be assigned ### For Categorical
-    #### variables, only those that have categories less than
-    #### num_categories will be included.
-
-    #### For categorical variables in obs, diff exp __padj __lfc
-    #### ___cell_frac will be calculated as well.
+    #### 3. Add obs variables to yaml. Type will be determined from the value of the columns. ####
+    #### Categorical variables have a special case. An order will be assigned, a color will be assigned ###
+    #### For Categorical variables, only those that have categories less than num_categories will be included. ####
+    #### For categorical variables in obs, diff exp __padj __lfc ___cell_frac will be calculated as well. ####
 
     var_variables = []
     obs_variables = []
@@ -422,11 +380,11 @@ Abstract: TBD
 
 ## Gene Expression Views:
 
-* [gene_expression1](./gene_expression?dataset_id={yml["organism"][0]}.{yml["group_id"]}.{yml["version"]}')
-* [volcano_plot1](./volcano_plot?dataset_id={yml["group_id"]}.{yml["version"]}')
-* [scatter_plot1](./scatter_expression?dataset_id={yml["group_id"]}.{yml["version"]}')
+* [gene_expression1](/gene_expression?dataset_id={yml["organism"][0]}.{yml["group_id"]}.{yml["version"]})
+* [volcano_plot1](/volcano_plot?dataset_id={yml["organism"][0]}.{yml["group_id"]}.{yml["version"]})
+* [scatter_plot1](/scatter_expression?dataset_id={yml["organism"][0]}.{yml["group_id"]}.{yml["version"]})
     """
-    new_yaml_file = os.path.join(dir_path, f'{yml["organism"][0]}.{yml["author"]}{yml["year"]}.md')
+    new_yaml_file = os.path.join(dir_path, f'{yml["organism"][0]}.{yml["group_id"]}.{yml["version"]}.md')
     with open(new_yaml_file, 'w') as f:
         f.write(content)
 
