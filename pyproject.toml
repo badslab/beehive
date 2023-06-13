@@ -1,0 +1,23 @@
+[project]
+name = "termite"
+authors = [
+        {name="Mark Fiers", email="mark@fie.rs"}]
+version = "0.0.2"
+dependencies = [
+    "click",
+    "duckdb",
+    "numpy",
+    "pandas",
+    "plotly",
+    "streamlit",
+    'importlib-metadata; python_version<"3.8"',
+]
+
+
+[project.scripts]
+termite = "termite.cli.run:run"
+
+
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
