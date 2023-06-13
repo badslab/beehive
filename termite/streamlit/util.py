@@ -21,9 +21,11 @@ def suggest_genes(gene, experiment, datatype):
         on_change=_gene_select)
 
 
-def selectbox_mem(context, label, options, index=0):
-
-    key = label.lower().replace(' ', '_')
+def selectbox_mem(context, label, options, index=0, key=None):
+    
+    if key is None:
+        key = label.lower().replace(' ', '_')
+        
     options = list(options)
     qp = st.experimental_get_query_params()
 
