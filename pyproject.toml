@@ -17,7 +17,6 @@ dependencies = [
 [project.scripts]
 termite = "termite.cli.run:run"
 
-
 [build-system]
 requires = ["setuptools"]
 build-backend = "setuptools.build_meta"

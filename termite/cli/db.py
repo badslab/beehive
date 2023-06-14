@@ -25,6 +25,15 @@ def forget(experiment: str) -> None:
     "Forget all about one experiment (all datatypes)."
     db.forget(experiment)
 
+    
+@db_group.command("sql")
+@click.argument("sql", nargs=-1)
+def db_sql(sql: str) -> None:
+    "Run sql."
+    sql = ' '.join(sql)
+    rv = db.raw_sql(sql)
+    print(rv)
+
 
 @db_group.command("status")
 def db_status() -> None:

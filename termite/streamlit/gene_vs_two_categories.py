@@ -12,7 +12,7 @@ def gene_vs_two_categories(experiment, datatype, plotly_config):
     import plotly.express as px
     from scipy.stats import sem
 
-    gene = st.sidebar.text_input("Gene", value='APOE', key='gene')
+    gene = st.sidebar.text_input("Gene", value='APOE', key='gene1')
 
     all_catnames = list(sorted(db.get_obs_cat_names(experiment)))
     catname1 = st.sidebar.selectbox(
@@ -33,14 +33,7 @@ def gene_vs_two_categories(experiment, datatype, plotly_config):
     
     if len(counts) == 0:
         # probably gene not found: suggest a few:
-        candidate_genes = db.fuzzy_gene_search(experiment, gene)
-        def _gene_select():
-            st.session_state['gene'] = st.session_state['new_gene']
-        st.selectbox(
-            'Gene not found, did you mean:',
-            candidate_genes, key='new_gene',
-            on_change=_gene_select)
-
+        util.suggest_genes(gene, experiment, datatype, 'gene1')
         st.stop()
 
         

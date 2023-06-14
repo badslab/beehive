@@ -1,11 +1,15 @@
 
-import re
-import os
+from functools import lru_cache
 import logging
+import os
+import re
+from typing import Dict
+
+import click
+import pandas as pd
 
 from termite import db
 
-import click
 
 lg = logging.getLogger(__name__)
 
@@ -14,24 +18,45 @@ lg = logging.getLogger(__name__)
 def h5ad():
     pass
 
-@h5ad.group('meta')
-def meta():
-    pass
 
+@lru_cache(16)
+def get_metadata(h5adfile: str) -> Dict[str, pd.DataFrame]:
+    
+    rv = {}
+    
+    obscol_mdfile = h5adfile.replace('.h5ad', '') + '.obscol.tsv'
+    if os.path.exists(obscol_mdfile):
+        rv['obscol'] = pd.read_csv(obscol_mdfile, sep="\t", index_col=0)
+        
+    return rv
 
-def get_obs_column_metadata(adata, column):
-    if 'termite_obs_meta' in adata.uns:
-        # see if the column is in the adata file
-        bom = adata.uns['termite_obs_meta']
-
-        if column in bom['name']:
-            return bom.loc[bom['name'] == column].to_dict()
+COMMON_COLUMN_MAPPINGS = """
+leiden_scVI | scVI cluster
+""".strip().split("\n")
+COMMON_COLUMN_MAPPINGS = \
+    {a.strip():b.strip() for (a,b)
+     in [x.split('|', 1) for x in COMMON_COLUMN_MAPPINGS]
+     }
 
     
+def get_obs_column_metadata(h5adfile, adata, column):
+
+    all_md = get_metadata(h5adfile)
+    md_obscol = all_md.get('obscol')
+
+    # see if the column is in the obsocl metadata file
+    if md_obscol is not None and column in md_obscol['name'].values:
+        rv = md_obscol.loc[md_obscol['name'] == column].iloc[0].to_dict()
+        return rv
+        
+    # nothing here? Guess the format from the raw data
     oco = adata.obs[column]
+    example=",".join(map(str, oco.head(4)))
+    
     if str(oco.dtype) in ['category', 'object']:
         # guess categorical
         uniq = len(oco.unique())
+        example = ",".join(map(str, oco.value_counts().sort_values()[:4].index))
         if uniq > 15:
             dtype = 'skip'
         else:
@@ -44,30 +69,16 @@ def get_obs_column_metadata(adata, column):
         lg.warning(f"Unknown data type for {column} - {oco.dtype}")
         dtype = 'skip'
 
-    nice = " ".join(
-        [x.capitalize() for x in re.split(r'[\s_\_]', column)])
-        
-    return dict(name=column, type=dtype, nice=nice)
-
-
-@meta.command('dump')
-@click.argument('h5adfile')
-def prepare_dump(h5adfile: str) -> None:
-    "Dump metadata"
-    import scanpy as sc
-    
-    lg.info("Loading data")
-    adata = sc.read_h5ad(h5adfile, backed='r')
-
-    if 'termite_obs_meta' in adata.uns:
-        # see if the column is in the adata file
-        print(adata.uns['termite_obs_meta'])
+    if column in COMMON_COLUMN_MAPPINGS:
+        nice = COMMON_COLUMN_MAPPINGS[column]
     else:
-        print("No obs metadata in adata")
-
+        nice = " ".join(
+            [x.capitalize() for x in re.split(r'[\s_\-]', column)])
+        
+    return dict(name=column, type=dtype, nice=nice, example=example)
 
     
-@meta.command('prepare')
+@h5ad.command('prepare')
 @click.argument('h5adfile')
 def prepare_meta(h5adfile: str) -> None:
 
@@ -79,40 +90,9 @@ def prepare_meta(h5adfile: str) -> None:
     lg.info("Loading data")
     adata = sc.read_h5ad(h5adfile)
 
-    bom = None
-    if 'termite_obs_meta' in adata.uns:
-        # see if the column is in the adata file
-        bom = adata.uns['termite_obs_meta']
-        
-    if not isinstance(bom, pd.DataFrame):
-        bom = pd.DataFrame(columns = ['name', 'type', 'nice'])
-
-    bom = bom.reset_index(drop=True)
-    
+    md_obscol = pd.DataFrame(columns = ['name', 'type', 'nice', 'example'])
+    md_obscol = md_obscol.reset_index(drop=True)
     obs = adata.obs
-
-    # start with DimRed columns
-    lg.info("Processing obsm/dimred table")
-    lg.info(f"  - keys: {adata.obsm_keys()}")
-    for k in adata.obsm_keys():
-        
-        if k.startswith('_'):
-            continue
-        
-        omat = adata.obsm[k]
-        assert omat.shape[1] >= 2
-
-        name0 = f"{k}/0"
-        name1 = f"{k}/1"
-
-        if name0 not in bom['name'].values:
-            bom.loc[len(bom)] = dict(
-                name=name0, type='dimred',
-                nice=k.replace('X_', '').capitalize() + '/0')
-        if name1 not in bom['name'].values:
-            bom.loc[len(bom)] = dict(
-                name=name1, type='dimred',
-                nice=k.replace('X_', '').capitalize() + '/1')
 
     # regular obs columns
     lg.info("Processing obs table")
@@ -120,37 +100,10 @@ def prepare_meta(h5adfile: str) -> None:
         if column.startswith('_'):
             continue
 
-        if column in bom['name'].values:
-            continue
+        md_obscol.loc[len(md_obscol)] = get_obs_column_metadata(h5adfile, adata, column)
 
-        bom.loc[len(bom)] = get_obs_column_metadata(adata, column)
-
-    adata.uns['termite_obs_meta'] = bom
-    lg.info("Saving files")
-    adata.write(h5adfile)
-    bom.to_csv(f"{basename}.obscol.tsv", sep="\t")
-    
-
-@meta.command('import')
-@click.argument('h5adfile')
-def import_meta(h5adfile: str) -> None:
-    """Import metadata into the scanpy h5ad file."""
-    
-    import scanpy as sc
-    import pandas as pd
-
-    basename = h5adfile.replace('.h5ad', '')
-
-    obs_meta_file = f'{basename}.obscol.tsv'
-    if not os.path.exists(obs_meta_file):
-        print(f"Did not find {obs_meta_file}")
-        return
-            
-    obs_meta = pd.read_csv(obs_meta_file, sep="\t", index_col=0)
-    
-    adata = sc.read_h5ad(h5adfile) #/////backed='r+')
-    adata.uns['termite_obs_meta'] = obs_meta
-    adata.write(h5adfile)
+    lg.info("Saving MD files")
+    md_obscol.to_csv(f"{basename}.obscol.tsv", sep="\t")
     
 
 @h5ad.command('import')
@@ -158,12 +111,10 @@ def import_meta(h5adfile: str) -> None:
 @click.option('--expname')
 @click.option('--datatype', default='raw', type=str)
 @click.option('--layer', default=None, type=str)
-def load_h5ad(h5adfile, expname, datatype, layer):
+def load_import(h5adfile, expname, datatype, layer):
 
     import scanpy as sc
     import pandas as pd
-
-    
     conn = db.get_conn()
     
     adata = sc.read_h5ad(h5adfile)
@@ -175,7 +126,6 @@ def load_h5ad(h5adfile, expname, datatype, layer):
     lg.info(f"data gene : {adata.shape[0]:_d}")
     lg.info(f"data cell : {adata.shape[1]:_d}")
     lg.info(f"data type : {datatype}")
-
     
     total_obs_recs = 0
 
@@ -193,25 +143,27 @@ def load_h5ad(h5adfile, expname, datatype, layer):
         
         if dtype == 'skip':
             pass
-        elif dtype in ['int','float', 'dimred']:
+        elif dtype in ['int', 'float', 'dimred']:
+
             col['value'] = col['value'].astype(float)
-            if db.table_exists(conn, 'obs_num'):
+            if db.table_exists('obs_num'):
                 conn.sql(f"""
                     DELETE FROM obs_num 
                      WHERE name='{colname}' 
                        AND experiment='{expname}'
                 """)
-            db.create_or_append(conn, 'obs_num', col)
+            db.create_or_append('obs_num', col)
         else:
             col['value'] = col['value'].astype(str)
+
             
-            if db.table_exists(conn, 'obs_cat'):
+            if db.table_exists('obs_cat'):
                 conn.sql(f"""
                     DELETE FROM obs_cat 
                      WHERE name='{colname}' 
                        AND experiment='{expname}'
                 """)
-            db.create_or_append(conn, 'obs_cat', col)
+            db.create_or_append('obs_cat', col)
 
 
     for obsmname in adata.obsm_keys():
@@ -228,12 +180,17 @@ def load_h5ad(h5adfile, expname, datatype, layer):
         if colname.startswith('_'):
             continue
         col = adata.obs[[colname]].copy()
-        dtype = get_obs_column_metadata(adata, colname)
-        lg.info(f'processing obs | {dtype:10} | {colname}')
-
+        colinfo = get_obs_column_metadata(h5adfile, adata, colname)
+        if colinfo['type'] == 'skip':
+            continue
+        
+        nice = colinfo['nice']
+        dtype = colinfo['type']
+        lg.info(f'processing obs | {dtype:14s} | {colname}')
         total_obs_recs += len(col)
-        _store_col(colname, col, dtype)
+        _store_col(nice, col, dtype)
 
+        
     lg.info(f"total obs records {total_obs_recs}")
 
     
@@ -248,7 +205,7 @@ def load_h5ad(h5adfile, expname, datatype, layer):
         
     #remove old data
     lg.info("remove old data")
-    if db.table_exists(conn, 'expr'):
+    if db.table_exists('expr'):
         sql = f"""
             DELETE FROM expr 
              WHERE datatype='{datatype}' 
@@ -256,7 +213,10 @@ def load_h5ad(h5adfile, expname, datatype, layer):
             """
         conn.sql(sql)
         
-    db.create_or_append(conn, 'expr', melted)
+    db.create_or_append('expr', melted)
     
-    db.status(conn)
+    tablecount = db.all_table_count()
+    for t in sorted(tablecount):
+        c = tablecount[t]
+        print(f"{t:<20s} : {c:>14_d}")
 

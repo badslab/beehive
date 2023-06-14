@@ -9,10 +9,10 @@ from typing import Optional
 
 lg = logging.getLogger(__name__)
 
-CONNECTION = None
+CONNECTION: Optional[duckdb.DuckDBPyConnection] = None
 
 
-def get_conn():
+def get_conn() -> duckdb.DuckDBPyConnection:
     global CONNECTION
     if CONNECTION is None:
         dbfile = os.environ['TERMITE_DB']
@@ -24,9 +24,19 @@ def get_cursor():
     return get_conn().cursor()
 
 
-def raw_sql(sql):
-    conn = get_cursor()
-    return conn.sql(sql).df()
+def raw_sql(sql: str,
+            conn: Optional[duckdb.DuckDBPyConnection] = None) -> pd.DataFrame:
+    
+    if conn is None:
+        conn = get_cursor()
+        
+    result = conn.sql(sql)
+    if result is None:
+        # empty dataframe in the case
+        # the query returns nothing
+        return pd.DataFrame([])
+    else:
+        return result.df()
 
 
 def fuzzy_gene_search(experiment, datatype, gene):
@@ -61,7 +71,15 @@ def get_obs_num_names(experiment):
 
 def forget(experiment):
     conn = get_conn()
-    conn.sql("""DELET FROM experiments""")
+    for q in [
+            f"DELETE FROM expr WHERE experiment = '{experiment}'",
+            f"DELETE FROM obs_cat WHERE experiment = '{experiment}'",
+            f"DELETE FROM obs_num WHERE experiment = '{experiment}'",
+            f"DELETE FROM help_experiments WHERE experiment = '{experiment}'",
+            f"DELETE FROM help_obs_cat WHERE experiment = '{experiment}'",
+            f"DELETE FROM help_obs_num WHERE experiment = '{experiment}'",
+            ]:
+        conn.sql(q)
     
     
 def get_expr_obscat_two(experiment, datatype, gene, cat1, cat2):
@@ -85,10 +103,16 @@ def get_expr_obscat_two(experiment, datatype, gene, cat1, cat2):
         """)
 
 
-def get_expr_obscat(experiment, datatype, gene, cat):
+def get_expr_obscat(
+        experiment: str,
+        datatype: str,
+        gene: str,
+        cat: str,
+        conn: Optional[duckdb.DuckDBPyConnection] = None):
+    
     sql = f"""
            SELECT expr.obs,
-                  expr.value as expr,
+                  expr.value as num,
                   occ1.value as cat,
              FROM expr
              JOIN obs_cat as occ1
@@ -102,7 +126,73 @@ def get_expr_obscat(experiment, datatype, gene, cat):
     return raw_sql(sql)
 
 
-def get_expr_obsnum(experiment, datatype, gene, num):
+def get_obs_num(experiment: str,
+                name: str) -> pd.Series:
+
+    return raw_sql(
+        f""" SELECT obs, value
+              FROM obs_num
+             WHERE experiment='{experiment}'
+               AND name='{name}'
+        """).set_index('obs')['value']
+
+
+
+def get_obs_cat(experiment: str,
+                name: str) -> pd.Series:
+
+    return raw_sql(
+        f""" SELECT obs, value
+              FROM obs_cat
+             WHERE experiment='{experiment}'
+               AND name='{name}'
+        """).set_index('obs')['value']
+
+
+def get_expr_gene(experiment: str,
+                  datatype: str,
+                  gene: str) -> pd.Series:
+
+    return raw_sql(
+        f""" SELECT obs, value
+              FROM expr
+             WHERE experiment='{experiment}'
+               AND datatype='{datatype}'
+               AND gene='{gene}'
+        """).set_index('obs')['value']
+
+
+
+def get_numvar_obscat(
+        experiment: str,
+        numname: str,
+        catname: str,
+        conn: Optional[duckdb.DuckDBPyConnection] = None):
+    
+    sql = f"""
+           SELECT num1.value as num,
+                  cat1.value as cat,
+             FROM obs_num as num1 
+             JOIN obs_cat as cat1
+               ON (num1.experiment = cat1.experiment
+                   AND num1.obs = cat1.obs) 
+            WHERE num1.experiment='{experiment}'
+              AND num1.name='{numname}'
+              AND cat1.name='{catname}'
+        """
+    return raw_sql(sql, conn=conn)
+
+
+def get_expr_obsnum(
+        experiment: str,
+        datatype: str,
+        gene: str,
+        num: str,
+        conn: Optional[duckdb.DuckDBPyConnection] = None):
+
+    if conn is None:
+        conn = get_conn()
+        
     sql = f"""
            SELECT expr.obs,
                   expr.value as expr,
@@ -116,13 +206,16 @@ def get_expr_obsnum(experiment, datatype, gene, num):
               AND expr.datatype='{datatype}'
               AND ocn1.name='{num}'
         """
-    print(sql)
-    return raw_sql(sql)
+    return raw_sql(sql, conn=conn)
 
 
 
-def get_obs_category(experiment, cat):
-    conn = get_cursor()
+def get_obs_category(experiment, cat,
+                     conn: Optional[duckdb.DuckDBPyConnection] = None):
+
+    if conn is None:
+        conn = get_cursor()
+        
     sql = f"""SELECT obs_cat.value,
                      count(*) as count
                FROM obs_cat
@@ -134,18 +227,27 @@ def get_obs_category(experiment, cat):
     return conn.sql(sql).df()
 
 
-def table_exists(conn, table):
-    query = f"""
+def table_exists(table,
+                 conn: Optional[duckdb.DuckDBPyConnection] = None) -> bool:
+    
+    if conn is None:
+        conn = get_conn()
+        
+    rv = raw_sql(f"""
         SELECT EXISTS(
             SELECT 1 FROM information_schema.tables
-             WHERE table_name = '{table}')"""
-    result = conn.execute(query).fetchone()
-    return result[0]
+             WHERE table_name = '{table}')""", conn=conn)
+    return rv.iloc[0,0]
 
 
-def table_count(table,
-                conn: Optional[duckdb.DuckDBPyConnection] = None):
-    if not table_exists(conn, table):
+
+def table_count(table: str,
+                conn: Optional[duckdb.DuckDBPyConnection] = None) -> int:
+
+    if conn is None:
+        conn = get_conn()
+        
+    if not table_exists(table, conn=conn):
         return -1
     
     rv = conn.sql(f"SELECT count(*) FROM {table}").df().iloc[0,0]
@@ -188,10 +290,13 @@ def helptables(conn: Optional[duckdb.DuckDBPyConnection] = None):
 def create_or_append(
         table: str,
         local_df: pd.DataFrame,
-        conn: Optional[duckdb.DuckDBPyConnection] = None):
-    
+        conn: Optional[duckdb.DuckDBPyConnection] = None) -> None:
+
+    if conn is None:
+        conn = get_conn()
+
     #create a table - or if it exists - append
-    if not table_exists(conn, table):
+    if not table_exists(table):
         #lg("create & insert", table, local_df.shape)
         conn.sql(f"CREATE TABLE '{table}' AS SELECT * FROM local_df")
     else:
@@ -207,7 +312,7 @@ def all_table_count(conn: Optional[duckdb.DuckDBPyConnection] = None):
     rv = {}
     for _, table in conn.sql('SHOW ALL TABLES').df().iterrows():
         t = table['table_name']
-        c = table_count(table=t, conn=conn)
+        c = table_count(table=t)
         rv[t] = c
     return rv
     
@@ -218,7 +323,7 @@ def drop_db(conn: Optional[duckdb.DuckDBPyConnection] = None):
         conn = get_conn()
         
     for _, table in conn.sql('SHOW ALL TABLES').df().iterrows():
-        print(f'drop {table}', table_count(conn, table))
+        print(f'Drop {table} (no rec: {table_count(table)}')
         conn.sql(f'DROP TABLE IF EXISTS {table}')
     conn.execute("VACUUM")
     conn.execute("CHECKPOINT")

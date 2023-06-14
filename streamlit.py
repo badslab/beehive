@@ -3,15 +3,17 @@ from functools import partial
 import pkg_resources
 
 import streamlit as st
+import plotly.express as px
 
 from termite import db
 from termite.streamlit import welcome, util
-from termite.streamlit.gene_vs_category import gene_vs_category
+from termite.streamlit.categorical_plot import categorical_plot
 from termite.streamlit.gene_vs_two_categories import gene_vs_two_categories
-from termite.streamlit.gene_vs_numerical import gene_vs_numerical
+from termite.streamlit.numerical_numerical import numerical_numerical
 
 
 st.set_page_config(layout="wide", page_title="Termite")
+px.defaults.color_discrete_sequence = px.colors.qualitative.T10
 
 
 plotly_config = dict(
@@ -21,14 +23,14 @@ plotly_config = dict(
     })
 
 
+st.sidebar.image(
+    pkg_resources.resource_string('termite', 'data/termite.png')
+)
 
-st.sidebar.image(pkg_resources.resource_string('termite', 'data/termite.png'))
 
 @st.cache_data
 def df_to_tsv(df):
     return df.to_csv(sep="\t").encode('utf-8')
-
-
 
 
 view_placeholder = st.sidebar.empty()
@@ -86,20 +88,21 @@ def run_sql():
 
 subapps = {
     "Welcome": welcome.welcome,
-    "Run Sql": run_sql,
-    "Categorical": categ_overview,
-    "Gene / Categorical": partial(gene_vs_category,
-                                  experiment=experiment,
-                                  datatype=datatype,
-                                  plotly_config=plotly_config),
+    "Metadata": categ_overview,
+    "Categorical Plot": partial(
+        categorical_plot,
+        experiment=experiment,
+        datatype=datatype,
+        plotly_config=plotly_config),
     "Gene / two categoricals": partial(gene_vs_two_categories,
                                        experiment=experiment,
                                        datatype=datatype,
                                        plotly_config=plotly_config),
-    "Gene / Numerical": partial(gene_vs_numerical,
-                                experiment=experiment,
-                                datatype=datatype,
-                                plotly_config=plotly_config),
+    "Numerical": partial(numerical_numerical,
+                         experiment=experiment,
+                         datatype=datatype,
+                         plotly_config=plotly_config),
+    "Run Sql": run_sql,
 }
 
 
