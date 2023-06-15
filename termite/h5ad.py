@@ -63,6 +63,8 @@ def get_obs_column_metadata(h5adfile, adata, column):
             dtype = 'categorical'
     elif str(oco.dtype).startswith('int'):
         dtype = 'int'
+    elif str(oco.dtype).startswith('bool'):
+        dtype = 'int'
     elif str(oco.dtype).startswith('float'):
         dtype = 'float'
     else:
@@ -79,15 +81,54 @@ def get_obs_column_metadata(h5adfile, adata, column):
 
     
 @h5ad.command('prepare')
+@click.option('-a', '--author', default='unknown')
+@click.option('-t', '--title', default='unknown')
+@click.option('-s', '--slug')
+@click.option('-S', '--study')
+@click.option('-v', '--version', type=int, default=1)
+@click.option('-o', '--organism', default='unknown')
 @click.argument('h5adfile')
-def prepare_meta(h5adfile: str) -> None:
+def prepare_meta(h5adfile: str,
+                 author: str,
+                 slug: str,
+                 study: str,
+                 version: int,
+                 organism: str,
+                 title: str) -> None:
 
     import scanpy as sc
-    import pandas as pd
-
+    
     basename = h5adfile.replace('.h5ad', '')
+    
+    if slug is None:
+        slug = os.path.basename(h5adfile).replace('.h5ad', '')
+        
+    if re.match('^[hmx]\.\w{3,10}\.\d{1,5}.*$', slug):
+        if organism is 'unknown':
+            if slug.startswith('h.'):
+                organism = 'human'
+            elif slug.startswith('m.'):
+                organism = 'mouse'
+            elif slug.startswith('x.'):
+                organism = 'mixed'
 
-    lg.info("Loading data")
+        if study is None:
+            study = slug.split('.')[1]
+
+    if study is None:
+        study = slug
+        
+    experiment_md = dict(
+        slug = slug,
+        author = author,
+        study = study,
+        version = version,
+        title = title,
+        organism = organism)
+
+    experiment_md = pd.Series(experiment_md)
+
+    lg.info(f"Loading data: {h5adfile}")
     adata = sc.read_h5ad(h5adfile)
 
     md_obscol = pd.DataFrame(columns = ['name', 'type', 'nice', 'example'])
@@ -100,10 +141,17 @@ def prepare_meta(h5adfile: str) -> None:
         if column.startswith('_'):
             continue
 
-        md_obscol.loc[len(md_obscol)] = get_obs_column_metadata(h5adfile, adata, column)
+        md_obscol.loc[len(md_obscol)] \
+            = get_obs_column_metadata(h5adfile, adata, column)
 
     lg.info("Saving MD files")
     md_obscol.to_csv(f"{basename}.obscol.tsv", sep="\t")
+
+    if not os.path.exists(f"{basename}.experiment.tsv"):
+        experiment_md.to_csv(
+            f"{basename}.experiment.tsv", sep="\t",
+            header=None)
+
     
 
 @h5ad.command('import')
