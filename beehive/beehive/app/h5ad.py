@@ -8,6 +8,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import matplotlib.colors as colors
 import glob 
+from typing import List
 app = typer.Typer()
 
 lg = logging.getLogger(__name__)
@@ -130,7 +131,9 @@ def string_cleanup(variable_str):
 
 @ app.command("prepare")
 def h5ad_convert(h5ad_file: Path = typer.Argument(..., exists=True),
-                 num_categories: int = 20):
+                 num_categories: int = 20,
+                 obsm_keys_include: bool = typer.Option(False, "--include_keys"),
+                 obsm_keys_array: List[str] = typer.Option([], "--obsm_keys")):
     """
     Convert to polars/parquet dataframes. 
     Provide a h5ad file according to the following:
@@ -153,6 +156,20 @@ def h5ad_convert(h5ad_file: Path = typer.Argument(..., exists=True),
 
     adata = sc.read_h5ad(h5ad_file)
     dir_path = os.path.dirname(outbase)
+
+    if obsm_keys_include:
+        #obsm_keys = adata.obsm_keys()
+        if obsm_keys_array:
+            #keys are manually included
+            for key in obsm_keys_array:
+                 num_columns = adata.obsm[key].shape[1]
+                 for column in range(num_columns):
+                     adata.obs[f"{key}_{column}"] = adata.obsm[key][:,column]
+        else:
+            #just take X_umap
+            print("No specific keys are given, using default key X_umap only")
+            adata.obs["X_umap_0"] = adata.obsm["X_umap"][:,0]
+            adata.obs["X_umap_1"] = adata.obsm["X_umap"][:,1]
 
     # check if the output yaml is there as well
     yamlfile = os.path.join(dir_path, "experiment.yaml")
@@ -190,7 +207,6 @@ def h5ad_convert(h5ad_file: Path = typer.Argument(..., exists=True),
         except:
                 pass
 
-
     yml["normalised"] = True
     
     keys_permanent = ["author","name","year","access","full_author_list","group_id","n_var_genes",
@@ -213,6 +229,8 @@ def h5ad_convert(h5ad_file: Path = typer.Argument(..., exists=True),
     yml["slug"] = f'{yml["group_id"]}.{yml["version"]}'
 
     #### 2. Manipulation to scanpy object to extract var obs ####
+
+
     dfx = adata.to_df()
     obs = adata.obs
     var = adata.var
@@ -228,6 +246,13 @@ def h5ad_convert(h5ad_file: Path = typer.Argument(..., exists=True),
     obs_variables = []
     var_dict = {}
     obs_dict = {}
+
+    # if obsm_keys_include:
+    #     obsm_keys = adata.obsm_keys()
+
+    #     for key in obsm_keys:
+    
+
     for k, v in obs.iteritems():
         k_type = 'numerical'
         obs_variables = obs_variables + [k]
