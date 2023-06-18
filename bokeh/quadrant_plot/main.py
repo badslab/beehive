@@ -78,19 +78,25 @@ def update_vars():
 
     #filter and keep only lfcs..
     unique_vars = list(set([x.replace("__lfc","").replace("__lcpm","").replace("__cell_frac","") for x in vars]))
-    print(unique_vars)
-    print("****")
+
     vars_options = [(x,x) for x in unique_vars]
     
     w_category1.options = vars_options
     w_category2.options = vars_options
 
+
     if w_category1.value not in [x[0] for x in vars_options]:
-        w_category1.value = vars_options[0][0]
+        w_category1.value = w_category1.options[0][0]
+
+    w_category2.options = list(
+        filter(lambda x: x[0] != w_category1.value, w_category2.options))
 
     if w_category2.value not in [x[0] for x in vars_options]:
         # set a default
-        w_category2.value = vars_options[0][0]
+        w_category2.value = w_category2.options[0][0]
+
+    w_category1.options = list(
+        filter(lambda x: x[0] != w_category2.value, w_category1.options))
 
 
 update_vars()
@@ -109,7 +115,9 @@ def get_data() -> pd.DataFrame:
     categ1 = w_category1.value
     categ2 = w_category2.value
     lg.warning(f"!! Getting data for {dataset_id} {categ1} {categ2}")
+
     data = expset.get_dedata_quadrant(dataset_id,categ1,categ2)
+
     data.columns = ["x","y","px","py","gene"]
     #dropping NaN values for now.
     data.dropna(inplace = True)
@@ -251,6 +259,7 @@ plot.add_layout(labels)
 def cb_update_plot(attr, old, new,type_change = None):
     curdoc().hold()
     global plot, source, data
+    update_vars()
     #changed p-value, no need to get new data
     if type_change == "p_sig":
         data["highlight"] = np.where(   (data["px"] < w_spinner.value), "significant on x axis", data["highlight"])

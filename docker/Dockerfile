@@ -9,9 +9,11 @@ RUN set -x \
     && addgroup --system  nginx \
     && adduser --system --disabled-login --ingroup nginx --no-create-home --home /nonexistent --gecos "nginx user" --shell /bin/false nginx \
     && apt-get update \
-    && apt-get install --no-install-recommends --no-install-suggests -y zile gnupg1 ca-certificates build-essential nginx \
-    && pip install --upgrade pip polars pyarrow colorcet bokeh==2.4.3 matplotlib scanpy pyyaml pandas scikit-learn \
-    && pip install --upgrade scipy statsmodels typer pelican markdown pymed \
+    && apt-get install -y --no-install-recommends --no-install-suggests zile gnupg1 less \
+    && apt-get install -y --no-install-recommends --no-install-suggests ca-certificates build-essential nginx \
+    && pip install --upgrade pip wheel \
+    && pip install --upgrade pip polars pyarrow colorcet bokeh==2.4.3 matplotlib scanpy pyyaml h5py \
+    && pip install --upgrade markdown pandas scikit-learn scipy statsmodels typer pelican pymed \
     && pip install -e beehive \
     && chmod a+x docker/entrypoint.sh \
     && make fix_templates \

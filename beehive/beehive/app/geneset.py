@@ -1,21 +1,17 @@
 """helpers for the gene expression app."""
 
-import copy
-from datetime import datetime
-
 import hashlib
 import logging
 import pickle
+from datetime import datetime
 from pathlib import Path
 
-import pandas as pd
-import polars as pl
 import typer
 import yaml
 
 import beehive
 from beehive import util
-from beehive.util import get_geneset_db, query_pubmed, diskcache
+from beehive.util import diskcache, get_geneset_db, query_pubmed
 
 app = typer.Typer()
 
@@ -43,6 +39,8 @@ def get_hash(*args, **kwargs):
 
 
 def get_geneset_groups(dsid, organism):
+    import pandas as pd
+
     gsdb = get_geneset_db(dsid)
     groups = pd.read_sql(
         f'''SELECT *
@@ -53,6 +51,8 @@ def get_geneset_groups(dsid, organism):
 
 
 def get_geneset_genes(dsid, group_hash):
+    import pandas as pd
+
     gsdb = get_geneset_db(dsid)
     gsets = pd.read_sql(
         f'''SELECT * FROM genesets
@@ -63,12 +63,12 @@ def get_geneset_genes(dsid, group_hash):
 
 def run_one_gsea(args):
 
-    import logging
-
     import gseapy as gp
     logging.getLogger("gseapy").setLevel(logging.ERROR)
 
-    group_hash, lfc_col, rnk, genedict = args
+    group_hash, group_title, lfc_col, rnk, genedict = args
+    gdk = " ".join(map(str, list(genedict.keys())[:3]))
+    lg.info(f'Start gsea run {group_hash} {lfc_col} {gdk}')
 
     results = gp.prerank(
         rnk=rnk, gene_sets=genedict,
@@ -87,7 +87,12 @@ def run_one_gsea(args):
 
 
 def run_one_gsea_cached(args):
-    uid = util.UID(*args, length=12)
+    #for a in args:
+    #    aa = str(type(a)) + "--" + " ".join(str(a).split())[:50]
+    #    print('xx--', aa)
+    # exit()
+    uargs = [args[0]] + list(args[2:])
+    uid = util.UID(*uargs, length=12)
     cache_folder = util.get_geneset_folder() / 'cache' / 'gsea'
 
     if not cache_folder.exists():
@@ -102,13 +107,18 @@ def run_one_gsea_cached(args):
 
     if cache_file.exists():
         with open(cache_file, 'rb') as F:
-            # lg.debug("return from cache")
-            rv = pickle.load(F)
-    else:
-        rv = run_one_gsea(args)
-        # lg.debug(f"saving to cache: {uid}")
-        with open(cache_file, 'wb') as F:
-            pickle.dump(rv, F)
+            lg.info(f"return from cache {args[1]} {uid}")
+            try:
+                rv = pickle.load(F)
+                return rv
+            except Exception as e:
+                lg.warning(f"invalid {args[:2]} cache file {uid}")
+
+    lg.debug(f"Running GSEA {args[1]} -- {uid}")
+    rv = run_one_gsea(args)
+    #lg.info(f"Starting run {args[1]} {uid}")
+    with open(cache_file, 'wb') as F:
+        pickle.dump(rv, F)
 
     return rv
 
@@ -120,9 +130,9 @@ def get_geneset_dicts(dsid: str,
     """
 
     rv = {}
-
     for _, g in get_geneset_groups(dsid, organism=organism):
 
+        group_title = g['group_title']
         gsets = get_geneset_genes(dsid, g['group_hash'])
         lg.info(
             f"    | {g['study_title'][:40]} "
@@ -135,17 +145,42 @@ def get_geneset_dicts(dsid: str,
             row['geneset_hash']: list(sorted(gg(row['genes'])))
             for (_, row) in gsets.iterrows()}
 
-        rv[g['group_hash']] = genedict
+        rv[(g['group_hash'], group_title)] = genedict
 
     return rv
+
+
+
+@ app.command('list-cols')
+def list_de_cols(
+    dsid: str = typer.Argument(..., help='Dataset')):
+    """List all DE columns in a dataset"""
+
+    import pandas as pd
+
+    from beehive import expset
+
+    var_cols = expset.get_varfields(dsid)
+    decols = [x for x in var_cols
+                if x.endswith('__lfc')
+             ]
+
+    for decol in decols:
+        print(decol)
 
 
 @ app.command('gsea')
 def gsea(
         dsid: str = typer.Argument(..., help='Dataset'),
-        threads: int = typer.Option(32, '-j', '--threads'), ):
+        threads: int = typer.Option(32, '-j', '--threads'),
+        column: str = typer.Option(None, '-c', '--column'),
+            ):
+    """Typer commeand to run all GSEA's
+    """
 
     from multiprocessing import Pool
+
+    import pandas as pd
 
     from beehive import expset
 
@@ -159,22 +194,40 @@ def gsea(
 
     gsdict2 = get_geneset_dicts(dsid, organism=organism)
     runs = []
-    lg.info(f"No lfc columns: {len(lfc_cols)}")
 
-    for i, lfc_col in enumerate(lfc_cols):
+    no_lfc_cols = len(lfc_cols)
+    lg.warning(f"No rank columns to check {no_lfc_cols}")
 
+    for lfc_col in lfc_cols:
+        if column is not None and lfc_col != column:
+            continue
         rnk = expset.get_dedata_simple(dsid, lfc_col)
-        lg.info(f"  - processing {lfc_col} ({len(rnk)} genes)")
         rnk = rnk.set_index('gene').iloc[:, 0].sort_values()
+        no_genesets = len(gsdict2)
+        lg.info(f"  - processing {lfc_col} ({len(rnk)} genes "
+                + "against {no_genesets} genesets)")
 
-        for j, (group_hash, gdict) in enumerate(gsdict2.items()):
-            runs.append((group_hash, lfc_col, rnk, gdict))
+        for (group_hash, group_title), gdict in gsdict2.items():
+            runs.append((group_hash, group_title, lfc_col, rnk, gdict))
 
-    with Pool(threads) as P:
-        results = P.map(run_one_gsea_cached, runs)
+        # do also the SLP rank - to be complete.
+        rnk = expset.get_dedata_simple(dsid, lfc_col, ranktype='slp')
+        rnk = rnk.set_index('gene').iloc[:, 0].sort_values()
+        slp_col = lfc_col[:-3] + 'slp'
+        no_genesets = len(gsdict2)
+        lg.info(f"  - processing SLP {lfc_col} ({len(rnk)} genes against {no_genesets} genesets)")
 
+        for (group_hash, group_title), gdict in gsdict2.items():
+            runs.append((group_hash, group_title, lfc_col, rnk, gdict))
+
+    if threads > 1:
+        with Pool(threads) as P:
+            results = P.map(run_one_gsea_cached, runs)
+    else:
+        results = map(run_one_gsea_cached, runs)
+        
     allres_raw = []
-    for gh, lfc, res in sorted(results, key=lambda x: x[1]):
+    for _, lfc, res in sorted(results, key=lambda x: x[1]):
         res['column'] = lfc
         allres_raw.append(res)
 
@@ -191,9 +244,23 @@ def gsea(
     geneset_db.close()
 
 
+
+@ app.command('status')
+def status_db(
+        dsid: str = typer.Argument(..., help='Dataset'),):
+
+    import pandas as pd
+
+    geneset_db = get_geneset_db(dsid)
+    groups = pd.read_sql('select * from groups', geneset_db)
+    print(groups.head(3).T)
+
+
 @ app.command('create-db')
 def create_db(
         dsid: str = typer.Argument(..., help='Dataset'),):
+
+    import pandas as pd
 
     all_group_data = []
     all_gene_data = []
@@ -205,9 +272,12 @@ def create_db(
         if not group_folder.is_dir():
             continue
         if not (group_folder / 'group.yaml').exists():
+            lg.warning("No group.yaml for {group_folder}")
             continue
 
         group_info = load_yaml(group_folder / 'group.yaml')
+        if not (group_folder / 'genes.tsv').exists():
+            continue
         all_group_data.append(group_info)
         gene_data = pd.read_csv(group_folder / 'genes.tsv', sep="\t")
         all_gene_data.append(gene_data)
@@ -239,6 +309,8 @@ def gsea_export(
             0.25, "--fdr-cutoff",
             help='do not export enrichments with an fdr worse than this'),):
 
+    import pandas as pd
+
     output_path = util.get_geneset_folder() / "gsea" / dsid
     if not output_path.exists():
         output_path.mkdir(parents=True)
@@ -261,6 +333,7 @@ def gsea_export(
                     gs.genes as genes,
                     gr.organism as organism,
                     gr.study_title as study_title,
+                    gr.group_title as group_title,
                     gr.study_author as study_author,
                     gr.study_year as study_year
                 FROM genesets as gs, groups as gr,
@@ -274,6 +347,8 @@ def gsea_export(
         data = pd.read_sql(sql, gsdb)
         data['no_genes'] = data['genes'].str.split().apply(len)
         data = data.set_index('geneset_hash')
+        #print(data.head(2).T)
+        #exit()
         assert data.index.is_unique
 
         output_name = f"gsea__{dsid}__{column}"
@@ -297,9 +372,12 @@ def import_enrichr(
         geneset: str,
         organism = typer.Option('Human', '--organism', '-o'),
         ):
-    
+
     """ @Todo: organism support? Now sticking with human
     """
+
+    import pandas as pd
+
     print(organism, geneset)
     enrgenes = import_one_from_enrichr(organism, geneset)
 
@@ -336,7 +414,7 @@ def import_enrichr(
         yaml.dump(group_info_2, F)
 
     group_genes = {}
-    
+
     for gsr_title, genes in enrgenes.items():
         gsr_hash = get_hash(group_hash, *genes)[:10]
         group_genes[gsr_hash] = dict(
@@ -359,11 +437,73 @@ def import_enrichr(
                           index=False)
 
 
-    
+@ app.command('export-genesets')
+def export_geneset(
+        dsid: str,
+        sort_on: str = typer.Option(
+            'lfc', "--sort-on", help='Sort on this field'),
+        no_genes: int = typer.Option(
+            500, "--no-genes",
+            help='No of genes to export'),):
+
+    from beehive.expset import get_dataset, get_dedata_simple, get_varfields
+
+    base_folder = util.get_geneset_folder() / "db"
+
+    dataset_info = get_dataset(dsid, None)
+    lg.warning(f"export {dsid}")
+    study_folder = base_folder / dsid
+    if not study_folder.exists():
+        study_folder.mkdir()
+    study_yaml = study_folder / 'study.yaml'
+
+    with open(study_yaml, 'w') as F:
+        yaml.dump(
+            dict(title=dataset_info['title'],
+                 year=dataset_info['year'],
+                 organism=dataset_info['organism'],
+                 author=dataset_info['author']), F)
+
+    group_folder = study_folder / 'auto_export'
+    if not group_folder.exists():
+        group_folder.mkdir()
+
+    group_yaml = group_folder / 'group.yaml'
+    with open(group_yaml, 'w', encoding="utf-8") as F:
+        yaml.dump(
+            dict(title=dataset_info['title'] + ' autoexport',
+                 ranktype='geneset',
+                 organism=dataset_info['organism'],
+                 author=dataset_info['author']), F)
+
+    for varfield in get_varfields(dsid):
+        if not varfield.endswith('__' + sort_on):
+            # print(f'skip {varfield}')
+            continue
+
+        basename = varfield[:-(len(sort_on)+2)]
+
+        de = get_dedata_simple(dsid, varfield)\
+            .sort_values(by=varfield, ascending=False)
+
+        topgenes = list(de.head(no_genes)['gene'])
+        botgenes = list(de.tail(no_genes)['gene'])
+
+        top_file = group_folder / f"{basename}__{sort_on}__top.grp"
+        bot_file = group_folder / f"{basename}__{sort_on}__bottom.grp"
+        with open(top_file, 'w', encoding='utf-8') as F:
+            F.write("\n".join(topgenes) + "\n")
+        with open(bot_file, 'w', encoding='utf-8') as F:
+            F.write("\n".join(botgenes) + "\n")
+
+
 @ app.command('import')
 def import_geneset(
         rank_cutoff: int = typer.Option(
             250, "--rank_cutoff", "-r")):
+
+
+    import pandas as pd
 
     base_folder = util.get_geneset_folder() / "db"
     if not base_folder.exists():

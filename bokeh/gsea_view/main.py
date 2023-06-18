@@ -25,18 +25,27 @@ VIEW_NAME = "gsea_table"
 
 curdoc().template_variables['config'] = config
 curdoc().template_variables['view_name'] = 'GSEA Results'
-
 create_widget = partial(util.create_widget, curdoc=curdoc())
 
-args = curdoc().session_context.request.arguments
-
+# Datasets
 datasets = expset.get_datasets(view_name=VIEW_NAME)
+util.get_dataset2()
+
+dataset_options = [
+    (k, "{short_title}, {short_author}, {datatype}".format(**v))
+    for k, v in datasets.items()]
+
+w_dataset_id = create_widget("dataset_id", Select, title="Dataset",
+                             options=dataset_options,
+                             default=dataset_options[0][0],
+                             visible=False, height=30, width=400)
 
 
 def get_dataset():
     """Return the current dataset id and record."""
     dataset_id = w_dataset_id.value
     return dataset_id, datasets[dataset_id]
+
 
 
 # @lru_cache(16)
@@ -60,16 +69,6 @@ w_gene_list = TextAreaInput(title='Geneset genes',
 w_leadgene_list = TextAreaInput(title="Leading edge genes",
                                 rows=6, value="")
 w_newline = CheckboxGroup(labels=["Newline between genes"], active=[])
-
-# Dataset
-dataset_options = [
-    (k, "{short_title}, {short_author}, {datatype}".format(**v))
-    for k, v in datasets.items()]
-
-w_dataset_id = create_widget("dataset_id", Select, title="Dataset",
-                             options=dataset_options,
-                             default=dataset_options[0][0],
-                             visible=False, height=30, width=400)
 
 
 gsea_column_options = util.list2options(

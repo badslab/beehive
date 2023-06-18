@@ -27,6 +27,15 @@ diskcache = partial(
 # variable.
 # @lru_cache(1)
 
+@lru_cache(16)
+def get_views(dsid: str):
+    datadir = util.get_datadir("h5ad")
+    yamlfile = datadir / f"{dsid}.yaml"
+    with open(yamlfile, "r") as F:
+        y = yaml.load(F, Loader=yaml.SafeLoader)
+    return y["use_in_view"]
+
+
 @lru_cache(32)
 def get_datasets(has_de: bool = False,
                  view_name: Optional[str] = None):
@@ -350,8 +359,10 @@ def get_gene_meta_three_facets(
     go1 = get_order_of_obs(dsid, meta1)
 
     if not(go1): #no ordering available
-                #check if they are digits.
+                #check if they are digits. remove None if there is any...
         list_of_gc1_labels = list(filter(lambda x: x != "NONE",list(metadata.unique())[0]))
+        list_of_gc1_labels =  list(filter(lambda x: x is not None, list_of_gc1_labels))
+
         if all(elem.isdigit() for elem in list_of_gc1_labels):
                 #sort it numerically
             list_of_gc1_labels = sorted(list_of_gc1_labels, key=int)
@@ -363,8 +374,8 @@ def get_gene_meta_three_facets(
 
     go1x = max(go1.values()) + 2 if go1 else 2
 
-    rv_combined = rv_combined.with_column(
-        pl.col(gc1).apply(lambda x: go1.get(x, go1x)).alias('order1'))
+    rv_combined = rv_combined.with_columns([
+        pl.col(gc1).apply(lambda x: go1.get(x, go1x)).alias('order1')])
 
     if len(groupby_columns1) == 1:
         rv_combined = rv_combined.rename({"order1": "order"})
@@ -372,8 +383,10 @@ def get_gene_meta_three_facets(
         gc2 = groupby_columns1[1]
         go2 = get_order_of_obs(dsid, gc2)
         if not(go2): #no ordering available
-                #check if they are digits.
-            list_of_gc2_labels = list(filter(lambda x: x != "NONE",list(metadata2.unique())[0]))
+                #check if they are digits... remove None if there is any....
+            list_of_gc2_labels = list(filter(lambda x: x != "NONE" or x is not None or x != "None", list(metadata2.unique())[0]))
+            list_of_gc2_labels =  list(filter(lambda x: x is not None, list_of_gc2_labels))
+
             if all(elem.isdigit() for elem in list_of_gc2_labels):
                     #sort it numerically
                 list_of_gc2_labels = sorted(list_of_gc2_labels, key=int)
@@ -386,11 +399,11 @@ def get_gene_meta_three_facets(
 
         go2x = max(go2.values()) + 2 if go2 else 2
 
-        rv_combined = rv_combined.with_column(
-            pl.col(gc2).apply(lambda x: go2.get(x, go2x)).alias('order2'))
-        rv_combined = rv_combined.with_column(
+        rv_combined = rv_combined.with_columns([
+            pl.col(gc2).apply(lambda x: go2.get(x, go2x)).alias('order2')])
+        rv_combined = rv_combined.with_columns([
             ((rv_combined['order2'] * go2x) + rv_combined['order1'])
-            .alias('order'))
+            .alias('order')])
         rv_combined = rv_combined.drop(["order1", "order2"])
 
     # switch to dfs
@@ -572,7 +585,7 @@ def get_gene(dsid, gene):
     """Return expression values for this dataset."""
 
     try:
-        rv = pl.read_parquet(find_prq(dsid, 'X'), [gene])
+        rv = pl.read_parquet(find_prq(dsid, 'X'), columns=[gene])
     except pl.exceptions.SchemaError:
         return None
     return rv
@@ -649,19 +662,35 @@ def get_gsea_data(
     return rv
 
 
-def get_dedata_simple(dsid, field):
+def get_dedata_simple(dsid, field,
+                      ranktype: str ='lfc'):
+
     global WARNED_NO_GENE_COL
     cols = get_varfields(dsid)
+
     if 'gene' in cols:
         gcol = 'gene'
     else:
         gcol = cols[-1]
         if not WARNED_NO_GENE_COL:
-            lg.warning(f'Could not find a gene column, using: {gcol}')
+            lg.debug(f'Could not find a gene column, using: {gcol}')
             WARNED_NO_GENE_COL = True
 
-    rv = pl.read_parquet(find_prq(dsid, 'var'), [gcol, field])
-    rv = rv.to_pandas().rename(columns={gcol: 'gene'})
+    if ranktype == 'slp':
+        padj_col = field[:-3] + 'padj'
+        slp_col = field[:-3] + 'slp'
+        rv = pl.read_parquet(find_prq(dsid, 'var'),
+                             [gcol, field, padj_col])
+        rv = rv.to_pandas().rename(columns={gcol: 'gene'})
+        rv[slp_col] = \
+            (-1 * np.log10(rv[padj_col])).clip(0.001,100) \
+            * rv[field]
+        rv = rv[['gene', slp_col]]
+
+    else:
+        rv = pl.read_parquet(find_prq(dsid, 'var'), columns=[gcol, field])
+        rv = rv.to_pandas().rename(columns={gcol: 'gene'})
+
     return rv
 
 
@@ -675,7 +704,8 @@ def get_dedata(dsid, categ, genes, view_name: str = ""):
     if isinstance(genes, str):
         genes = [genes]
 
-    rvpl = pl.read_parquet(find_prq(dsid, 'var'), ["field"] + genes)
+    rvpl = pl.read_parquet(find_prq(dsid, 'var'),
+                           columns=["field"] + genes)
     rv = rvpl.to_pandas()
     rvx = rv["field"].str.split("__", expand=True)
     rvx.columns = ["categ", "cat_value", "measurement"]
@@ -687,7 +717,8 @@ def get_dedata(dsid, categ, genes, view_name: str = ""):
     rv = rv.pivot(index="cat_value", columns="measurement", values=genes)
     return rv
 
-# TODO next two functions can  be merged into 1?
+
+## TODO: next two functions can  be merged into 1?
 
 
 def get_dedata_new(dsid, categ):
@@ -701,18 +732,18 @@ def get_dedata_new(dsid, categ):
     ## loss of ".index" when switched to prqs on old and new datasets.
 
     last_col = len(pl.read_parquet(find_prq(dsid, 'var')).columns)
-    #rv1 = pl.read_parquet(find_prq(dsid, 'var'), [last_col - 1])
+
     try:
-        rv1 = pl.read_parquet(find_prq(dsid, 'var'), ["gene"])
+        rv1 = pl.read_parquet(find_prq(dsid, 'var'), columns=["gene"])
     except:
         try:
-            rv1 = pl.read_parquet(find_prq(dsid, 'var'), ["field"])
+            rv1 = pl.read_parquet(find_prq(dsid, 'var'), columns=["field"])
         except:
-            rv1 = pl.read_parquet(find_prq(dsid, 'var'), [last_col - 1])
+            rv1 = pl.read_parquet(find_prq(dsid, 'var'), columns=[last_col - 1])
     # get logfoldchange and padjusted for one category
     # (example injection__None)
     rv2 = pl.read_parquet(find_prq(dsid, 'var'),
-                          [categ + "__lfc"] + [categ + "__padj"])
+                          columns=[categ + "__lfc"] + [categ + "__padj"])
 
     rv = pl.concat([rv2, rv1], how="horizontal")
 
@@ -726,15 +757,14 @@ def get_dedata_quadrant(dsid, categ1, categ2):
 
     # to get 'gene' column
     last_col = len(pl.read_parquet(find_prq(dsid, 'var')).columns)
-
-    rv1 = pl.read_parquet(find_prq(dsid, 'var'), [last_col - 1])
-
+    rv1 = pl.read_parquet(find_prq(dsid, 'var'), columns=["gene"])
+    
     # get logfoldchange and padjusted for one category
     # (example injection__None)
     rv2 = pl.read_parquet(
         find_prq(dsid, 'var'),
-        [categ1 + "__lfc"] + [categ2 + "__lfc"] +
-        [categ1 + "__padj"] + [categ2 + "__padj"])
+        columns=[categ1 + "__lfc"] + [categ2 + "__lfc"] +
+                [categ1 + "__padj"] + [categ2 + "__padj"])
 
     rv = pl.concat([rv2, rv1], how="horizontal")
 
@@ -746,7 +776,7 @@ def get_dedata_quadrant(dsid, categ1, categ2):
     rv = rv.to_pandas()
     # in new format, padjusted and lfc are already on columns, genes on rows.
     # get genes has same index as that for the rows.
-    return rv
+    return rv1
 
 
 def get_dedata_abundance(dsid, categ):
@@ -754,11 +784,11 @@ def get_dedata_abundance(dsid, categ):
     # to get 'gene' column
     last_col = len(pl.read_parquet(find_prq(dsid, 'var')).columns)
 
-    rv1 = pl.read_parquet(find_prq(dsid, 'var'), [last_col - 1])
+    rv1 = pl.read_parquet(find_prq(dsid, 'var'), columns=[last_col - 1])
 
     rv2 = pl.read_parquet(
         find_prq(dsid, 'var'),
-        [categ + "__lfc"] + [categ + "__padj"] + [categ + "__lcpm"])
+        columns=[categ + "__lfc"] + [categ + "__padj"] + [categ + "__lcpm"])
 
     rv = pl.concat([rv2, rv1], how="horizontal")
     rv = rv.to_pandas()
@@ -801,7 +831,7 @@ def get_meta_multi(dsid: str,
 def get_meta(dsid, col, raw=False, nobins=8,
              view_name: str = ""):
     """Return one obs column."""
-    rv = pl.read_parquet(find_prq(dsid, 'obs'), [col])
+    rv = pl.read_parquet(find_prq(dsid, 'obs'), columns=[col])
     
     if raw:
         # just return whatever is in the db.

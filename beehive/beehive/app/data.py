@@ -28,7 +28,6 @@ def check_yaml(dataset_id, data, overwrite=False, **defaults):
     """Check YAML & fixes it where possible"""
 
     import numpy as np
-    import pandas as pd
 
     from beehive import expset
 
@@ -57,7 +56,7 @@ def check_yaml(dataset_id, data, overwrite=False, **defaults):
             if of in defaults:
                 data[of] = defaults[of]
             else:
-                warnings.append(f"Missing optional field: {mf}")
+                warnings.append(f"Missing optional field: {of}")
 
     if not isinstance(data["year"], int):
         problems.append("Year is not an integer: " + str(data["year"]))
@@ -99,7 +98,7 @@ def check_yaml(dataset_id, data, overwrite=False, **defaults):
         tds2("name", dename)
 
         if de_field.count("__") == 2:
-            obsfield, obsval, _ = de_field.split("__")
+            obsfield, _, _ = de_field.split("__")
             if obsfield in obs_columns:
                 tds2("obs_field", obsfield)
                 # TODO: add obs_compare and obs_against!

@@ -405,11 +405,11 @@ Abstract: TBD
 
 ## Gene Expression Views:
 
-* [gene_expression1](./gene_expression?dataset_id={yml["organism"][0]}.{yml["group_id"]}.{yml["version"]}')
-* [volcano_plot1](./volcano_plot?dataset_id={yml["group_id"]}.{yml["version"]}')
-* [scatter_plot1](./scatter_expression?dataset_id={yml["group_id"]}.{yml["version"]}')
+* [gene_expression1](/gene_expression?dataset_id={yml["organism"][0]}.{yml["group_id"]}.{yml["version"]})
+* [volcano_plot1](/volcano_plot?dataset_id={yml["organism"][0]}.{yml["group_id"]}.{yml["version"]})
+* [scatter_plot1](/scatter_expression?dataset_id={yml["organism"][0]}.{yml["group_id"]}.{yml["version"]})
     """
-    new_yaml_file = os.path.join(dir_path, f'{yml["organism"][0]}.{yml["author"]}{yml["year"]}.md')
+    new_yaml_file = os.path.join(dir_path, f'{yml["organism"][0]}.{yml["group_id"]}.{yml["version"]}.md')
     with open(new_yaml_file, 'w') as f:
         f.write(content)
 

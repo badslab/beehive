@@ -76,13 +76,19 @@ serve_dev: fix_templates
 #### Docker
 
 docker_build:
-	docker buildx  build  --platform linux/amd64 -f docker/Dockerfile -t bdslab/beehive  .
+	docker buildx \
+		build --platform linux/amd64 \
+		-f docker/Dockerfile \
+		-t bdslab/beehive \
+		.
 
 docker_build_mac:
 	docker  build  -f docker/Dockerfile -t bdslab/beehive:mac_m1  .
 
+
 docker_push:
 	docker push bdslab/beehive:latest
+
 
 docker_logs:
 	export iid=$$(docker container ls -q  | head -1) ; \
@@ -106,12 +112,10 @@ docker_kill_mac:
 .ONESHELL:
 docker_run_mac:
 	set -v ; \
-	export iid=$$(docker image ls -q  | head -1) ; \
-	echo "running $$iid" ; \
 	docker run --restart unless-stopped -d -p 5010:5010 \
 		-e VISUALIZATION_WEBSOCKET_ORIGIN="*" \
-		--mount type=bind,source=${BEEHIVE_BASEDIR},target=/beehive/data \
-		$$iid
+		--volume ${BEEHIVE_BASEDIR}:/beehive/data \
+		bdslab/beehive:mac_m1
 
 .ONESHELL:
 serve_mark_all:
@@ -127,6 +131,24 @@ serve_mark_gene_expression:
 	bokeh serve \
 		--dev --port 15009 --allow-websocket-origin=* \
 		bokeh/gene_expression/
+
+
+.ONESHELL:
+serve_mark_scatter:
+	export BEEHIVE_DEBUG=1 ; \
+	export BEEHIVE_BASEDIR=${BEEHIVE_BASEDIR} ; \
+	while true; do bokeh serve \
+		--dev --port 15009 --allow-websocket-origin=* \
+		bokeh/scatter_expression/ ; sleep 1 ; done
+
+
+.ONESHELL:
+serve_mark_gsea:
+	export BEEHIVE_DEBUG=1 ; \
+	export BEEHIVE_BASEDIR=${BEEHIVE_BASEDIR} ; \
+	while true; do bokeh serve \
+		--dev --port 15009 --allow-websocket-origin=* \
+		bokeh/gsea_view/ ; sleep 1 ; done
 
 
 .ONESHELL:
