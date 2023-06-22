@@ -98,7 +98,7 @@ w_facet = create_widget("facet", Select, options=[],
 
 w_gene3 = create_widget(
     "geneZ", AutocompleteInput,
-    completions=[], default="APOE", title="Group by Gene Expression",
+    completions=[], default="TREM2", title="Group by Gene Expression",
     case_sensitive=False, width=150)
 
 w_facet_numerical_3 = create_widget(
@@ -239,9 +239,11 @@ update_numerical_facets()
 def get_data() -> pd.DataFrame:
     """Retrieve data from a dataset, gene & facet."""
     dataset_id = w_dataset_id.value
+    
     gene1 = w_gene1.value
     gene2 = w_gene2.value
     facet = w_facet.value
+    print(gene1,gene2)
     num_facet1 = w_facet_numerical_1.value
     num_facet2 = w_facet_numerical_2.value
     num_facet3 = w_facet_numerical_3.value
@@ -274,6 +276,7 @@ def get_data() -> pd.DataFrame:
 
     # always fetched => for the colorbar when coloring
     # with a gene expression
+    print(gene3) 
     if gene3:
         geneZ = expset.get_gene(dataset_id, gene3)[:, 0]
 
