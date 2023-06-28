@@ -10,44 +10,53 @@ from termite.streamlit import util
 def gene_vs_two_categories(experiment, datatype, plotly_config):
 
     import plotly.express as px
+    import pandas as pd
     from scipy.stats import sem
 
-    gene = st.sidebar.text_input("Gene", value='APOE', key='gene1')
-
-    all_catnames = list(sorted(db.get_obs_cat_names(experiment)))
-    catname1 = st.sidebar.selectbox(
-        "Categorical metadata 1", all_catnames, key='cat1')
-
-    all_catnames_2 = list(sorted(set(all_catnames) - set([catname1])))
-    catname2 = st.sidebar.selectbox(
-        "Categorical metadata 2", all_catnames_2, key='cat2')
+    xtype, num, numdata = util.get_column(
+        st.sidebar, "num", "x", experiment, datatype)
     
-
+    _, cat1name, cat1data = util.get_column(
+        st.sidebar, "cat", "1", experiment, datatype)
+    _, cat2name, cat2data = util.get_column(
+        st.sidebar, "cat", "2", experiment, datatype,
+        exclude_cat = [cat1name] )
     
-    st.title(f'"{gene}" vs "{catname1}" and "{catname2}"')
-
     
-    counts = db.get_expr_obscat_two(experiment, datatype, gene, catname1, catname2)
-    counts = counts.sort_values(by=['cat1', 'cat2'])
+    filename_raw = f"cat2plot_{experiment}_{cat1name}_{cat2name}_{num}_raw.tsv"
+    filename_agg = f"cat2plot_{experiment}_{cat1name}_{cat2name}_{num}_agg.tsv"
 
-    
-    if len(counts) == 0:
-        # probably gene not found: suggest a few:
-        util.suggest_genes(gene, experiment, datatype, 'gene1')
-        st.stop()
+    st.title(f'"{num}" vs "{cat1name}" and "{cat2name}"')
 
-        
-    agg = counts.groupby(['cat1', 'cat2'])['expr']\
+    data = pd.DataFrame(dict(
+        num=numdata,
+        cat1=cat1data,
+        cat2=cat2data)).sort_values(by=['cat1', 'cat2'])
+
+    agg = data.groupby(['cat1', 'cat2'])['num']\
             .agg(Mean=np.mean,
                  Median=np.median,
                  Stdev=np.std,
                  StdError=sem,)\
             .reset_index()
-
     
     fig = px.bar(agg, x='cat1', y='Mean', color='cat2',
                  barmode='group', error_y='StdError')
-
         
     st.plotly_chart(fig, config=plotly_config)
+
+    with st.empty():
+        if st.button('Prepare data downloads'):
+            with st.container():
+                st.download_button(
+                    "Download raw data",
+                    util.df_to_tsv(data),
+                    file_name=filename_raw,
+                    mime="text/tsv")
+
+                st.download_button(
+                    "Download aggregated data",
+                    util.df_to_tsv(agg),
+                    file_name=filename_agg,
+                    mime="text/tsv")
 

@@ -12,19 +12,46 @@ def numerical_numerical(experiment, datatype, plotly_config):
 
     import plotly.express as px
 
+    dimred_placeholder = st.sidebar.empty()
+
+    candidate_genes = db.find_gene_candidates(experiment, datatype)
+
     exclude_num = []
-    whatx, valx, datax = util.get_column(st.sidebar, 'num', 'X', experiment, datatype)
+    whatx, valx, datax = util.get_column(st.sidebar, 'numgene', 'X', experiment, datatype,
+                                         default_gene = candidate_genes[0])
     if whatx == 'num':
         exclude_num.append(valx)
-        
-    whaty, valy, datay = util.get_column(st.sidebar, 'num', 'Y', experiment,
-                                         datatype, exclude_num=exclude_num)
+
+    whaty, valy, datay = util.get_column(st.sidebar, 'genenum', 'Y', experiment,
+                                         datatype, exclude_num=exclude_num,
+                                         default_gene = candidate_genes[1])
     if whaty == 'num':
         exclude_num.append(valy)
 
     whatz, valz, dataz = util.get_column(st.sidebar, 'all', 'Z', experiment,
-                                         datatype, exclude_num=exclude_num)
+                                         datatype, exclude_num=exclude_num,
+                                         default_gene = candidate_genes[1])
 
+
+    dimreds = util.find_dimred(experiment)
+
+    if dimreds:
+        def dimred_select():
+            sel = st.session_state['select_dimred']
+            if sel == 'Pick a DimRed':
+                return
+            d1, d2 = dimreds[sel]
+            util.set_param('whatx', 'Numerical')
+            util.set_param('whaty', 'Numerical')
+            util.set_param('numx', d1)
+            util.set_param('numy', d2)
+            
+            
+        dimred_placeholder.selectbox(
+            "Dim.Red", on_change=dimred_select, key='select_dimred',
+            options = ["Pick a DimRed"] + list(dimreds.keys()))
+        
+    
     data = pd.DataFrame(
         dict(x = datax,
              y = datay,
@@ -35,7 +62,6 @@ def numerical_numerical(experiment, datatype, plotly_config):
 
     plottype = util.selectbox_mem(
         st, "Plot type", ["scatter", "density"])
-
 
     plot_placeholder = st.empty()
     

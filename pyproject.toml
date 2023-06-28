@@ -7,6 +7,7 @@ dependencies = [
     "click",
     "duckdb",
     "numpy",
+    "pymed", 
     "pandas",
     "plotly",
     "scanpy",

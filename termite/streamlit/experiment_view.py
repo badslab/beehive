@@ -4,7 +4,7 @@ import streamlit as st
 from termite import db
 
 
-def welcome():
+def experiment_view():
 
     studies = db.raw_sql(
         '''SELECT study, max(year) as maxyear

@@ -2,11 +2,16 @@
 from functools import partial
 import pkg_resources
 
+
 import streamlit as st
 import plotly.express as px
 
+
+from streamlit_option_menu import option_menu
+
+
 from termite import db
-from termite.streamlit import welcome, util
+from termite.streamlit import welcome, util, experiment_view
 from termite.streamlit.categorical_plot import categorical_plot
 from termite.streamlit.gene_vs_two_categories import gene_vs_two_categories
 from termite.streamlit.numerical_numerical import numerical_numerical
@@ -15,13 +20,11 @@ from termite.streamlit.numerical_numerical import numerical_numerical
 st.set_page_config(layout="wide", page_title="Termite")
 px.defaults.color_discrete_sequence = px.colors.qualitative.T10
 
-
 plotly_config = dict(
     displaylogo = False,
     toImageButtonOptions = {
         "format": "svg",
     })
-
 
 st.sidebar.image(
     pkg_resources.resource_string('termite', 'data/termite.png')
@@ -35,7 +38,7 @@ def df_to_tsv(df):
 
 view_placeholder = st.sidebar.empty()
 
-experiment_data = db.get_experiments()
+experiment_data = db.get_exp_datatypes()
 experiment_list = list(experiment_data['experiment'].unique())
 
 experiment = util.selectbox_mem(st.sidebar, 'Experiment', experiment_list)
@@ -85,9 +88,9 @@ def run_sql():
             mime="text/tsv")
 
 
-
 subapps = {
     "Welcome": welcome.welcome,
+    "Experiment": experiment_view.experiment_view,
     "Metadata": categ_overview,
     "Categorical Plot": partial(
         categorical_plot,
@@ -105,10 +108,14 @@ subapps = {
     "Run Sql": run_sql,
 }
 
-
-sapp = util.selectbox_mem(
-    view_placeholder, 'View', subapps.keys(), index=3)
-
-
+# Horizontal menu
+# see - https://github.com/victoryhb/streamlit-option-menu
+with view_placeholder:
+    sapp = option_menu(
+        None, list(subapps.keys()),
+        menu_icon="cast",
+        default_index=0,
+        orientation="vertical")
+        
 subapps[sapp]()
 
