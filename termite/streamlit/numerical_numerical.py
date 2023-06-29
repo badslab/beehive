@@ -1,46 +1,48 @@
 
 
 import streamlit as st
-import numpy as np
 import pandas as pd
 
 from termite import db
 from termite.streamlit import util
 
 
-def numerical_numerical(experiment, datatype, plotly_config):
+def numerical_numerical(
+        experiment: str,
+        exp_id: int,
+        plotly_config: dict):
 
     import plotly.express as px
 
     dimred_placeholder = st.sidebar.empty()
 
-    candidate_genes = db.find_gene_candidates(experiment, datatype)
-
+    candidate_genes = db.find_gene_candidates(exp_id)
+    
     exclude_num = []
-    whatx, valx, datax = util.get_column(st.sidebar, 'numgene', 'X', experiment, datatype,
+    whatx, valx, datax = util.get_column(st.sidebar, 'numgene', 'X', exp_id,
                                          default_gene = candidate_genes[0])
     if whatx == 'num':
         exclude_num.append(valx)
 
-    whaty, valy, datay = util.get_column(st.sidebar, 'genenum', 'Y', experiment,
-                                         datatype, exclude_num=exclude_num,
+    whaty, valy, datay = util.get_column(st.sidebar, 'genenum', 'Y', exp_id,
+                                         exclude_num=exclude_num,
                                          default_gene = candidate_genes[1])
     if whaty == 'num':
         exclude_num.append(valy)
 
-    whatz, valz, dataz = util.get_column(st.sidebar, 'all', 'Z', experiment,
-                                         datatype, exclude_num=exclude_num,
-                                         default_gene = candidate_genes[1])
+    whatz, valz, dataz = util.get_column(st.sidebar, 'all', 'Z', exp_id,
+                                         exclude_num=exclude_num,
+                                         default_gene = candidate_genes[2])
 
-
-    dimreds = util.find_dimred(experiment)
+    
+    dimreds = db.find_dimreds(exp_id)
 
     if dimreds:
         def dimred_select():
-            sel = st.session_state['select_dimred']
-            if sel == 'Pick a DimRed':
+            dimred = st.session_state['select_dimred']
+            if dimred == 'Pick a DimRed':
                 return
-            d1, d2 = dimreds[sel]
+            d1, d2 = f'{dimred}/0', f'{dimred}/1'
             util.set_param('whatx', 'Numerical')
             util.set_param('whaty', 'Numerical')
             util.set_param('numx', d1)
@@ -49,7 +51,7 @@ def numerical_numerical(experiment, datatype, plotly_config):
             
         dimred_placeholder.selectbox(
             "Dim.Red", on_change=dimred_select, key='select_dimred',
-            options = ["Pick a DimRed"] + list(dimreds.keys()))
+            options = ["Pick a DimRed"] + list(dimreds))
         
     
     data = pd.DataFrame(

@@ -7,6 +7,7 @@ import re
 from typing import Dict
 
 import click
+import duckdb
 import pandas as pd
 import numpy as np
 
@@ -22,16 +23,14 @@ def h5ad():
 
 
 @lru_cache(16)
-def get_metadata(h5adfile: str) -> Dict[str, pd.DataFrame]:
+def get_metadata(h5adfile: str) -> pd.DataFrame:
 
     # TODO: figure out why do I return the datafram in a dict?
     rv = {}
     
     obscol_mdfile = h5adfile.replace('.h5ad', '') + '.obscol.tsv'
-    if os.path.exists(obscol_mdfile):
-        rv['obscol'] = pd.read_csv(obscol_mdfile, sep="\t", index_col=0)
-        
-    return rv
+    assert os.path.exists(obscol_mdfile)
+    return pd.read_csv(obscol_mdfile, sep="\t", index_col=0)        
 
 
 @lru_cache(16)
@@ -57,12 +56,10 @@ COMMON_COLUMN_MAPPINGS = \
 def get_obs_column_metadata(h5adfile, adata, column, force=False,
                             max_categories=30):
     """
-
-    
+    # determine what datatye a column is
     """
 
-    all_md = get_metadata(h5adfile)
-    md_obscol = all_md.get('obscol')
+    md_obscol = get_metadata(h5adfile)
 
     # see if the column is in the obsocl metadata file
     if (not force) and (md_obscol is not None) and (column in md_obscol['name'].values):
@@ -169,15 +166,10 @@ def prepare_experiment(h5adfile: str,
     
 
     # store data types
-    datatypes = [
-        dict(layer='X', datatype='Raw counts') ]
-    
+    datatypes = ['X']
     for layer in adata.layers.keys():
-        datatypes.append(
-            dict(layer=layer, datatype=layer))
+        datatypes.append(layer)
         
-    datatypes = pd.DataFrame(datatypes)
-
     #
     # get dimred names
     #
@@ -260,15 +252,16 @@ def prepare_experiment(h5adfile: str,
         doi = doi,
         year = year,
         pubmed = pubmed,
+        h5ad_layers = ' '.join(datatypes),
+        layer = datatypes[0],
+        datatype = 'counts',
         organism = organism,
         dimred = dimred_names,
         topgenes = topgenes)
 
     experiment_md = pd.Series(experiment_md)
     experiment_md.to_csv(outfile, header=False, sep="\t")
-    
-    datatypes.to_csv(layerout, sep="\t")
-    
+        
     
 @prepare.command('obs')
 @click.option('-f', '--force', type=bool, is_flag=True, default=False)
@@ -304,13 +297,14 @@ def prepare_obs(h5adfile: str, force: bool) -> None:
     md_obscol.to_csv(outfile, sep="\t")
 
 
-@h5ad.command('import')
+@click.command('import')
 @click.argument('h5adfile')
 @click.option('-f', '--forget', type=bool, is_flag=True, default=False)
 @click.option('--expname')
 @click.option('--datatype', default='raw', type=str)
+@click.option('--chunksize', default=10000, type=int)
 @click.option('--layer', default=None, type=str)
-def load_import(h5adfile, expname, datatype, layer, forget):
+def h5ad_import(h5adfile, expname, datatype, layer, chunksize, forget):
 
     import scanpy as sc
     import pandas as pd
@@ -320,24 +314,49 @@ def load_import(h5adfile, expname, datatype, layer, forget):
     
     # start by reading the experimental metadata
     expdata = pd.read_csv(basename + '.experiment.tsv', sep="\t",
-                          index_col=0, header=None).T
+                          index_col=0, header=None).T.loc[1]
 
-    expname = expdata.loc[1]['experiment']
-
-    if forget:
+    expname = expdata.loc['experiment']
+    
+    if False and forget:
         lg.info(f"Forgetting about {expname}")
         db.forget(expname)
         
     lg.info(f"import experiment {expname}")
 
-    if pd.isna(expdata.loc[1]['dimred']):
-        expdata.loc[1]['dimred'] = ''
-        
+    if pd.isna(expdata.loc['dimred']):
+        expdata.loc['dimred'] = ''
+
+    exp_id = db.get_experiment_id(expname)
+
+    
+    if exp_id is not None:
+        # a previous record exists - removing
+        sql = f"""DELETE FROM experiment_md
+                   WHERE exp_id = {exp_id}"""
+        db.raw_sql(sql)
+    else:
+        # no prev. record - caluclate a good new exp_id
+        try:
+            max_exp = db.raw_sql(
+                '''SELECT MAX(exp_id) AS exp_id
+                     FROM experiment_md''').iloc[0,0]
+        except duckdb.CatalogException:
+            # assuming the table does not exist yet...
+            max_exp = 0
+        exp_id = max_exp + 1
+
+    expdata['exp_id'] = exp_id
+
     db.create_or_append('experiment_md', expdata)
 
     adata = sc.read_h5ad(h5adfile)
-        
+
+    # remove obs_names - enforce integers to reduce database size
+    adata.obs_names = list(range(len(adata)))
+    
     lg.info(f"data name : {expname}")
+    lg.info(f"exp id    : {exp_id}")
     lg.info(f"data gene : {adata.shape[0]:_d}")
     lg.info(f"data cell : {adata.shape[1]:_d}")
     lg.info(f"data type : {datatype}")
@@ -353,7 +372,7 @@ def load_import(h5adfile, expname, datatype, layer, forget):
         col.index.name = 'obs'
         col = col.reset_index()
         col['name'] = colname
-        col['experiment'] = expname
+        col['exp_id'] = exp_id
         
         if dtype == 'skip':
             pass
@@ -364,9 +383,9 @@ def load_import(h5adfile, expname, datatype, layer, forget):
                 conn.sql(f"""
                     DELETE FROM obs_num 
                      WHERE name='{colname}' 
-                       AND experiment='{expname}'
-                """)
+                       AND exp_id='{exp_id}' """)
             db.create_or_append('obs_num', col)
+            
         else:  # assuming categorical
             from pandas.api.types import is_float_dtype
             if is_float_dtype(col['value']):
@@ -383,18 +402,16 @@ def load_import(h5adfile, expname, datatype, layer, forget):
                 
                 
             col['value'] = col['value'].astype(str)
-
             
             if db.table_exists('obs_cat'):
                 conn.sql(f"""
                     DELETE FROM obs_cat 
                      WHERE name='{colname}' 
-                       AND experiment='{expname}'
+                       AND exp_id='{exp_id}'
                 """)
             db.create_or_append('obs_cat', col)
 
-
-    dimred_names = expdata.loc[1].fillna('')['dimred'].split()
+    dimred_names = expdata.fillna('')['dimred'].split()
     for obsmname in dimred_names:
 
         obsm = adata.obsm[obsmname]
@@ -404,7 +421,6 @@ def load_import(h5adfile, expname, datatype, layer, forget):
 
         _store_col(f"{obsmname}/0", obsmdata.iloc[:,[0]], 'dimred')
         _store_col(f"{obsmname}/1", obsmdata.iloc[:,[1]], 'dimred')
-        
         
     for colname in adata.obs:
         if colname.startswith('_'):
@@ -423,46 +439,36 @@ def load_import(h5adfile, expname, datatype, layer, forget):
         
     lg.info(f"total obs records {total_obs_recs}")
 
+    
     lg.info("Start storing expression matrix")
 
-    layerdata = get_layerdata(h5adfile)
-    for _, layer in layerdata.iterrows():
-        lg.info(f"Processing layer {layer['layer']} / {layer['datatype']}")
-        if layer['datatype'] == 'skip':
-            continue
+    layer = expdata['layer']
+    lg.info(f"Processing layer {layer}")
+    
+    if layer == 'X':
+        x = adata.to_df()
+    else:
+        x = adata.to_df(layer=layer)
 
-        if layer['layer'] == 'X':
-            x = adata.to_df()
-        else:
-            x = adata.to_df(layer=layer['layer'])
-
-        # chunk this - using too much memory:
+    # chunk this - using too much memory:
         
-        x.index.name = 'obs'
-        x.columns.name = 'gene'
+    x.index.name = 'obs'
+    x.columns.name = 'gene'
+        
+    #remove old data
+    lg.info("remove old data")
+    if db.table_exists('expr'):
+        sql = f"""
+            DELETE FROM expr 
+             WHERE exp_id={exp_id}"""
+        conn.sql(sql)
 
         
-        #remove old data
-        lg.info("remove old data")
-        if db.table_exists('expr'):
-            sql = f"""
-                DELETE FROM expr 
-                 WHERE datatype='{datatype}' 
-                   AND experiment='{expname}'
-            """
-            conn.sql(sql)
-
-        chunksize = 5000
-        for ic in range(0, x.shape[0], chunksize):
-            chunk = x.iloc[ic:ic+chunksize,:]
-            melted = chunk.reset_index().melt(id_vars='obs')
-            melted['experiment'] = expname
-            melted['datatype'] = layer['datatype']
-            lg.info(f"chunk {ic}/{x.shape[0]} - melt {melted.shape[0]:_d}")
-            db.create_or_append('expr', melted)
-
-    tablecount = db.all_table_count()
-    for t in sorted(tablecount):
-        c = tablecount[t]
-        print(f"{t:<20s} : {c:>14_d}")
+    for ic in range(0, x.shape[0], chunksize):
+        chunk = x.iloc[ic:ic+chunksize,:]
+        melted = chunk.reset_index().melt(id_vars='obs')
+        melted['value'] = melted['value'].astype(float)  # ensure!
+        melted['exp_id'] = exp_id
+        lg.info(f"chunk {ic}/{x.shape[0]} - melt {melted.shape[0]:_d}")
+        db.create_or_append('expr', melted)
 

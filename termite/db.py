@@ -28,12 +28,19 @@ def get_cursor():
 
 
 def raw_sql(sql: str,
-            conn: Optional[duckdb.DuckDBPyConnection] = None) -> pd.DataFrame:
+            conn: Optional[duckdb.DuckDBPyConnection] = None,
+            raw: bool = False) -> pd.DataFrame:
     """Run SQL and return a Pandas Dataframe of the results."""
+    
     if conn is None:
         conn = get_cursor()
         
     result = conn.sql(sql)
+    if raw:
+        if result is None:
+            return result
+        return result.fetchall()
+        
     if result is None:
         # empty dataframe in the case
         # the query returns nothing
@@ -41,234 +48,228 @@ def raw_sql(sql: str,
     else:
         return result.df()
 
- 
+def all_genes(exp_id: int) -> List[str]:
+
+    md = raw_sql(
+        f""" SELECT distinct gene
+              FROM help_gene
+             WHERE exp_id = {exp_id}
+             ORDER BY gene""")
+
+    return list(md['gene'])
+    
+
 @st.cache_data() # (persist='disk')
 def find_gene_candidates(
-        experiment: str,
-        datatype: str) -> List[str]:
+        exp_id: int) -> List[str]:
 
+    md = raw_sql(
+        f""" SELECT topgenes
+              FROM experiment_md
+             WHERE exp_id = {exp_id}
+        """)
 
-    favorites = '''APOE APP PSEN1 PSEN2 CLU GFAP PLP1
-                   BIN1 SORL1 ABCA7 CR1 CD33 MS4A
-                   PICALM EPHA1 INPPD5 MEF2C ADAM10
-                   AKAP4 MEG3'''.lower().split()
+    if len(md) == 0:
+        return []
+    else:
+        return md.iloc[0]['topgenes'].split()
 
-    never = '''MALAT1 MT-CO1'''.lower().split()
-    
-    favlist = "('" + "','".join(favorites) + "')"
-    neverlist = "('" + "','".join(never) + "')"
+@st.cache_data() # (persist='disk')
+def find_dimreds(
+        exp_id: int) -> List[str]:
 
-    c1 = raw_sql(f'''
-        SELECT gene, QUANTILE_CONT(value, 0.99) as medexpr FROM expr
-         WHERE experiment = '{experiment}'
-          AND datatype = '{datatype}'
-          AND lower(gene) IN {favlist}
-        GROUP BY gene
-       HAVING (medexpr > 0)
-        ORDER BY medexpr DESC
-        LIMIT 10
-    ''')
-    
-    c2 = raw_sql(f'''
-        SELECT gene, QUANTILE_CONT(value, 0.99) as medexpr
-          FROM expr
-         WHERE experiment = '{experiment}'
-          AND datatype = '{datatype}'
-          AND lower(gene) NOT IN {neverlist}
-          AND NOT starts_with(lower(gene), 'mt-')
-     
-        GROUP BY gene
-        HAVING (medexpr > 0)
-        ORDER BY medexpr DESC
-        LIMIT 10
-    ''')
+    md = raw_sql(
+        f""" SELECT dimred
+              FROM experiment_md
+             WHERE exp_id = {exp_id}
+        """)
 
-    
-    c1['medexpr'] = c1['medexpr'] * 10
-    
-    rv = list(pd.concat([c1, c2]).sort_values(by='medexpr')['gene'])
-    lg.info(f'Candidate genes: {rv[:5]}')
-    
-    return rv
+    if len(md) == 0:
+        return []
+    else:
+        return md.iloc[0]['dimred'].split()
 
     
 @st.cache_data
-def fuzzy_gene_search(experiment, datatype, gene):
+def fuzzy_gene_search(exp_id: int,
+                      gene: str):
     return raw_sql(f"""
         SELECT DISTINCT gene
           FROM help_gene
-         WHERE experiment='{experiment}'
-           AND datatype='{datatype}'
+         WHERE exp_id={exp_id}
          ORDER BY jaro_winkler_similarity(gene, '{gene}') DESC
         LIMIT 25""")['gene']
 
-    
-def get_exp_datatypes():
+def get_experiments():
+    return raw_sql('SELECT * FROM experiment_md')
+
+def get_stats_experiment():
     conn = get_cursor()
-    sql = """SELECT * FROM help_datatype"""
+    sql = """SELECT * FROM help_experiment"""
     return conn.sql(sql).df()
 
 
-def get_obs_cat_names(experiment):
+def get_obs_cat_names(exp_id: int):
     return raw_sql(f"""SELECT *
                FROM help_obs_cat
-              WHERE experiment='{experiment}'
+              WHERE exp_id={exp_id}
              LIMIT 100""")['name']
 
 
-def get_obs_num_names(experiment):
+def get_obs_num_names(exp_id: int):
     return raw_sql(f"""SELECT *
                FROM help_obs_num
-              WHERE experiment='{experiment}'
-             LIMIT 100""")['name']
+              WHERE exp_id={exp_id}
+              LIMIT 100
+    """)['name']
 
 
-def forget(experiment):
+def forget(exp_id: int):
     conn = get_conn()
     for q in [
-            f"DELETE FROM expr WHERE experiment = '{experiment}'",
-            f"DELETE FROM experiment_md WHERE experiment = '{experiment}'",
-            f"DELETE FROM obs_cat WHERE experiment = '{experiment}'",
-            f"DELETE FROM obs_num WHERE experiment = '{experiment}'",
-            f"DELETE FROM help_datatypes WHERE experiment = '{experiment}'",
-            f"DELETE FROM help_obs_cat WHERE experiment = '{experiment}'",
-            f"DELETE FROM help_obs_num WHERE experiment = '{experiment}'",
+            f"DELETE FROM expr WHERE exp_id = {exp_id}",
+            f"DELETE FROM experiment_md WHERE exp_id = {exp_id}",
+            f"DELETE FROM obs_cat WHERE exp_id = {exp_id}",
+            f"DELETE FROM obs_num WHERE exp_id = {exp_id}",
+            f"DELETE FROM help_gene WHERE exp_id = {exp_id}",
+            f"DELETE FROM help_experiment WHERE exp_id = {exp_id}",
+            f"DELETE FROM help_obs_cat WHERE exp_id = {exp_id}",
+            f"DELETE FROM help_obs_num WHERE exp_id = {exp_id}",
             ]:
         try:
+            print(q)
             conn.sql(q)
         except duckdb.CatalogException:
             #assume the table does not exist?
             pass
     
     
-def get_expr_obscat_two(experiment, datatype, gene, cat1, cat2):
-    return raw_sql(f"""
-           SELECT expr.obs,
-                  expr.value as expr,
-                  occ1.value as cat1,
-                  occ2.value as cat2
-             FROM expr
-             JOIN obs_cat as occ1
-               ON (expr.experiment = occ1.experiment
-                   AND expr.obs = occ1.obs) 
-             JOIN obs_cat as occ2
-               ON (expr.experiment = occ2.experiment
-                   AND expr.obs = occ2.obs) 
-            WHERE expr.experiment='{experiment}'
-              AND expr.gene='{gene}'
-              AND expr.datatype='{datatype}'
-              AND occ1.name='{cat1}'
-              AND occ2.name='{cat2}'
-        """)
+# def get_expr_obscat_two(experiment, datatype, gene, cat1, cat2):
+#     return raw_sql(f"""
+#            SELECT expr.obs,
+#                   expr.value as expr,
+#                   occ1.value as cat1,
+#                   occ2.value as cat2
+#              FROM expr
+#              JOIN obs_cat as occ1
+#                ON (expr.experiment = occ1.experiment
+#                    AND expr.obs = occ1.obs) 
+#              JOIN obs_cat as occ2
+#                ON (expr.experiment = occ2.experiment
+#                    AND expr.obs = occ2.obs) 
+#             WHERE expr.experiment='{experiment}'
+#               AND expr.gene='{gene}'
+#               AND expr.datatype='{datatype}'
+#               AND occ1.name='{cat1}'
+#               AND occ2.name='{cat2}'
+#         """)
 
 
-def get_expr_obscat(
-        experiment: str,
-        datatype: str,
-        gene: str,
-        cat: str,
-        conn: Optional[duckdb.DuckDBPyConnection] = None):
+# def get_expr_obscat(
+#         experiment: str,
+#         datatype: str,
+#         gene: str,
+#         cat: str,
+#         conn: Optional[duckdb.DuckDBPyConnection] = None):
     
-    sql = f"""
-           SELECT expr.obs,
-                  expr.value as num,
-                  occ1.value as cat,
-             FROM expr
-             JOIN obs_cat as occ1
-               ON (expr.experiment = occ1.experiment
-                   AND expr.obs = occ1.obs) 
-            WHERE expr.experiment='{experiment}'
-              AND expr.gene='{gene}'
-              AND expr.datatype='{datatype}'
-              AND occ1.name='{cat}'
-        """
-    return raw_sql(sql)
+#     sql = f"""
+#            SELECT expr.obs,
+#                   expr.value as num,
+#                   occ1.value as cat,
+#              FROM expr
+#              JOIN obs_cat as occ1
+#                ON (expr.experiment = occ1.experiment
+#                    AND expr.obs = occ1.obs) 
+#             WHERE expr.experiment='{experiment}'
+#               AND expr.gene='{gene}'
+#               AND expr.datatype='{datatype}'
+#               AND occ1.name='{cat}'
+#         """
+#     return raw_sql(sql)
 
 
-def get_obs_num(experiment: str,
+def get_obs_num(exp_id: int,
                 name: str) -> pd.Series:
 
     return raw_sql(
         f""" SELECT obs, value
               FROM obs_num
-             WHERE experiment='{experiment}'
+             WHERE exp_id={exp_id}
                AND name='{name}'
         """).set_index('obs')['value']
 
 
 
-def get_obs_cat(experiment: str,
+def get_obs_cat(exp_id: int,
                 name: str) -> pd.Series:
 
     return raw_sql(
         f""" SELECT obs, value
               FROM obs_cat
-             WHERE experiment='{experiment}'
+             WHERE exp_id={exp_id}
                AND name='{name}'
         """).set_index('obs')['value']
 
 
-def get_expr_gene(experiment: str,
-                  datatype: str,
+def get_expr_gene(exp_id: int,
                   gene: str) -> pd.Series:
 
     return raw_sql(
         f""" SELECT obs, value
               FROM expr
-             WHERE experiment='{experiment}'
-               AND datatype='{datatype}'
+             WHERE exp_id={exp_id}
                AND gene='{gene}'
         """).set_index('obs')['value']
 
 
-def get_numvar_obscat(
-        experiment: str,
-        numname: str,
-        catname: str,
-        conn: Optional[duckdb.DuckDBPyConnection] = None):
+# def get_numvar_obscat(
+#         exp_id: int,
+#         numname: str,
+#         catname: str,
+#         conn: Optional[duckdb.DuckDBPyConnection] = None):
     
-    sql = f"""
-           SELECT num1.value as num,
-                  cat1.value as cat,
-             FROM obs_num as num1 
-             JOIN obs_cat as cat1
-               ON (num1.experiment = cat1.experiment
-                   AND num1.obs = cat1.obs) 
-            WHERE num1.experiment='{experiment}'
-              AND num1.name='{numname}'
-              AND cat1.name='{catname}'
-        """
-    return raw_sql(sql, conn=conn)
+#     sql = f"""
+#            SELECT num1.value as num,
+#                   cat1.value as cat,
+#              FROM obs_num as num1 
+#              JOIN obs_cat as cat1
+#                ON (num1.exp_id = cat1.exp_id
+#                    AND num1.obs = cat1.obs) 
+#             WHERE num1.exp_id={exp_id}
+#               AND num1.name='{numname}'
+#               AND cat1.name='{catname}'
+#         """
+#     return raw_sql(sql, conn=conn)
 
 
-def get_expr_obsnum(
-        experiment: str,
-        datatype: str,
-        gene: str,
-        num: str,
-        conn: Optional[duckdb.DuckDBPyConnection] = None):
+# def get_expr_obsnum(
+#         exp_id: int,
+#         gene: str,
+#         num: str,
+#         conn: Optional[duckdb.DuckDBPyConnection] = None):
 
-    if conn is None:
-        conn = get_conn()
+#     if conn is None:
+#         conn = get_conn()
         
-    sql = f"""
-           SELECT expr.obs,
-                  expr.value as expr,
-                  ocn1.value as num1,
-             FROM expr
-             JOIN obs_num as ocn1
-               ON (expr.experiment = ocn1.experiment
-                   AND expr.obs = ocn1.obs) 
-            WHERE expr.experiment='{experiment}'
-              AND expr.gene='{gene}'
-              AND expr.datatype='{datatype}'
-              AND ocn1.name='{num}'
-        """
-    return raw_sql(sql, conn=conn)
+#     sql = f"""
+#            SELECT expr.obs,
+#                   expr.value as expr,
+#                   ocn1.value as num1,
+#              FROM expr
+#              JOIN obs_num as ocn1
+#                ON (expr.experiment = ocn1.experiment
+#                    AND expr.obs = ocn1.obs) 
+#             WHERE expr.experiment='{experiment}'
+#               AND expr.gene='{gene}'
+#               AND expr.datatype='{datatype}'
+#               AND ocn1.name='{num}'
+#         """
+#     return raw_sql(sql, conn=conn)
 
 
 
-def get_obs_category(experiment, cat,
+def get_obs_category(exp_id: int,
+                     cat: str,
                      conn: Optional[duckdb.DuckDBPyConnection] = None):
 
     if conn is None:
@@ -277,7 +278,7 @@ def get_obs_category(experiment, cat,
     sql = f"""SELECT obs_cat.value,
                      count(*) as count
                FROM obs_cat
-              WHERE experiment='{experiment}'
+              WHERE exp_id={exp_id}
                 AND name='{cat}'
               GROUP BY obs_cat.value
               LIMIT 10
@@ -318,50 +319,79 @@ def helptables(conn: Optional[duckdb.DuckDBPyConnection] = None):
     if conn is None:
         conn = get_conn()
 
-    lg.info("Create datatype help table")
-    conn.sql("DROP TABLE IF EXISTS help_datatype")
+    lg.info("Create experiment help table")
+    conn.sql("DROP TABLE IF EXISTS help_experiment")
     conn.sql("""
-        CREATE TABLE help_datatype AS
-          SELECT experiment, datatype, 
+        CREATE TABLE help_experiment AS
+          SELECT exp_id,
                  count(*) as no_datapoints,
                  count(distinct obs) as no_cells,
                  count(distinct gene) as no_genes
             FROM expr
-           GROUP BY experiment, datatype""")
+           GROUP BY exp_id""")
 
     lg.info("Create obs_cat help table")
     conn.sql("DROP TABLE IF EXISTS help_obs_cat")
     conn.sql("""
        CREATE TABLE help_obs_cat AS
-           SELECT experiment, name 
+           SELECT exp_id, name 
              FROM obs_cat
-            GROUP BY experiment, name """)
+            GROUP BY exp_id, name """)
 
     lg.info("Create obs_num help table")
     conn.sql("DROP TABLE IF EXISTS help_obs_num")
     conn.sql("""
        CREATE TABLE help_obs_num AS
-           SELECT experiment, name 
+           SELECT exp_id, name 
              FROM obs_num
-            GROUP BY experiment, name """)
+            GROUP BY exp_id, name """)
     
-    lg.info("Create obs_num help table")
+    lg.info("Create help_gene table")
     conn.sql("DROP TABLE IF EXISTS help_gene")
     conn.sql("""
        CREATE TABLE help_gene AS
-           SELECT distinct experiment, datatype, gene
+           SELECT distinct exp_id, gene
              FROM expr """)
 
+    # lg.info("Create exp/gene index")
+    # conn.sql("""
+    #    CREATE INDEX expr_edg_index ON expr
+    #        (experiment, gene) """)
+
+    
+def get_experiment_id(expname: str) -> Optional[int]:
+    sql = f"""SELECT exp_id
+               FROM experiment_md
+              WHERE experiment = '{expname}'
+            """
+    print(sql)
+    try:
+        result = raw_sql(sql)
+    except duckdb.CatalogException:
+        # table does not exist?
+        return None
+    
+    if len(result) == 0:
+        # record does not exist:
+        return None
+    
+    assert len(result) == 1
+    return result.iloc[0,0]
+    
 
 def create_or_append(
         table: str,
-        local_df: pd.DataFrame,
+        local_df: pd.DataFrame | pd.Series,
         conn: Optional[duckdb.DuckDBPyConnection] = None) -> None:
 
     if conn is None:
         conn = get_conn()
 
-        lg.debug(f"appending to {table} dataframe { local_df.shape }")
+    lg.debug(f"appending to {table} dataframe { local_df.shape }")
+
+    if isinstance(local_df, pd.Series):
+        local_df = pd.DataFrame(local_df).T
+        
     #create a table - or if it exists - append
     if not table_exists(table):
         #lg("create & insert", table, local_df.shape)

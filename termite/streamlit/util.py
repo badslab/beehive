@@ -1,7 +1,6 @@
 
 
 from typing import Optional, Tuple, List
-import re
 
 import numpy as np
 import pandas as pd
@@ -26,12 +25,11 @@ def set_param(key, val):
     
 def suggest_genes(
         gene: str,
-        experiment: str,
-        datatype: str,
+        exp_id: int,
         inject_in: str = 'gene') -> None:
     
     # probably gene not found: suggest a few:
-    candidate_genes = list(db.fuzzy_gene_search(experiment, datatype, gene))
+    candidate_genes = list(db.fuzzy_gene_search(exp_id, gene))
     candidate_genes = ["Please pick one"] + candidate_genes
     
     def _gene_select():
@@ -110,8 +108,7 @@ def get_column(
         context: DeltaGenerator,
         which_types: str,
         label_suffix: str,
-        experiment: str,
-        datatype: str,
+        exp_id: int,
         default_gene: Optional[str] = None,
         default_num: Optional[str] = None,
         default_cat: Optional[str] = None,
@@ -125,13 +122,13 @@ def get_column(
 
 
     # prepare numnames
-    all_numnames = db.get_obs_num_names(experiment)
+    all_numnames = db.get_obs_num_names(exp_id)
     if exclude_num:
         all_numnames = set(all_numnames) - set(exclude_num)
     all_numnames = list(sorted(all_numnames))
 
     # prepare catnames
-    all_catnames = db.get_obs_cat_names(experiment)
+    all_catnames = db.get_obs_cat_names(exp_id)
     if exclude_cat:
         all_catnames = set(all_catnames) - set(exclude_cat)
     all_catnames = list(sorted(all_catnames))
@@ -139,22 +136,22 @@ def get_column(
     if key_suffix is None:
         key_suffix = "".join(label_suffix.split()).lower()
 
+
     if which_types in ['genenum', 'num']:
-        what_types = ['Gene', 'log1p(Gene)',
-                      'Numerical', 'log1p(Numerical)']
-    if which_types == 'numgene':
-        what_types = ['Numerical', 'log1p(Numerical)',
-                      'Gene', 'log1p(Gene)']
-                      
+        what_types = ['Gene', 'Gene/log1p',
+                      'Numerical', 'Numerical/log1p']
+    elif which_types == 'numgene':
+        what_types = ['Numerical', 'Numerical/log1p',
+                      'Gene', 'Gene/log1p']              
     elif which_types == 'gene':
-        what_types = ['Gene', 'log1p(Gene)']
+        what_types = ['Gene', 'Gene/log1p']
     elif which_types == 'cat':
         what_types = ['Categorical']
     else:
-        what_types = ['Gene', 'log1p(Gene)',
-                      'Numerical', 'log1p(Numerical)',
+        what_types = ['Gene', 'Gene/log1p',
+                      'Numerical', 'Numerical/log1p',
                       'Categorical']
-
+    
     if len(what_types) > 1:
         col1, col2 = context.columns(2)
         what = selectbox_mem(
@@ -166,13 +163,13 @@ def get_column(
         what = what_types[0]
         col2 = context
 
+        
     def transform(_what, _data):
-        if _what.startswith('log1p'):
+        if 'log1p' in _what:
             _data = np.log1p(_data)
-        elif _what.startswith('sqrt'):
+        elif 'sqrt' in _what:
             _data = np.sqrt(_data)
         return _data
-
     
     if "Gene" in what:
         gene = textbox_mem(
@@ -180,10 +177,11 @@ def get_column(
             label="Gene " + label_suffix,
             key="gene" + key_suffix,
             default=default_gene)
-        data = db.get_expr_gene(experiment, datatype, gene)
+        
+        data = db.get_expr_gene(exp_id, gene)
         if len(data) == 0:
             # gene not found - suggest a few candidateas
-            suggest_genes(gene, experiment, datatype, inject_in='gene' + key_suffix)
+            suggest_genes(gene, exp_id, inject_in='gene' + key_suffix)
             st.stop()
         data = transform(what, data)
         return "gene", gene, data
@@ -194,7 +192,7 @@ def get_column(
             label="Numerical " + label_suffix,
             options=all_numnames,
             key="num" + key_suffix)
-        data = db.get_obs_num(experiment, num)
+        data = db.get_obs_num(exp_id, num)
         data = transform(what, data)
         return "num", num, data
 
@@ -204,26 +202,6 @@ def get_column(
             label="Categorical " + label_suffix,
             options=all_catnames,
             key="cat" + key_suffix)
-        data = db.get_obs_cat(experiment, cat)
+        data = db.get_obs_cat(exp_id, cat)
         return "cat", cat, data
 
-
-def find_dimred(experiment):
-    cats = db.get_obs_num_names(experiment=experiment)
-    
-    rv = {}
-    reDR = re.compile(r'X_([a-zA-Z]+)/0')
-    for c in cats:
-        hit = reDR.match(c)
-        if not hit:
-            continue
-        
-        item = hit.group()
-        name = hit.groups()[0]
-        match = f"X_{name}/1"
-
-        if match in list(cats):
-            rv[name] = {item, match}
-            
-    return(rv)
-        

@@ -7,9 +7,6 @@ import streamlit as st
 import plotly.express as px
 
 
-from streamlit_option_menu import option_menu
-
-
 from termite import db
 from termite.streamlit import welcome, util, experiment_view
 from termite.streamlit.categorical_plot import categorical_plot
@@ -23,7 +20,10 @@ px.defaults.color_discrete_sequence = px.colors.qualitative.T10
 plotly_config = dict(
     displaylogo = False,
     toImageButtonOptions = {
-        "format": "svg",
+        "format": "png",
+        "width": 800,
+        "height": 640,
+        "scale": 3,
     })
 
 st.sidebar.image(
@@ -38,28 +38,24 @@ def df_to_tsv(df):
 
 view_placeholder = st.sidebar.empty()
 
-experiment_data = db.get_exp_datatypes()
+experiment_data = db.get_experiments()
 experiment_list = list(experiment_data['experiment'].unique())
-
 experiment = util.selectbox_mem(st.sidebar, 'Experiment', experiment_list)
-
-datatypes = list(experiment_data\
-    [experiment_data['experiment'] == experiment]\
-    ['datatype'].unique())
-
-datatype = util.selectbox_mem(st.sidebar, 'Datatype', datatypes)
-
+find_exp_id = experiment_data.query(f"experiment=='{experiment}'")
+if len(find_exp_id) == 0:
+    st.warning(f"Can not find experiment {experiment}")
+    st.stop()
+exp_id = find_exp_id.iloc[0]['exp_id']
 
 gene_placeholder = st.sidebar.empty()
 
-
 def categ_overview():
     import plotly.express as px
-    all_catnames = db.get_obs_cat_names(experiment)
+    all_catnames = db.get_obs_cat_names(exp_id)
     catname = st.sidebar.selectbox(
         "Categorical", all_catnames)
     st.title(f"Categorical: {catname}")
-    cat_value_counts = db.get_obs_category(experiment, catname)
+    cat_value_counts = db.get_obs_category(exp_id, catname)
     fig = px.bar(cat_value_counts, x='value', y='count')
     st.plotly_chart(fig, config=plotly_config)
     
@@ -74,48 +70,68 @@ def run_sql():
     st.title("Raw SQL")
     sql = st.text_area("SQL:", "SELECT *\nFROM expr\nLIMIT 5")
     if '{' in sql:
-        sql = sql.format(experiment=experiment, datatype=datatype)
+        sql = sql.format(experiment=experiment)
+
     try:
-        res = db.raw_sql(sql)
+        res = db.raw_sql(sql, raw=True)        
     except:
         raise
+    
     else:
         st.write(res)
-        st.download_button(
-            "Download data",
-            df_to_tsv(res),
-            file_name="raw_sql_result.tsv",
-            mime="text/tsv")
 
+        try:
+            st.download_button(
+                "Download data",
+                df_to_tsv(res),
+                file_name="raw_sql_result.tsv",
+                mime="text/tsv")
+        except:
+            st.write("Failed to prep for download")
 
+def to_be_implemented():
+    st.header("To be implemented")
+
+    
 subapps = {
     "Welcome": welcome.welcome,
     "Experiment": experiment_view.experiment_view,
+    "Gene": to_be_implemented,
     "Metadata": categ_overview,
-    "Categorical Plot": partial(
-        categorical_plot,
-        experiment=experiment,
-        datatype=datatype,
-        plotly_config=plotly_config),
-    "Gene / two categoricals": partial(gene_vs_two_categories,
-                                       experiment=experiment,
-                                       datatype=datatype,
-                                       plotly_config=plotly_config),
+    "Run raw sql": run_sql,
+    "Plot": 'plot',
+    }
+
+
+sapp = util.selectbox_mem(
+    context = st.sidebar,
+    label = 'Show',
+    options = list(subapps.keys())
+)
+
+plotapps = {
+    "Categorical": partial(categorical_plot,
+                           experiment=experiment,
+                           exp_id=exp_id,
+                           plotly_config=plotly_config),
+    "Two categoricals": partial(gene_vs_two_categories,
+                                exp_id=exp_id,
+                                experiment=experiment,
+                                plotly_config=plotly_config),
     "Numerical": partial(numerical_numerical,
                          experiment=experiment,
-                         datatype=datatype,
+                         exp_id=exp_id,
                          plotly_config=plotly_config),
-    "Run Sql": run_sql,
 }
 
-# Horizontal menu
-# see - https://github.com/victoryhb/streamlit-option-menu
-with view_placeholder:
-    sapp = option_menu(
-        None, list(subapps.keys()),
-        menu_icon="cast",
-        default_index=0,
-        orientation="vertical")
-        
-subapps[sapp]()
+if sapp != 'Plot':
+    subapps[sapp]()
+else:
+    plotapp = util.selectbox_mem(
+        context = st.sidebar,
+        label = 'Plot',
+        options = list(plotapps.keys())
+    )
+    plotapps[plotapp]()
+    
 

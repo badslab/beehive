@@ -26,7 +26,8 @@ def test():
     print(db.find_gene_candidates('h.colmg.3', 'raw'))
     
 
-cli.add_command(termite.h5ad.h5ad)
+cli.add_command(termite.h5ad.prepare)
+cli.add_command(termite.h5ad.h5ad_import)
 cli.add_command(termite.cli.db.db_group)
 
 

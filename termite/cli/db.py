@@ -1,5 +1,5 @@
 
-    
+from pathlib import Path    
 import os
 import click
 
@@ -22,7 +22,7 @@ def db_head(table):
 @db_group.command("forget")
 @click.argument("experiment")
 def forget(experiment: str) -> None:
-    "Forget all about one experiment (all datatypes)."
+    "Forget all about one experiment"
     db.forget(experiment)
 
     
@@ -32,14 +32,15 @@ def db_sql(sql: str) -> None:
     "Run sql."
     sql = ' '.join(sql)
     rv = db.raw_sql(sql)
-    print(rv)
 
 
 @db_group.command("status")
 def db_status() -> None:
     """Show some stats & table counts."""
     dbfile = os.environ['TERMITE_DB']
+    dbsize = os.path.getsize(dbfile)
     print(f"{'db file':<20s} : {dbfile}")
+    print(f"{'db size':<20s} : {dbsize:>14_d}")
     tablecount = db.all_table_count()
     for t in sorted(tablecount):
         c = tablecount[t]

@@ -3,26 +3,30 @@
 import streamlit as st
 import numpy as np
 
-
 from termite import db
 from termite.streamlit import util
 
 
-def categorical_plot(experiment, datatype, plotly_config):
+def categorical_plot(
+        experiment: str,
+        exp_id: int,
+        plotly_config: dict):
 
     
     import pandas as pd
     import plotly.express as px
     from scipy.stats import sem
 
-
+    candidate_genes = db.find_gene_candidates(exp_id)
+    
     _, catname, catcol = util.get_column(
         st.sidebar, 'cat', 'X',
-        experiment=experiment, datatype=datatype)
-    
+        exp_id=exp_id)
+
     typey, coly, datay = util.get_column(
-        st.sidebar, 'num', 'Y', 
-        experiment=experiment, datatype=datatype)
+        st.sidebar, 'num', 'Y',
+        default_gene=candidate_genes[0],
+        exp_id=exp_id)
 
     data = pd.DataFrame(dict(
         cat = catcol,
