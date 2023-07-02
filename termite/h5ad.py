@@ -302,7 +302,7 @@ def prepare_obs(h5adfile: str, force: bool) -> None:
 @click.option('-f', '--forget', type=bool, is_flag=True, default=False)
 @click.option('--expname')
 @click.option('--datatype', default='raw', type=str)
-@click.option('--chunksize', default=10000, type=int)
+@click.option('--chunksize', default=20000, type=int)
 @click.option('--layer', default=None, type=str)
 def h5ad_import(h5adfile, expname, datatype, layer, chunksize, forget):
 
@@ -318,7 +318,7 @@ def h5ad_import(h5adfile, expname, datatype, layer, chunksize, forget):
 
     expname = expdata.loc['experiment']
     
-    if False and forget:
+    if forget:
         lg.info(f"Forgetting about {expname}")
         db.forget(expname)
         
@@ -471,4 +471,7 @@ def h5ad_import(h5adfile, expname, datatype, layer, chunksize, forget):
         melted['exp_id'] = exp_id
         lg.info(f"chunk {ic}/{x.shape[0]} - melt {melted.shape[0]:_d}")
         db.create_or_append('expr', melted)
+
+    # ensure index
+    print(db.raw_sql('create index idx_expr_eg on expr (exp_id, gene)'))
 

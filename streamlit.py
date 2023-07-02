@@ -1,6 +1,11 @@
 
 from functools import partial
 import pkg_resources
+from pyinstrument import Profiler
+import sys
+
+profiler = Profiler()
+profiler.start()
 
 
 import streamlit as st
@@ -123,6 +128,12 @@ plotapps = {
                          exp_id=exp_id,
                          plotly_config=plotly_config),
 }
+
+if st.button('profiler'):
+    profiler.stop()
+    profiler.print()
+
+
 
 if sapp != 'Plot':
     subapps[sapp]()

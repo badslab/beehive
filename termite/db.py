@@ -1,11 +1,14 @@
 
 
-import os
 import logging
+import os
+from typing import Optional, List
+
 import duckdb
 import pandas as pd
-from typing import Optional, List
 import streamlit as st
+
+from termite.util import raw_sql_timer
 
 
 lg = logging.getLogger(__name__)
@@ -27,6 +30,7 @@ def get_cursor():
     return get_conn().cursor()
 
 
+@raw_sql_timer
 def raw_sql(sql: str,
             conn: Optional[duckdb.DuckDBPyConnection] = None,
             raw: bool = False) -> pd.DataFrame:

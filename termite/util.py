@@ -1,9 +1,26 @@
 
 import hashlib
+from functools import wraps
 import logging
+import time
+
 
 lg = logging.getLogger(__name__)
 
+
+def raw_sql_timer(func):
+    from sql_formatter.core import format_sql
+    @wraps(func)
+    def timeit_wrapper(*args, **kwargs):
+        start_time = time.perf_counter()
+        print('#### START SQL ################################################')
+        print(format_sql(args[0]))
+        result = func(*args, **kwargs)
+        end_time = time.perf_counter()
+        total_time = end_time - start_time
+        print(f'######### READY {total_time:12.4f} sec / {result.shape}')
+        return result
+    return timeit_wrapper
 
 
 def UID(*args, length=7):

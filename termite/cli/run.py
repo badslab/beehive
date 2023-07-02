@@ -1,14 +1,10 @@
 
 import logging
-import warnings
 
 import click
 
-logging.getLogger('streamlit.runtime.caching.cache_data_api').setLevel(logging.CRITICAL)
-
 import termite.cli.db
 import termite.h5ad
-
 from termite import db
 
 

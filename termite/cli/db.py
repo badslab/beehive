@@ -32,6 +32,7 @@ def db_sql(sql: str) -> None:
     "Run sql."
     sql = ' '.join(sql)
     rv = db.raw_sql(sql)
+    print(rv)
 
 
 @db_group.command("status")
