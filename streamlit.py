@@ -1,12 +1,7 @@
 
 from functools import partial
 import pkg_resources
-from pyinstrument import Profiler
 import sys
-
-profiler = Profiler()
-profiler.start()
-
 
 import streamlit as st
 import plotly.express as px
@@ -17,6 +12,17 @@ from termite.streamlit import welcome, util, experiment_view
 from termite.streamlit.categorical_plot import categorical_plot
 from termite.streamlit.gene_vs_two_categories import gene_vs_two_categories
 from termite.streamlit.numerical_numerical import numerical_numerical
+
+
+PROFILER = False
+profiler = None
+
+if PROFILER:
+    from pyinstrument import Profiler
+    profiler = Profiler()
+    profiler.start()
+
+    
 
 
 st.set_page_config(layout="wide", page_title="Termite")
@@ -97,52 +103,43 @@ def run_sql():
 def to_be_implemented():
     st.header("To be implemented")
 
-    
+
+catplot = partial(categorical_plot,
+                  experiment=experiment,
+                  exp_id=exp_id,
+                  plotly_config=plotly_config)
+cat2plot = partial(gene_vs_two_categories,
+                   exp_id=exp_id,
+                   experiment=experiment,
+                   plotly_config=plotly_config)
+numplot = partial(numerical_numerical,
+                  experiment=experiment,
+                  exp_id=exp_id,
+                  plotly_config=plotly_config)
+
 subapps = {
-    "Welcome": welcome.welcome,
+    "Home": welcome.welcome,
     "Experiment": experiment_view.experiment_view,
     "Gene": to_be_implemented,
     "Metadata": categ_overview,
+    "Plot Categorical": catplot,
+    "Plot 2 Categoricals": cat2plot,
+    "Plot Numerical": numplot,
     "Run raw sql": run_sql,
-    "Plot": 'plot',
     }
 
-
 sapp = util.selectbox_mem(
-    context = st.sidebar,
+    context = view_placeholder,
     label = 'Show',
     options = list(subapps.keys())
 )
 
-plotapps = {
-    "Categorical": partial(categorical_plot,
-                           experiment=experiment,
-                           exp_id=exp_id,
-                           plotly_config=plotly_config),
-    "Two categoricals": partial(gene_vs_two_categories,
-                                exp_id=exp_id,
-                                experiment=experiment,
-                                plotly_config=plotly_config),
-    "Numerical": partial(numerical_numerical,
-                         experiment=experiment,
-                         exp_id=exp_id,
-                         plotly_config=plotly_config),
-}
+if PROFILER:
+    if st.sidebar.button('profiler'):
+        profiler.stop()
+        profiler.print()
+        profiler.start()
 
-if st.button('profiler'):
-    profiler.stop()
-    profiler.print()
-
-
-
-if sapp != 'Plot':
-    subapps[sapp]()
-else:
-    plotapp = util.selectbox_mem(
-        context = st.sidebar,
-        label = 'Plot',
-        options = list(plotapps.keys())
-    )
-    plotapps[plotapp]()
+subapps[sapp]()
     
 

@@ -42,8 +42,9 @@ def categorical_plot(
     filename_raw = f"catplot_{experiment}_{catname}_{coly}_raw.tsv"
     filename_agg = f"catplot_{experiment}_{catname}_{coly}_agg.tsv"
     
-    plottype = st.sidebar.selectbox(
-        'Plot type', ['Violin', 'Box', 'Reversed ecdf', 'Bar'])
+    plottype = util.selectbox_mem(
+        st.sidebar, 'Plot Type',
+        options=['Violin', 'Box', 'Reversed ecdf', 'Bar'])
 
     if plottype == 'Violin':
         fig = px.violin(data, x='cat', y='num', box=True, points='outliers')

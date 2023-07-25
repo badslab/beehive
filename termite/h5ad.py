@@ -297,6 +297,28 @@ def prepare_obs(h5adfile: str, force: bool) -> None:
     md_obscol.to_csv(outfile, sep="\t")
 
 
+def preprocess_catcol(col):
+    """ Prepare a column called as categorical
+
+    is it float? try to cast to int first
+    convert to string
+
+    """
+    
+    from pandas.api.types import is_float_dtype
+    if is_float_dtype(col):
+        try:
+            # try to see if these really are integers..
+            lg.debug('Attempt cast to integer first')
+            newcol = col.astype(int)
+            if abs(newcol - col).sum() == 0:
+                # it is an int:
+                lg.debug('success casting to int')
+                return newcol
+        except:
+            print('failed conversion to int, keep float')
+    return col.astype(str)
+
 @click.command('import')
 @click.argument('h5adfile')
 @click.option('-f', '--forget', type=bool, is_flag=True, default=False)
@@ -352,6 +374,9 @@ def h5ad_import(h5adfile, expname, datatype, layer, chunksize, forget):
 
     adata = sc.read_h5ad(h5adfile)
 
+    #print(adata.var.head(3).T)
+    #exit()
+    
     # remove obs_names - enforce integers to reduce database size
     adata.obs_names = list(range(len(adata)))
     
@@ -387,21 +412,7 @@ def h5ad_import(h5adfile, expname, datatype, layer, chunksize, forget):
             db.create_or_append('obs_num', col)
             
         else:  # assuming categorical
-            from pandas.api.types import is_float_dtype
-            if is_float_dtype(col['value']):
-                try:
-                    # try to see if these really are integers..
-                    print('attempt cast to integer first')
-                    newcol = col['value'].astype(int)
-                    if abs(newcol - col['value']).sum() == 0:
-                        # it is an int:
-                        print('success!')
-                        col['value'] == newcol
-                except:
-                    print('failed conversion to int, keep float')
-                
-                
-            col['value'] = col['value'].astype(str)
+            col['value'] = preprocess_catcol(col['value'])
             
             if db.table_exists('obs_cat'):
                 conn.sql(f"""
@@ -450,11 +461,15 @@ def h5ad_import(h5adfile, expname, datatype, layer, chunksize, forget):
     else:
         x = adata.to_df(layer=layer)
 
+        
     # chunk this - using too much memory:
         
     x.index.name = 'obs'
     x.columns.name = 'gene'
-        
+
+    lg.info("calculate ranks")
+    rnk = x.rank(pct=True, method='min', na_option='bottom')
+    
     #remove old data
     lg.info("remove old data")
     if db.table_exists('expr'):
@@ -463,15 +478,26 @@ def h5ad_import(h5adfile, expname, datatype, layer, chunksize, forget):
              WHERE exp_id={exp_id}"""
         conn.sql(sql)
 
-        
+
+    lg.info("start expression data upload")
     for ic in range(0, x.shape[0], chunksize):
         chunk = x.iloc[ic:ic+chunksize,:]
+        chunk_rnk = rnk.iloc[ic:ic+chunksize,:]
+        
         melted = chunk.reset_index().melt(id_vars='obs')
         melted['value'] = melted['value'].astype(float)  # ensure!
         melted['exp_id'] = exp_id
+        
+        melted_rnk = chunk.reset_index().melt(id_vars='obs', value_name='rank')
+        melted_rnk['rank'] = melted_rnk['rank'].astype(float)  # ensure!
+
+        # to be sure!
+        assert melted[['obs', 'gene']].equals(melted_rnk[['obs', 'gene']])
+        melted['rank'] = melted_rnk['rank']
+        
         lg.info(f"chunk {ic}/{x.shape[0]} - melt {melted.shape[0]:_d}")
         db.create_or_append('expr', melted)
 
     # ensure index
-    print(db.raw_sql('create index idx_expr_eg on expr (exp_id, gene)'))
+    # print(db.raw_sql('create index idx_expr_eg on expr (exp_id, gene)'))
 

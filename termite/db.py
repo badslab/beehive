@@ -30,7 +30,7 @@ def get_cursor():
     return get_conn().cursor()
 
 
-@raw_sql_timer
+# @raw_sql_timer
 def raw_sql(sql: str,
             conn: Optional[duckdb.DuckDBPyConnection] = None,
             raw: bool = False) -> pd.DataFrame:
@@ -368,7 +368,6 @@ def get_experiment_id(expname: str) -> Optional[int]:
                FROM experiment_md
               WHERE experiment = '{expname}'
             """
-    print(sql)
     try:
         result = raw_sql(sql)
     except duckdb.CatalogException:
@@ -395,7 +394,8 @@ def create_or_append(
 
     if isinstance(local_df, pd.Series):
         local_df = pd.DataFrame(local_df).T
-        
+
+#    diffexp_md = 
     #create a table - or if it exists - append
     if not table_exists(table):
         #lg("create & insert", table, local_df.shape)

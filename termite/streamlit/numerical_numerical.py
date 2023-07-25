@@ -62,8 +62,8 @@ def numerical_numerical(
     
     st.title(f'{valx} / {valy} / {valz}')
 
-    plottype = util.selectbox_mem(
-        st, "Plot type", ["scatter", "density"])
+    plottype = "scatter" # util.selectbox_mem(
+        # st, "Plot type", ["scatter", "density"])
 
     plot_placeholder = st.empty()
     
