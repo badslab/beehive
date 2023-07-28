@@ -1,6 +1,6 @@
 
 
-from typing import Optional, Tuple, List
+from typing import Optional, Tuple, List, Callable
 
 import numpy as np
 import pandas as pd
@@ -45,12 +45,13 @@ def suggest_genes(
         candidate_genes, key='suggest_a_gene',
         on_change=_gene_select)
 
-    
+
 def selectbox_mem(
         context: DeltaGenerator,
         label: str,
         options: list[str],
         default: Optional[str] = None,
+        format_func: Optional[Callable] = None,
         index: int =0,
         key: Optional[str] = None) -> str:
     
@@ -73,9 +74,15 @@ def selectbox_mem(
         qval = qp[key][0]
         if qval in options:
             idx = options.index(qval)
+
+    sbargs = dict(
+        key=key, index=idx,
+        on_change=update_query_param)
+    
+    if format_func is not None:
+        sbargs['format_func'] = format_func
         
-    return context.selectbox(label, options, key=key, index=idx,
-                             on_change=update_query_param)
+    return context.selectbox(label, options, **sbargs)
 
 
 def textbox_mem(
