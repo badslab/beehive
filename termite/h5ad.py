@@ -1,48 +1,87 @@
 
+
+from copy import deepcopy
+from array import array
 from functools import lru_cache
 import logging
 import os
+from typing import Optional
 from pathlib import Path
 import re
-from typing import Dict
+
+from typing import Dict, Any
 
 import click
 import duckdb
-import pandas as pd
 import numpy as np
+from rich.pretty import pprint
+import pandas as pd
+import scanpy as sc
+from scanpy import AnnData
 
 from termite import db, util, config
 
 
 lg = logging.getLogger(__name__)
 
+# helper utilities to get/set metadata in a scanpy h5ad file
 
-@click.group('h5ad')
-def h5ad():
-    pass
+def check(adata: AnnData) -> bool:
+    if 'termite' not in adata.uns:
+        adata.uns['termite'] = {}
+        
+    if 'layers' not in adata.uns['termite']:
+        adata.uns['termite']['layers'] = {}
+        
+    if 'metadata' not in adata.uns['termite']:
+        adata.uns['termite']['metadata'] = {}
+        
+    if 'obs' not in adata.uns['termite']:
+        adata.uns['termite']['obs'] = {}
+        
+    if 'obsm' not in adata.uns['termite']:
+        adata.uns['termite']['obsm'] = {}
 
+    if 'obs_force' not in adata.uns['termite']:
+        adata.uns['termite']['obs_force'] = {}
+        
+    if 'obs_nice' not in adata.uns['termite']:
+        adata.uns['termite']['obs_nice'] = {}
+        
+    if 'obs_keep' in adata.uns['termite']:
+        del adata.uns['termite']['obs_keep']
+    if 'obs_skip' in adata.uns['termite']:
+        del adata.uns['termite']['obs_skip']
 
-@lru_cache(16)
-def get_metadata(h5adfile: str) -> pd.DataFrame:
+        
+    # remove old md
+    if 'behave_obs_meta' in adata.uns_keys():
+        del adata.uns['behave_obs_meta']
 
-    # TODO: figure out why do I return the datafram in a dict?
-    rv = {}
+    # fix a few old problems
+    md = adata.uns['termite']['metadata']
+    if 'pubmed_id' in md:
+        md['pubmed'] = md['pubmed_id']
+        del md['pubmed_id']
     
-    obscol_mdfile = h5adfile.replace('.h5ad', '') + '.obscol.tsv'
-    assert os.path.exists(obscol_mdfile)
-    return pd.read_csv(obscol_mdfile, sep="\t", index_col=0)        
+    return True
 
 
-@lru_cache(16)
-def get_layerdata(h5adfile: str) -> pd.DataFrame:    
-    layer_mdfile = h5adfile.replace('.h5ad', '') + '.datatypes.tsv'
-    if os.path.exists(layer_mdfile):
-        return pd.read_csv(layer_mdfile, 
-                           sep="\t", index_col=0)
-    else:
-        raise FileNotFoundError(layer_mdfile)
-
-
+def remove(adata: AnnData,
+           key: str):
+    if 'termite' not in adata.uns_keys():
+        return
+    if key not in adata.uns['termite']['metadata']:
+        return
+    del adata.uns['termite']['metadata'][key]
+    
+    
+def set1(adata: AnnData,
+         key: str,
+         value: Any) -> None:
+    check(adata)
+    adata.uns['termite']['metadata'][key] = value
+    
     
 COMMON_COLUMN_MAPPINGS = """
 leiden_scVI | scVI cluster
@@ -53,68 +92,75 @@ COMMON_COLUMN_MAPPINGS = \
      }
 
     
-def get_obs_column_metadata(h5adfile, adata, column, force=False,
+def get_obs_column_metadata(adata, column,
                             max_categories=30):
     """
     # determine what datatye a column is
     """
-
-    md_obscol = get_metadata(h5adfile)
-
-    # see if the column is in the obsocl metadata file
-    if (not force) and (md_obscol is not None) and (column in md_obscol['name'].values):
-        rv = md_obscol.loc[md_obscol['name'] == column].iloc[0].to_dict()
-        return rv
         
-    # nothing here? Guess the format from the raw data
+    # Guess the format from the raw data
     oco = adata.obs[column]
+    no_uniq = len(oco.unique())
     example=",".join(map(str, oco.head(4)))
-    
-    if str(oco.dtype) in ['category', 'object', 'bool']:
+
+    forced = False
+    tdata = adata.uns['termite']
+    #if column == 'batch':
+    #    print(tdata['obs_force'])
+    if column in  tdata['obs_force']:
+        odtype = tdata['obs_force'][column]
+        forced = True
+    else:
+        odtype = str(oco.dtype)
+
+    if odtype in ['categorical', 'category', 'object', 'bool']:
         # guess categorical
         uniq = len(oco.unique())
         example = ",".join(map(str, oco.value_counts().sort_values()[:4].index))
-        if uniq > max_categories:
-            # too many categories
-            dtype = 'skip'
-        elif uniq == 1:
-            # not very interesting either...
-            dtype = 'skip'
-        else:
-            dtype = 'categorical'
-    elif str(oco.dtype).startswith('int'):
+        dtype = 'categorical'
+        # unless....
+        if not forced:
+            if uniq > max_categories:
+                # too many categories
+                dtype = 'skip'
+            elif uniq == 1:
+                # not very interesting either...
+                dtype = 'skip'
+    elif 'int' in odtype:
         dtype = 'int'
-    elif str(oco.dtype).startswith('float'):
+    elif odtype.startswith('float'):
         dtype = 'float'
+    elif odtype == 'skip':
+        dtype = 'skip'
     else:
         lg.warning(f"Unknown data type for {column} - {oco.dtype}")
         dtype = 'skip'
 
-    if column in COMMON_COLUMN_MAPPINGS:
+    if column in tdata['obs_nice']:
+        nice = tdata['obs_nice'][column]
+    elif column in COMMON_COLUMN_MAPPINGS:
         nice = COMMON_COLUMN_MAPPINGS[column]
     else:
-        nice = " ".join(
-            [x.capitalize() for x in re.split(r'[\s_\-]', column)])
-        
-    return dict(name=column, type=dtype, nice=nice, example=example)        
+        nice = (" ".join(
+            [x.capitalize() for x in re.split(r'[\s_\-\.]+', column)])
+                ).strip()
+    return dict(name=column, dtype=dtype,
+                nice_name=nice, no_uniq=no_uniq,
+                example=example)        
 
 
-@h5ad.group('prepare')
-def prepare():
-    pass
 
-
-@prepare.command('experiment')
-@click.option('-p', '--pubmed', default='unknown')
-@click.option('-a', '--author', default='unknown')
-@click.option('-t', '--title', default='unknown')
-@click.option('-x', '--experiment')
-@click.option('-y', '--year', type=int, default=1859)
-@click.option('-f', '--force', type=bool, is_flag=True, default=False)
-@click.option('-S', '--study')
-@click.option('-v', '--version', type=int, default=1)
-@click.option('-o', '--organism', default='unknown')
-@click.argument('h5adfile')
+# @prepare.command('experiment')
+# @click.option('-p', '--pubmed', default='unknown')
+# @click.option('-a', '--author', default='unknown')
+# @click.option('-t', '--title', default='unknown')
+# @click.option('-x', '--experiment')
+# @click.option('-y', '--year', type=int, default=1859)
+# @click.option('-f', '--force', type=bool, is_flag=True, default=False)
+# @click.option('-S', '--study')
+# @click.option('-v', '--version', type=int, default=1)
+# @click.option('-o', '--organism', default='unknown')
+# @click.argument('h5adfile')
 def prepare_experiment(h5adfile: str,
                  author: str,
                  experiment: str,
@@ -125,8 +171,6 @@ def prepare_experiment(h5adfile: str,
                  version: int,
                  organism: str,
                  title: str) -> None:
-
-    import scanpy as sc
 
     basename = h5adfile.replace('.h5ad', '')
 
@@ -263,38 +307,21 @@ def prepare_experiment(h5adfile: str,
     experiment_md.to_csv(outfile, header=False, sep="\t")
         
     
-@prepare.command('obs')
-@click.option('-f', '--force', type=bool, is_flag=True, default=False)
-@click.argument('h5adfile')
-def prepare_obs(h5adfile: str, force: bool) -> None:
+def prepare_obs(adata: AnnData) -> pd.DataFrame:
 
-    import scanpy as sc
-
-    basename = h5adfile.replace('.h5ad', '')
-
-    outfile = Path(f"{basename}.obscol.tsv")
-    if outfile.exists() and not force:
-        raise click.ClickException(
-            f"{outfile} exists, use -f to overwrite")
-        
-    lg.info(f"Loading data: {h5adfile}")
-    adata = sc.read_h5ad(h5adfile)
-
-    md_obscol = pd.DataFrame(columns = ['name', 'type', 'nice', 'example'])
-    md_obscol = md_obscol.reset_index(drop=True)
+    md_obscol = {}
     obs = adata.obs
 
     # regular obs columns
     lg.info("Processing obs table")
+        
     for column in obs.keys():
         if column.startswith('_'):
             continue
-
-        md_obscol.loc[len(md_obscol)] \
-            = get_obs_column_metadata(h5adfile, adata, column, force=force)
-
-    lg.info("Saving MD files")
-    md_obscol.to_csv(outfile, sep="\t")
+        md_obscol[column] \
+            = get_obs_column_metadata(adata, column)
+    
+    return md_obscol
 
 
 def preprocess_catcol(col):
@@ -319,14 +346,243 @@ def preprocess_catcol(col):
             print('failed conversion to int, keep float')
     return col.astype(str)
 
-@click.command('import')
-@click.argument('h5adfile')
-@click.option('-f', '--forget', type=bool, is_flag=True, default=False)
-@click.option('--expname')
-@click.option('--datatype', default='raw', type=str)
-@click.option('--chunksize', default=20000, type=int)
-@click.option('--layer', default=None, type=str)
-def h5ad_import(h5adfile, expname, datatype, layer, chunksize, forget):
+
+def import_experiment_md(adata: AnnData,
+                         layername: str,
+                         layertype: str,
+                         chunksize: int = 5000) -> int:
+
+    expdata = deepcopy(adata.uns['termite']['metadata'])
+
+    expdata['layername'] = layername
+    expdata['layertype'] = layertype
+    experiment = expdata['experiment']
+    dataset = f"{experiment}.{layername}"
+    expdata['dataset'] = dataset
+    
+    if 'dimred' not in expdata:
+        expdata['dimred'] = ''
+
+    exp_id = db.autoincrementor('dataset_md', 'experiment', experiment)
+    dataset_id = db.autoincrementor('dataset_md', 'dataset', dataset)
+    
+    lg.info(f"using experiment {experiment} {exp_id}")
+    lg.info(f"      dataset    {dataset} {dataset_id}")
+
+    expdata['experiment_id'] = exp_id
+    expdata['dataset_id'] = dataset_id
+
+    # remove if there is already a dataset record
+    try:
+        db.raw_sql(f'DELETE FROM dataset_md WHERE dataset_id={dataset_id}')
+    except duckdb.CatalogException:
+        pass  # table does not exist?
+
+    for f in 'abstract author doi title organism'.split():
+        if f not in expdata:
+            expdata[f] = ''
+        else:
+            expdata[f] = str(expdata[f])
+            
+    for f in 'pubmed year'.split():
+        if f not in expdata:
+            expdata[f] = 0
+        else:
+            expdata[f] = int(expdata[f])
+
+    expdata = pd.DataFrame([expdata])
+
+    db.create_or_append('dataset_md', expdata)
+
+    return dataset_id
+
+
+def store_one_obs_col(exp_id: int,
+                      colname: str,
+                      col: pd.DataFrame,
+                      dtype: str,
+                      original_name: str,
+                      dimred_name: str='',
+                      dimred_dim: int=-1):
+
+    conn = db.get_conn()
+    col.columns = ['value']
+
+    col.index.name = 'obs'
+    col = col.reset_index()
+    col['name'] = colname
+    col['exp_id'] = exp_id
+
+    colmeta = dict(
+        name=colname,
+        exp_id=exp_id,
+        dtype=dtype,
+        original_name=original_name,
+        dimred_dim=dimred_dim,
+        dimred_name=dimred_name,
+        no_cat=-1,
+        )
+    
+    if dtype == 'skip':
+        pass
+    elif dtype in ['int', 'float', 'dimred']:
+        col['value'] = col['value'].astype(float)
+        if db.table_exists('obs_num'):
+            conn.sql(f"""
+                DELETE FROM obs_num 
+                 WHERE name='{colname}' 
+                   AND exp_id='{exp_id}' """)
+        db.create_or_append('obs_num', col)
+
+    else:  # assuming categorical
+        col['value'] = preprocess_catcol(col['value'])
+        colmeta['no_cat'] = len(col['value'].unique())
+
+        if db.table_exists('obs_cat'):
+            conn.sql(f"""
+                DELETE FROM obs_cat 
+                 WHERE name='{colname}' 
+                   AND exp_id='{exp_id}'
+            """)
+        db.create_or_append('obs_cat', col)
+
+    try:
+        db.raw_sql(
+            f""" DELETE FROM help_obs
+                  WHERE exp_id={exp_id}
+                    AND name='{colname}' """)
+    except duckdb.CatalogException:
+        pass # db does not exist...
+    
+    db.create_or_append('help_obs', pd.Series(colmeta))
+
+    
+def import_experiment_obs(exp_id: int,
+                          adata: AnnData):
+
+    lg.info(f"exp id    : {exp_id}")
+    
+    total_obs_recs = 0
+
+    for colname in adata.obs:
+        if colname.startswith('_'):
+            continue
+        col = adata.obs[[colname]].copy()
+        colinfo = get_obs_column_metadata(adata, colname)
+        if colinfo['dtype'] == 'skip':
+            continue
+    
+        nice = str(colinfo['nice_name'])
+        dtype = str(colinfo['dtype'])
+        lg.info(f'processing obs | {dtype:14s} | {colname}')
+        total_obs_recs += len(col)
+        store_one_obs_col(
+            exp_id=exp_id, colname=nice, col=col,
+            dtype=dtype, original_name=colname)
+        
+    lg.info(f"total obs records {total_obs_recs}")
+
+    
+def import_experiment_dimred(exp_id: int,
+                             adata: AnnData):
+
+    lg.info(f"exp id    : {exp_id}")
+    
+    total_obs_recs = 0
+
+    dimred_names = expdata.fillna('')['dimred'].split()
+    for obsmname in dimred_names:
+
+        obsm = adata.obsm[obsmname]
+        lg.info(f"storing DimRed {obsmname} {obsm.shape} {type(obsm)}")
+        obsmdata = pd.DataFrame(obsm[:, :2]).astype(float)
+        obsmdata.index = adata.obs_names
+
+        _store_col(f"{obsmname}/0", obsmdata.iloc[:,[0]], 'dimred')
+        _store_col(f"{obsmname}/1", obsmdata.iloc[:,[1]], 'dimred')
+        
+    for colname in adata.obs:
+        if colname.startswith('_'):
+            continue
+        col = adata.obs[[colname]].copy()
+        colinfo = get_obs_column_metadata(h5adfile, adata, colname)
+        if colinfo['type'] == 'skip':
+            continue
+        
+        nice = colinfo['nice']
+        dtype = colinfo['type']
+        lg.info(f'processing obs | {dtype:14s} | {colname}')
+        total_obs_recs += len(col)
+        _store_col(nice, col, dtype)
+
+        
+    lg.info(f"total obs records {total_obs_recs}")
+
+    
+def import_counts(dataset_id: int,
+                  adata: AnnData,
+                  layer: str,
+                  normalize: Optional[str] = None,
+                  chunksize: int = 50000,
+                  ) -> None:
+
+    conn = db.get_conn()
+    lg.info("Start storing expression matrix")
+    lg.info(f"Processing layer {layer}")
+    
+    if layer == 'X':
+        x = adata.to_df()
+    else:
+        x = adata.to_df(layer=layer)
+        
+    # chunk this - using too much memory:        
+    x.index.name = 'obs'
+    x.columns.name = 'gene'
+
+    if normalize == 'logrpm':
+        x = np.log1p(10000 * x.copy().divide(x.sum(1), axis=0))
+
+        
+    #remove old data
+    lg.info("remove old data")
+    if db.table_exists('expr'):
+        sql = f"""
+            DELETE FROM expr 
+             WHERE dataset_id={dataset_id}"""
+        conn.sql(sql)
+
+
+    lg.info("start expression data upload")
+    for ic in range(0, x.shape[0], chunksize):
+        chunk = x.iloc[ic:ic+chunksize,:]
+        # chunk_rnk = rnk.iloc[ic:ic+chunksize,:]
+        
+        melted = chunk.reset_index().melt(id_vars='obs')
+        melted['value'] = melted['value'].astype(float)  # ensure!
+        melted['dataset_id'] = dataset_id
+        
+        # melted_rnk = chunk.reset_index().melt(id_vars='obs', value_name='rank')
+        # melted_rnk['rank'] = melted_rnk['rank'].astype(float)  # ensure!
+
+        # to be sure!
+        # assert melted[['obs', 'gene']].equals(melted_rnk[['obs', 'gene']])
+        # melted['rank'] = melted_rnk['rank']
+        
+        lg.info(f"chunk {ic}/{x.shape[0]} - melt {melted.shape[0]:_d}")
+        db.create_or_append('expr', melted)
+
+    # ensure index
+    # print(db.raw_sql('create index idx_expr_eg on expr (exp_id, gene)'))
+
+
+#@click.command('import')
+#@click.argument('h5adfile')
+#@click.option('-f', '--forget', type=bool, is_flag=True, default=False)
+#@click.option('--expname')
+#@click.option('--datatype', default='raw', type=str)
+#@click.option('--chunksize', default=20000, type=int)
+#@click.option('--layer', default=None, type=str)
+def h5ad_import_old(h5adfile, expname, datatype, layer, chunksize, forget):
 
     import scanpy as sc
     import pandas as pd

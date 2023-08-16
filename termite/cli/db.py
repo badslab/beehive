@@ -1,7 +1,9 @@
 
-from pathlib import Path    
 import os
+from pathlib import Path    
+
 import click
+import pandas as pd
 
 from termite import db
 
@@ -11,12 +13,20 @@ def db_group():
     pass
 
 
+def f_head(table: str, limit: int = 5):
+    return db.raw_sql(
+        f"SELECT * FROM {table} LIMIT {limit}")
+
+
 @db_group.command("head")
 @click.argument('table')
-def db_head(table):
-    head = db.raw_sql(
-        f"SELECT * FROM {table} LIMIT 5")
-    print(head)
+@click.option('-t', '--transpose', type=bool, is_flag=True, default=False)
+def db_head(table, transpose):
+    rv = f_head(table)
+    if transpose:
+        print(rv.T)
+    else:
+        print(rv)
 
 
 @db_group.command("forget")
@@ -35,18 +45,34 @@ def db_sql(sql: str) -> None:
     print(rv)
 
 
-@db_group.command("status")
-def db_status() -> None:
-    """Show some stats & table counts."""
-    dbfile = os.environ['TERMITE_DB']
+@db_group.command("describe")
+@click.argument("table")
+def db_describe(table: str) -> None:
+    "Run sql."
+    sql = f"describe {table}"
+    rv = db.raw_sql(sql)
+    print(rv)
+
+
+    
+def f_status() -> pd.Series:
+    rv = {}
+    dbfile = rv['dbfile'] = os.environ['TERMITE_DB']
     dbsize = os.path.getsize(dbfile)
-    print(f"{'db file':<20s} : {dbfile}")
-    print(f"{'db size':<20s} : {dbsize:>14_d}")
+    rv['dbsize'] = f"{dbsize:>14_d}"
     tablecount = db.all_table_count()
     for t in sorted(tablecount):
         c = tablecount[t]
-        print(f"{t:<20s} : {c:>14_d}")
+        rv[t] = f"{c:>14_d}"
+    return pd.Series(rv)
 
+
+
+
+@db_group.command("status")
+def db_status() -> None:
+    """Show some stats & table counts."""
+    print(f_status())
         
 @db_group.command("experiments")
 def experiments() -> None:

@@ -6,23 +6,35 @@ from typing import Optional, List
 
 import duckdb
 import pandas as pd
-import streamlit as st
-
-from termite.util import raw_sql_timer
 
 
 lg = logging.getLogger(__name__)
 
+
 CONNECTION: Optional[duckdb.DuckDBPyConnection] = None
+
+
+def init_conn(dbfile: Optional[str] = None)  -> duckdb.DuckDBPyConnection:
+    global CONNECTION
+    
+    if CONNECTION is not None:
+        lg.debug("database already initialized?")
+        exit(-1)
+        
+    if dbfile is None:
+        dbfile = os.environ['TERMITE_DB']
+    CONNECTION = duckdb.connect(dbfile)
+    return CONNECTION
 
 
 def get_conn() -> duckdb.DuckDBPyConnection:
     """ Return a global duckdb connection. One db per instance. """
     global CONNECTION
     if CONNECTION is None:
-        dbfile = os.environ['TERMITE_DB']
-        CONNECTION = duckdb.connect(dbfile)
+        lg.debug("database is not initialized")
+        return init_conn()
     return CONNECTION
+
 
 
 def get_cursor():
@@ -33,18 +45,14 @@ def get_cursor():
 # @raw_sql_timer
 def raw_sql(sql: str,
             conn: Optional[duckdb.DuckDBPyConnection] = None,
-            raw: bool = False) -> pd.DataFrame:
+            ) -> pd.DataFrame:
     """Run SQL and return a Pandas Dataframe of the results."""
     
     if conn is None:
         conn = get_cursor()
         
     result = conn.sql(sql)
-    if raw:
-        if result is None:
-            return result
-        return result.fetchall()
-        
+    
     if result is None:
         # empty dataframe in the case
         # the query returns nothing
@@ -63,7 +71,7 @@ def all_genes(exp_id: int) -> List[str]:
     return list(md['gene'])
     
 
-@st.cache_data() # (persist='disk')
+# @st.cache_data() # (persist='disk')
 def find_gene_candidates(
         exp_id: int) -> List[str]:
 
@@ -78,7 +86,8 @@ def find_gene_candidates(
     else:
         return md.iloc[0]['topgenes'].split()
 
-@st.cache_data() # (persist='disk')
+    
+# @st.cache_data() # (persist='disk')
 def find_dimreds(
         exp_id: int) -> List[str]:
 
@@ -94,7 +103,7 @@ def find_dimreds(
         return md.iloc[0]['dimred'].split()
 
     
-@st.cache_data
+# @st.cache_data
 def fuzzy_gene_search(exp_id: int,
                       gene: str):
     return raw_sql(f"""
@@ -318,84 +327,94 @@ def table_count(table: str,
     
 
 
-def helptables(conn: Optional[duckdb.DuckDBPyConnection] = None):
+def helptables(
+        conn: Optional[duckdb.DuckDBPyConnection] = None,
+        what: str = ""):
 
     if conn is None:
         conn = get_conn()
 
-    lg.info("Create experiment help table")
-    conn.sql("DROP TABLE IF EXISTS help_experiment")
-    conn.sql("""
-        CREATE TABLE help_experiment AS
-          SELECT exp_id,
-                 count(*) as no_datapoints,
-                 count(distinct obs) as no_cells,
-                 count(distinct gene) as no_genes
-            FROM expr
-           GROUP BY exp_id""")
+    if what and what in "help_dataset":
+        lg.info("Create experiment help table")
+        conn.sql("DROP TABLE IF EXISTS help_dataset")
+        conn.sql("""
+            CREATE TABLE help_dataset AS
+              SELECT dataset_id,
+                     count(*) as no_datapoints,
+                     count(distinct obs) as no_cells,
+                     count(distinct gene) as no_genes
+                FROM expr
+               GROUP BY dataset_id""")
 
-    lg.info("Create obs_cat help table")
-    conn.sql("DROP TABLE IF EXISTS help_obs_cat")
-    conn.sql("""
-       CREATE TABLE help_obs_cat AS
-           SELECT exp_id, name 
-             FROM obs_cat
-            GROUP BY exp_id, name """)
+    # if what and what in "help_obs_cat":
+    #     lg.info("Create obs_cat help table")
+    #     conn.sql("DROP TABLE IF EXISTS help_obs_cat")
+    #     conn.sql("""
+    #        CREATE TABLE help_obs_cat AS
+    #            SELECT exp_id, name 
+    #              FROM obs_cat
+    #             GROUP BY exp_id, name """)
 
-    lg.info("Create obs_num help table")
-    conn.sql("DROP TABLE IF EXISTS help_obs_num")
-    conn.sql("""
-       CREATE TABLE help_obs_num AS
-           SELECT exp_id, name 
-             FROM obs_num
-            GROUP BY exp_id, name """)
-    
-    lg.info("Create help_gene table")
-    conn.sql("DROP TABLE IF EXISTS help_gene")
-    conn.sql("""
-       CREATE TABLE help_gene AS
-           SELECT distinct exp_id, gene
-             FROM expr """)
+    # if what and what in "help_obs_num":
+    #     lg.info("Create obs_num help table")
+    #     conn.sql("DROP TABLE IF EXISTS help_obs_num")
+    #     conn.sql("""
+    #            CREATE TABLE help_obs_num AS
+    #            SELECT DISTINCT exp_id, name
+    #              FROM obs_num
+    #             GROUP BY exp_id, name """)
 
-    # lg.info("Create exp/gene index")
-    # conn.sql("""
-    #    CREATE INDEX expr_edg_index ON expr
-    #        (experiment, gene) """)
+    if what and what in "help_gene":
+        lg.info("Create help_gene table")
+        conn.sql("DROP TABLE IF EXISTS help_gene")
+        conn.sql("""
+           CREATE TABLE help_gene AS
+               SELECT distinct dataset_id, gene,
+                      SUM(value) AS sumval,
+                      SUM(LEAST(value, 1)) / COUNT(value) AS fracnonzero
+                 FROM expr
+                GROUP BY dataset_id, gene
+                ORDER BY dataset_id ASC, sumval DESC """)
 
-    
-def get_experiment_id(expname: str) -> Optional[int]:
-    sql = f"""SELECT exp_id
-               FROM experiment_md
-              WHERE experiment = '{expname}'
-            """
+
+def autoincrementor(table, field, value) -> int:
     try:
-        result = raw_sql(sql)
+        result = raw_sql( f"""SELECT {field}_id
+                                FROM {table}
+                               WHERE {field} = '{value}' """)
+        if len(result) > 0:
+            return result.iloc[0,0]        
     except duckdb.CatalogException:
         # table does not exist?
-        return None
-    
-    if len(result) == 0:
-        # record does not exist:
-        return None
-    
-    assert len(result) == 1
-    return result.iloc[0,0]
+        pass
+
+    # no record
+    try:
+        max_id = raw_sql(
+            f'''SELECT MAX({field}_id)
+                FROM {table}''').iloc[0,0]
+    except duckdb.CatalogException:
+        # table does not exist?
+        max_id = 0
+    return max_id + 1
     
 
 def create_or_append(
         table: str,
-        local_df: pd.DataFrame | pd.Series,
+        local_df: pd.DataFrame | pd.Series | dict,
         conn: Optional[duckdb.DuckDBPyConnection] = None) -> None:
 
     if conn is None:
         conn = get_conn()
 
-    lg.debug(f"appending to {table} dataframe { local_df.shape }")
-
-    if isinstance(local_df, pd.Series):
+    if isinstance(local_df, dict):
+        local_df = pd.DataFrame(pd.Series(local_df)).T
+    elif isinstance(local_df, pd.Series):
         local_df = pd.DataFrame(local_df).T
 
-#    diffexp_md = 
+    lg.debug(f"appending to {table} dataframe { local_df.shape }")
+    local_df = local_df.sort_index(axis=1)
+    
     #create a table - or if it exists - append
     if not table_exists(table):
         #lg("create & insert", table, local_df.shape)
@@ -412,10 +431,11 @@ def all_table_count(conn: Optional[duckdb.DuckDBPyConnection] = None):
     
     rv = {}
     for _, table in conn.sql('SHOW ALL TABLES').df().iterrows():
-        t = table['name']
+        t = table.loc['name']
         c = table_count(table=t)
         rv[t] = c
     return rv
+
     
 
 def drop_db(conn: Optional[duckdb.DuckDBPyConnection] = None):
@@ -424,7 +444,8 @@ def drop_db(conn: Optional[duckdb.DuckDBPyConnection] = None):
         conn = get_conn()
         
     for _, table in conn.sql('SHOW ALL TABLES').df().iterrows():
-        print(f'Drop {table} (no rec: {table_count(table)}')
+        norec = table_count(table.loc["name"])
+        print(f'Drop {table} (no rec: {norec}')
         conn.sql(f'DROP TABLE IF EXISTS {table}')
     conn.execute("VACUUM")
     conn.execute("CHECKPOINT")
