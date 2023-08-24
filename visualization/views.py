@@ -179,32 +179,51 @@ class Histogram(TermiteView):
 
 @dataclass
 class Table(TermiteView):
+    name: str = "Table"
     def view(self):
         self.ctxPlot.dataframe(
             self.data, use_container_width=True)
     
 
-def scatter(data,           
-            ctxPlot: DeltaGenerator,
-            ctxParam: DeltaGenerator,
-            labels=None):
+@dataclass
+class Scatter(TermiteView):
+    name: str = "Scatter"
+    zloggable: bool = False
+    
+    def view(self):
+        data = self.data
+        col1, col2, col3 = list(data.columns[:3])
+        
+        c1, c2 = self.ctxParam.columns(2)
+        c1c, c2c = c1.container(), c2.container()
+        
+        point_size = c1c.slider("Point size", min_value=1, max_value=20,
+                              value=4, step=2, key='pointsize')
+        opacity = c1c.slider("Opacity", min_value=0.1, max_value=1.0,
+                           value=0.8, step=0.1, key='opacity')
+        
+        if util.checkbox_mem(c2c, f'Log X ({col1})', key='logx'):
+            self.data[col1] = np.log1p(self.data[col1])
 
-    c1, c2 = ctxParam.columns(2)
-    
-    point_size = c1.slider("Point size", min_value=1, max_value=20,
-                                 value=4, step=2, key='pointsize')
-    opacity = c2.slider("Opacity", min_value=0.1, max_value=1.0,
-                                 value=0.8, step=0.1, key='opacity')
-    
-    fig = px.scatter(data,
-                     x=data.columns[0],
-                     y=data.columns[1],
-                     color=data.columns[2],
-                     labels=labels,
-                     height=800)
+        if util.checkbox_mem(c2c, f'Log Y ({col2})', key='logy'):
+            self.data[col2] = np.log1p(self.data[col2])
+            
+        if self.zloggable:
+            if util.checkbox_mem(c2c, f'Log Z ({col3})', key='logz'):
+                self.data[col3] = np.log1p(self.data[col3])
 
-    fig.update_traces(marker=dict(size=point_size, opacity=opacity))
-    
-    ctxPlot.plotly_chart(fig, use_container_width=True)
+        data = data.sort_values(by=col3, ascending=False)
+        
+        fig = px.scatter(self.data,
+                         x=self.data.columns[0],
+                         y=self.data.columns[1],
+                         color=self.data.columns[2],
+                         color_continuous_scale="Hot_r",
+                         color_discrete_sequence=px.colors.qualitative.Dark24,
+                         height=800)
+        
+        fig.update_traces(marker=dict(size=point_size, opacity=opacity))
+        
+        self.ctxPlot.plotly_chart(fig, use_container_width=True)
 
 

@@ -7,6 +7,7 @@ import pandas as pd
 
 
 from termite.vis import util
+from termite.vis import data as vdata
 
 
 def get_dataset() -> pd.Series:
@@ -54,41 +55,52 @@ def title(dataset_rec: pd.Series,
            ({year}, {dataset_rec['dataset']})</a>"""),
         unsafe_allow_html=True)
 
-def get_gene(name, dataset_id):
-    return util.SqlSelect(
+def get_expr(name, dataset_id):
+    gene_name = util.SqlSelect(
         name, 
         sql=f"""SELECT DISTINCT gene
                   FROM help_gene
                  WHERE dataset_id='{dataset_id}'
                   ORDER BY gene""")
-
+    gene = vdata.get_expr(dataset_id, gene_name)
+    return gene_name, gene
 
 def get_categorical(exp_id, name="Categorical", key="cat"):
-    return util.SqlSelect(
-        "Categorical", key=key,
+    cat_name = util.SqlSelect(
+        name, key=key,
         sql=f"""SELECT name, name, original_name
                   FROM help_obs
                  WHERE exp_id='{exp_id}'
                    AND dtype='categorical' """)
+    cat = vdata.get_obs_cat(exp_id, cat_name)
+    return cat_name, cat
 
 
-
-def get_numerical(exp_id):
-    return util.SqlSelect(
-        "Numerical", 
+def get_numerical(exp_id, name="Numerical", key="num",
+                  exclude: list = []):
+    
+    if len(exclude) > 0:
+        join = "','".join(exclude)
+        exclude_stmt = f"AND name NOT IN ('{join}')"
+    else:
+        exclude_stmt = ""
+     
+    num_name = util.SqlSelect(
+        name, key=key,
         sql=f"""SELECT name, name, original_name
                   FROM help_obs
                  WHERE exp_id='{exp_id}'
-                   AND dtype IN ('int', 'float') """)
+                   AND dtype IN ('int', 'float') {exclude_stmt}
+        """)
+    return num_name, vdata.get_obs_num(exp_id, num_name)
 
 
-
-def get_expr(dataset_id, gene):
-    return util.execute_sql(
-        sql=f"""SELECT obs, value
-                 FROM expr
-                WHERE dataset_id = {dataset_id}
-                  AND gene = '{gene}' """).set_index('obs')['value']
+# def get_expr(dataset_id, gene):
+#     return util.execute_sql(
+#         sql=f"""SELECT obs, value
+#                  FROM expr
+#                 WHERE dataset_id = {dataset_id}
+#                   AND gene = '{gene}' """).set_index('obs')['value']
 
 
 def get_expr2(dataset_id, gene1, gene2):

@@ -25,15 +25,16 @@ lg.info("Start Termite Visualization Streamlit App!")
 st.set_page_config(layout="wide")
 
 all_apps = {
-    "dataset": ("Dataset",        apps.dataset.dataset),
-    "categ":   ("Categorical MD", apps.dataset.categorical),
+    "dataset": ("Dataset",            apps.dataset.dataset),
+    "categ":   ("Categorical MD"    , apps.dataset.categorical),
     "cat2":    ("Two Categorical MD", apps.dataset.catcat),
-    "numer":   ("Numerical MD",   apps.dataset.numerical),
-    "gene":    ("Gene/Exp",       apps.gene.gene),
-    "gene2":   ("Two Genes",      apps.gene.gene2),
-    "dimred":  ("Dimred",         apps.dimred.dimred),
-    "tblcnt":  ("Table count",    apps.helper.tablepeek),
-    "sql":     ("Raw SQL",        apps.helper.raw_sql),
+    "num2":    ("Two Numerical MD",   apps.dataset.numnum),
+    "numer":   ("Numerical MD",       apps.dataset.numerical),
+    "gene":    ("Gene/Exp",           apps.gene.gene),
+    "gene2":   ("Two Genes",          apps.gene.gene2),
+    "dimred":  ("Dimred",             apps.dimred.dimred),
+    "tblcnt":  ("Table count",        apps.helper.tablepeek),
+    "sql":     ("Raw SQL",            apps.helper.raw_sql),
 }
 
 

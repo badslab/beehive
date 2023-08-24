@@ -8,6 +8,7 @@ import streamlit as st
 import views
 
 from termite.vis import data as vdata
+from termite.vis import util
 
 import blocks
 
@@ -94,18 +95,54 @@ def categorical():
     
 def catcat():
     dataset_rec = blocks.get_dataset()
-    cat_name_1 = blocks.get_categorical(dataset_rec['experiment_id'],
+    cat_name_1, cat1 = blocks.get_categorical(dataset_rec['experiment_id'],
                                         name='Categorical 1', key='cat')
-    cat_name_2 = blocks.get_categorical(dataset_rec['experiment_id'],
+    cat_name_2, cat2 = blocks.get_categorical(dataset_rec['experiment_id'],
                                         name='Categorical 2', key='cat2')
-    cat1 = vdata.get_obs_cat(dataset_rec['experiment_id'], cat_name_1)
-    cat2 = vdata.get_obs_cat(dataset_rec['experiment_id'], cat_name_2)
-
     
     data = pd.DataFrame({cat_name_1:cat1, cat_name_2:cat2})\
         .pivot_table(columns=cat_name_1, index=cat_name_2, aggfunc=len)
     
     views.HeatMap(data=data, subject=f"{cat_name_1} vs {cat_name_2}").view()
+
+    
+def numnum():
+    dataset_rec = blocks.get_dataset()
+    exp_id=dataset_rec['experiment_id']
+    ds_id=dataset_rec['dataset_id']
+    
+    num_name_1, num1 = blocks.get_numerical(
+        name="Numerical 1", key="num1", exp_id=exp_id)
+    num_name_2, num2 = blocks.get_numerical(
+        name="Numerical 2", key="num2", exp_id=exp_id,
+        exclude=[num_name_1])
+
+    #start with 2 numerical colums
+    data = pd.DataFrame({num_name_1:num1, num_name_2:num2})
+    
+    col_what = util.selectbox_mem(
+        st.sidebar, "Color type", options=[
+            'Categorical', 'Numerical', 'Gene'])
+
+    if col_what == 'Categorical':
+        cat_name_1, cat1 = blocks.get_categorical(
+            dataset_rec['experiment_id'], name='Categorical 1', key='cat')
+        data[cat_name_1] = cat1
+        
+    elif col_what == 'Numerical':
+        num_name_3, num3 = blocks.get_numerical(
+            name="Color on", key="num3", exp_id=exp_id,
+            exclude=[num_name_1, num_name_2])
+        data[num_name_3] = num3
+    else:
+        gene_name, expr = blocks.get_expr(
+            "Gene", ds_id)
+        data[gene_name] = expr
+
+    views.Scatter(
+        data=data,
+        zloggable=col_what != 'Categorical',
+        subject=f"{num_name_1} vs {num_name_2}").view()
     
 
     
