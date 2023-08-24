@@ -8,7 +8,6 @@ import anndata
 import click
 import pandas as pd
 from rich.logging import RichHandler
-from rich.pretty import pprint
 import scanpy as sc
 
 import termite.cli.db
@@ -96,7 +95,7 @@ def obsm(name: Optional[str] = None,
 
     if name is not None:
         assert name in adata.obsm_keys()
-        if not name in ao:
+        if name not in ao:
             ao[name] = {}
         if load:
             ao[name]['load'] = True
@@ -171,7 +170,7 @@ def load(filename: Optional[str] = None) -> None:
     globals.init = True
     check()
     termite.h5ad.set1(globals.adata, 'experiment', experiment)
-    if not 'study' in globals.adata.uns['termite']['metadata']:
+    if 'study' not in globals.adata.uns['termite']['metadata']:
         globals.adata.uns['termite']['metadata']['study'] = experiment
 
 
@@ -260,6 +259,7 @@ def todb(logrpm: bool = True,
                     dtype='dimred',
                     dimred_name=o,
                     dimred_dim=i)
+                
         
     layerdata = adata.uns['termite']['layers']
 
@@ -295,23 +295,6 @@ def todb(logrpm: bool = True,
 
 def test():
     # CREATE TABLE help_gene AS
-    sql3 = """
-        SELECT
-            dataset_id,
-            gene,
-            sum(value) as sum,
-            sum(least(value, 1)) / count(value) as fracnonzero
-          FROM expr
-        WHERE dataset_id = 1
-         GROUP BY dataset_id, gene
-         ORDER BY dataset_id ASC, sumval DESC
-         """
-    sql2 = """
-        SELECT dataset_id, gene, value, least(value, 1) as nonzero
-          FROM expr
-         WHERE gene='MALAT1'
-         LIMIT 5
-         """
     sql = """
          select hg.dataset_id, hg.gene, hg.sumval,
                 (select hg.sumval / quantile_cont(sumval, 0.99) from help_gene
@@ -322,25 +305,26 @@ def test():
     return termite.db.raw_sql(sql)
 
             
-from termite.cli.db import f_head as head
-from termite.cli.db import f_status as dbstatus
 
 def sql(sql):
     return termite.db.raw_sql(sql)
     
 def helptables():
+    lg.warning("creating support tables")
     termite.db.helptables()
 
 @cli.command("todb")
 @click.option("-l", "--logrpm", is_flag=True,
               default=True,
               help="autoconvert the raw count layer to logrpm")
+@click.option("-o", "--skipobs", is_flag=True,
+              default=False, help="Skip loading obs data")
 @click.option("-s", "--skiplayers", is_flag=True,
               default=False, help="Skip loading all count data")
 @click.argument('h5adfile')
-def cli_todb(h5adfile, logrpm, skiplayers):
+def cli_todb(h5adfile, logrpm, skipobs, skiplayers):
     load(h5adfile)
-    todb(logrpm=logrpm, skip_layers=skiplayers)
+    todb(logrpm=logrpm, skip_layers=skiplayers, skip_obs=skipobs)
 
 
 @cli.command()
@@ -357,7 +341,6 @@ def shell(h5adfile):
 #cli.add_command(termite.h5ad.h5ad_import)
 #cli.add_command(termite.diffexp.de_run)
 cli.add_command(termite.cli.db.db_group)
-
 
 
 def run():

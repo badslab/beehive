@@ -34,6 +34,16 @@ def short_title(title):
         short_title += '...'
     return short_title
 
+
+def item_title(item_name, item):
+    if 'title' in item:
+        return item['title']
+    else:
+        return item_name.replace('_', ' ').capitalize()
+
+    
+# streamlit components that get/copy state from/to the url bar
+# making bookmarkable views..
 def selectbox_mem(
         context: DeltaGenerator,
         label: str,
@@ -53,15 +63,19 @@ def selectbox_mem(
         qp[key] = st.session_state[key]
         st.experimental_set_query_params(**qp)
 
-    if default is not None and default in options:
+    # find out what index to point to
+    idx = 0 # 
+    if key in qp:
+        # do we have the key in the URL?
+        # url takes precedence
+        qval = qp[key][0]
+        if qval in options:
+            idx = options.index(qval)            
+    elif default is not None and default in options:
+        # is there a default specified?
         idx = options.index(default)
     else:
         idx = index
-        
-    if key in qp:
-        qval = qp[key][0]
-        if qval in options:
-            idx = options.index(qval)
 
     sbargs = {}
     if format_func is not None:
@@ -69,13 +83,6 @@ def selectbox_mem(
         
     return context.selectbox(label, options, key=key, index=idx,
                              on_change=update_query_param, **sbargs)
-
-
-def item_title(item_name, item):
-    if 'title' in item:
-        return item['title']
-    else:
-        return item_name.replace('_', ' ').capitalize()
 
     
 def textbox_mem(
@@ -102,6 +109,29 @@ def textbox_mem(
         
     return context.text_input(label, key=key, value=dvalue,
                              on_change=update_query_param)
+
+def checkbox_mem(
+        context: DeltaGenerator,
+        label: str,
+        default: bool = False,
+        key: Optional[str]=None) -> str:
+
+    if key is None:
+        key = label.lower().replace(' ', '')
+        
+    qp = st.experimental_get_query_params()
+    def update_query_param():
+        qp[key] = st.session_state[key]
+        st.experimental_set_query_params(**qp)
+
+    # set default value via session state - otherwise we get
+    # errors when we update this through other methods
+    dvalue = default
+    if key in qp:
+        dvalue = bool(qp[key][0])
+        
+    return context.checkbox(label, key=key, value=dvalue,
+                            on_change=update_query_param)
 
 
 def execute_sql(

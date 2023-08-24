@@ -13,6 +13,6 @@ class GLOBALS:
     adata: AnnData = field(default_factory=AnnData)
     h5adfile: Path = field(default_factory=Path)
     init: bool = False
-    
 
+    
 globals = GLOBALS()

@@ -9,7 +9,7 @@ import pandas as pd
 
 
 lg = logging.getLogger(__name__)
-
+lg.setLevel(logging.DEBUG)
 
 CONNECTION: Optional[duckdb.DuckDBPyConnection] = None
 
@@ -31,7 +31,6 @@ def get_conn() -> duckdb.DuckDBPyConnection:
     """ Return a global duckdb connection. One db per instance. """
     global CONNECTION
     if CONNECTION is None:
-        lg.debug("database is not initialized")
         return init_conn()
     return CONNECTION
 
@@ -333,8 +332,7 @@ def helptables(
 
     if conn is None:
         conn = get_conn()
-
-    if what and what in "help_dataset":
+    if not what or what in "help_dataset":
         lg.info("Create experiment help table")
         conn.sql("DROP TABLE IF EXISTS help_dataset")
         conn.sql("""
@@ -346,25 +344,7 @@ def helptables(
                 FROM expr
                GROUP BY dataset_id""")
 
-    # if what and what in "help_obs_cat":
-    #     lg.info("Create obs_cat help table")
-    #     conn.sql("DROP TABLE IF EXISTS help_obs_cat")
-    #     conn.sql("""
-    #        CREATE TABLE help_obs_cat AS
-    #            SELECT exp_id, name 
-    #              FROM obs_cat
-    #             GROUP BY exp_id, name """)
-
-    # if what and what in "help_obs_num":
-    #     lg.info("Create obs_num help table")
-    #     conn.sql("DROP TABLE IF EXISTS help_obs_num")
-    #     conn.sql("""
-    #            CREATE TABLE help_obs_num AS
-    #            SELECT DISTINCT exp_id, name
-    #              FROM obs_num
-    #             GROUP BY exp_id, name """)
-
-    if what and what in "help_gene":
+    if not what or what in "help_gene":
         lg.info("Create help_gene table")
         conn.sql("DROP TABLE IF EXISTS help_gene")
         conn.sql("""
