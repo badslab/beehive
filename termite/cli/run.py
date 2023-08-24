@@ -149,6 +149,28 @@ def check():
     else:
         termite.h5ad.check(globals.adata)
 
+def register(h5adfile: Path | str,
+             adata) -> None:
+
+    if isinstance(h5adfile, str):
+        h5adfile = Path(h5adfile)
+
+    basename = h5adfile.name
+    if not basename.endswith('.h5ad'):
+        lg.warning("h5adfile must end with '.h5ad' extension")
+    experiment = basename[:-5]
+    lg.info(f"experiment name: {experiment}")
+    
+    globals.h5adfile = h5adfile
+    globals.adata = adata
+    globals.init = True
+    check()
+
+    termite.h5ad.set1(globals.adata, 'experiment', experiment)
+    if not 'study' in globals.adata.uns['termite']['metadata']:
+        globals.adata.uns['termite']['metadata']['study'] = experiment
+
+
         
 def load(filename: Optional[str] = None) -> None:
     if filename is None:
