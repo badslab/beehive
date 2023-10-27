@@ -2,24 +2,20 @@
 name = "termite"
 authors = [
         {name="Mark Fiers", email="mark@fie.rs"}]
-version = "0.0.2"
+version = "0.0.3"
 
 dependencies = [
-    "altair",
-    "click",
-    "duckdb",
+    #"altair",
+    #"click",
+    #"duckdb",
     "numpy",
     "pandas",
-    "plotly",
-    "pymed", 
-    "scanpy",
-    "streamlit",
+    #"plotly",
+    "pymed",
+    #"scanpy",
+    #"streamlit",
     'importlib-metadata; python_version<"3.8"',
 ]
-
-
-[project.scripts]
-termite = "termite.cli.run:run"
 
 [build-system]
 requires = ["setuptools"]
