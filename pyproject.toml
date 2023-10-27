@@ -1,19 +1,13 @@
 [project]
-name = "termite"
+name = "cellhive"
 authors = [
         {name="Mark Fiers", email="mark@fie.rs"}]
-version = "0.0.3"
+version = "0.0.4"
 
 dependencies = [
-    #"altair",
-    #"click",
-    #"duckdb",
     "numpy",
     "pandas",
-    #"plotly",
     "pymed",
-    #"scanpy",
-    #"streamlit",
     'importlib-metadata; python_version<"3.8"',
 ]
 
