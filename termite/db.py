@@ -9,20 +9,22 @@ import pandas as pd
 
 
 lg = logging.getLogger(__name__)
-lg.setLevel(logging.DEBUG)
+lg.setLevel(logging.INFO)
+
 
 CONNECTION: Optional[duckdb.DuckDBPyConnection] = None
 
 
 def init_conn(dbfile: Optional[str] = None)  -> duckdb.DuckDBPyConnection:
     global CONNECTION
-    
+
     if CONNECTION is not None:
         lg.debug("database already initialized?")
         exit(-1)
-        
+
     if dbfile is None:
         dbfile = os.environ['TERMITE_DB']
+
     CONNECTION = duckdb.connect(dbfile)
     return CONNECTION
 
@@ -46,12 +48,12 @@ def raw_sql(sql: str,
             conn: Optional[duckdb.DuckDBPyConnection] = None,
             ) -> pd.DataFrame:
     """Run SQL and return a Pandas Dataframe of the results."""
-    
+
     if conn is None:
         conn = get_cursor()
-        
+
     result = conn.sql(sql)
-    
+
     if result is None:
         # empty dataframe in the case
         # the query returns nothing
@@ -68,7 +70,7 @@ def all_genes(exp_id: int) -> List[str]:
              ORDER BY gene""")
 
     return list(md['gene'])
-    
+
 
 # @st.cache_data() # (persist='disk')
 def find_gene_candidates(
@@ -85,7 +87,7 @@ def find_gene_candidates(
     else:
         return md.iloc[0]['topgenes'].split()
 
-    
+
 # @st.cache_data() # (persist='disk')
 def find_dimreds(
         exp_id: int) -> List[str]:
@@ -101,7 +103,7 @@ def find_dimreds(
     else:
         return md.iloc[0]['dimred'].split()
 
-    
+
 # @st.cache_data
 def fuzzy_gene_search(exp_id: int,
                       gene: str):
@@ -154,8 +156,8 @@ def forget(exp_id: int):
         except duckdb.CatalogException:
             #assume the table does not exist?
             pass
-    
-    
+
+
 # def get_expr_obscat_two(experiment, datatype, gene, cat1, cat2):
 #     return raw_sql(f"""
 #            SELECT expr.obs,
@@ -165,10 +167,10 @@ def forget(exp_id: int):
 #              FROM expr
 #              JOIN obs_cat as occ1
 #                ON (expr.experiment = occ1.experiment
-#                    AND expr.obs = occ1.obs) 
+#                    AND expr.obs = occ1.obs)
 #              JOIN obs_cat as occ2
 #                ON (expr.experiment = occ2.experiment
-#                    AND expr.obs = occ2.obs) 
+#                    AND expr.obs = occ2.obs)
 #             WHERE expr.experiment='{experiment}'
 #               AND expr.gene='{gene}'
 #               AND expr.datatype='{datatype}'
@@ -183,7 +185,7 @@ def forget(exp_id: int):
 #         gene: str,
 #         cat: str,
 #         conn: Optional[duckdb.DuckDBPyConnection] = None):
-    
+
 #     sql = f"""
 #            SELECT expr.obs,
 #                   expr.value as num,
@@ -191,7 +193,7 @@ def forget(exp_id: int):
 #              FROM expr
 #              JOIN obs_cat as occ1
 #                ON (expr.experiment = occ1.experiment
-#                    AND expr.obs = occ1.obs) 
+#                    AND expr.obs = occ1.obs)
 #             WHERE expr.experiment='{experiment}'
 #               AND expr.gene='{gene}'
 #               AND expr.datatype='{datatype}'
@@ -239,14 +241,14 @@ def get_expr_gene(exp_id: int,
 #         numname: str,
 #         catname: str,
 #         conn: Optional[duckdb.DuckDBPyConnection] = None):
-    
+
 #     sql = f"""
 #            SELECT num1.value as num,
 #                   cat1.value as cat,
-#              FROM obs_num as num1 
+#              FROM obs_num as num1
 #              JOIN obs_cat as cat1
 #                ON (num1.exp_id = cat1.exp_id
-#                    AND num1.obs = cat1.obs) 
+#                    AND num1.obs = cat1.obs)
 #             WHERE num1.exp_id={exp_id}
 #               AND num1.name='{numname}'
 #               AND cat1.name='{catname}'
@@ -262,7 +264,7 @@ def get_expr_gene(exp_id: int,
 
 #     if conn is None:
 #         conn = get_conn()
-        
+
 #     sql = f"""
 #            SELECT expr.obs,
 #                   expr.value as expr,
@@ -270,7 +272,7 @@ def get_expr_gene(exp_id: int,
 #              FROM expr
 #              JOIN obs_num as ocn1
 #                ON (expr.experiment = ocn1.experiment
-#                    AND expr.obs = ocn1.obs) 
+#                    AND expr.obs = ocn1.obs)
 #             WHERE expr.experiment='{experiment}'
 #               AND expr.gene='{gene}'
 #               AND expr.datatype='{datatype}'
@@ -286,7 +288,7 @@ def get_obs_category(exp_id: int,
 
     if conn is None:
         conn = get_cursor()
-        
+
     sql = f"""SELECT obs_cat.value,
                      count(*) as count
                FROM obs_cat
@@ -300,10 +302,10 @@ def get_obs_category(exp_id: int,
 
 def table_exists(table,
                  conn: Optional[duckdb.DuckDBPyConnection] = None) -> bool:
-    
+
     if conn is None:
         conn = get_conn()
-        
+
     rv = raw_sql(f"""
         SELECT EXISTS(
             SELECT 1 FROM information_schema.tables
@@ -317,13 +319,13 @@ def table_count(table: str,
 
     if conn is None:
         conn = get_conn()
-        
+
     if not table_exists(table, conn=conn):
         return -1
-    
+
     rv = conn.sql(f"SELECT count(*) FROM {table}").df().iloc[0,0]
     return rv
-    
+
 
 
 def helptables(
@@ -363,7 +365,7 @@ def autoincrementor(table, field, value) -> int:
                                 FROM {table}
                                WHERE {field} = '{value}' """)
         if len(result) > 0:
-            return result.iloc[0,0]        
+            return result.iloc[0,0]
     except duckdb.CatalogException:
         # table does not exist?
         pass
@@ -377,7 +379,7 @@ def autoincrementor(table, field, value) -> int:
         # table does not exist?
         max_id = 0
     return max_id + 1
-    
+
 
 def create_or_append(
         table: str,
@@ -394,7 +396,7 @@ def create_or_append(
 
     lg.debug(f"appending to {table} dataframe { local_df.shape }")
     local_df = local_df.sort_index(axis=1)
-    
+
     #create a table - or if it exists - append
     if not table_exists(table):
         #lg("create & insert", table, local_df.shape)
@@ -404,11 +406,11 @@ def create_or_append(
         sql = f"INSERT INTO '{table}' SELECT * FROM local_df"
         conn.sql(sql)
 
-        
+
 def all_table_count(conn: Optional[duckdb.DuckDBPyConnection] = None):
     if conn is None:
         conn = get_conn()
-    
+
     rv = {}
     for _, table in conn.sql('SHOW ALL TABLES').df().iterrows():
         t = table.loc['name']
@@ -416,17 +418,16 @@ def all_table_count(conn: Optional[duckdb.DuckDBPyConnection] = None):
         rv[t] = c
     return rv
 
-    
+
 
 def drop_db(conn: Optional[duckdb.DuckDBPyConnection] = None):
     """Drop all tables."""
     if conn is None:
         conn = get_conn()
-        
+
     for _, table in conn.sql('SHOW ALL TABLES').df().iterrows():
         norec = table_count(table.loc["name"])
         print(f'Drop {table} (no rec: {norec}')
         conn.sql(f'DROP TABLE IF EXISTS {table}')
     conn.execute("VACUUM")
     conn.execute("CHECKPOINT")
-

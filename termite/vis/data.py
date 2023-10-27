@@ -1,7 +1,39 @@
 
-from os import name
+import pandas as pd
+
 from termite.vis import util
 from termite.util import cache
+
+
+def get_experiments(
+        db=None) -> pd.DataFrame:
+
+    return util.execute_sql(
+        sql="""
+        SELECT
+            experiment_id,
+            concat_ws(', ', title, author,
+                      concat_ws(':', 'organism', organism),
+                      concat_ws(':', 'version', version),
+                      experiment) as full
+        FROM
+            dataset_md
+        LIMIT 100""", db=db)
+
+
+def get_datasets(exp_id: int,
+                 db = None) -> pd.DataFrame:
+    return util.execute_sql(
+        sql=f"""
+        SELECT
+            dataset_id,
+            concat_ws(', ', layername, layertype) as full
+        FROM
+            dataset_md
+        WHERE
+            experiment_id={exp_id}
+        LIMIT 100
+        """, db=db)
 
 
 def get_dataset_stats(ds_id):
@@ -29,7 +61,7 @@ def get_categ_data_exp(exp_id):
 
 
 @cache.memoize(typed=True, expire=3600)
-def get_obs_cat(exp_id, name):
+def get_obs_cat(exp_id, name: str):
     rv = util.execute_sql(
         sql=f"""
         SELECT obs, value
@@ -38,30 +70,34 @@ def get_obs_cat(exp_id, name):
            AND name='{name}'
         """).set_index('obs')['value']
     rv.name = name
+    rv = rv.astype(str)  ## ensure this is a string!
     return rv
 
 
 @cache.memoize(typed=True, expire=3600)
 def get_obs_num(exp_id, name):
-    rv = util.execute_sql(
-        sql=f"""
+    sql=f"""
         SELECT obs, value
           FROM obs_num
          WHERE exp_id={exp_id}
            AND name='{name}'
-        """).set_index('obs')['value']
+        """
+
+    print(sql)
+    rv = util.execute_sql(sql).set_index('obs')['value']
+
     rv.name = name
     return rv
 
 
 @cache.memoize(typed=True, expire=3600)
-def get_expr(ds_id, gene):
+def get_expr(ds_id, name):
     rv = util.execute_sql(
         f"""SELECT obs, value
               FROM expr
              WHERE dataset_id = {ds_id}
-               AND gene = '{gene}' """).set_index('obs')['value']
-    rv.name = gene
+               AND gene = '{name}' """).set_index('obs')['value']
+    rv.name = name
     return rv
 
 
@@ -114,8 +150,8 @@ def get_topgenes(ds_id):
 #          WHERE exp_id={exp_id}
 #            AND name='{name}'
 #         """)
-    
-    
+
+
 # def get_topgenes(ds_id):
 #     db = get_conn()
 #     return util.execute_sql(
@@ -166,8 +202,8 @@ def get_topgenes(ds_id):
 #          WHERE exp_id={exp_id}
 #            AND name='{name}'
 #         """)
-    
-    
+
+
 # def get_topgenes(ds_id):
 #     db = get_conn()
 #     return util.execute_sql(

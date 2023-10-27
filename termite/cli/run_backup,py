@@ -1,6 +1,5 @@
 
 import logging
-import os
 from pathlib import Path
 from typing import Optional
 import textwrap
@@ -28,60 +27,33 @@ lg = logging.getLogger('termite')
 lg.info("Start termite!")
 
 
-def in_jupyter() -> bool:
-    """Check if we're called from jupyter."""
-    return 'JPY_PARENT_PID' in os.environ
-
-
-def where_is_adata(func):
-    "Decorator to get adata from *args or `globals`"
-    def call(*args, **kwargs):
-        if len(args) == 1 and isinstance(args[0], sc.AnnData):
-            adata = args[0]
-        else:
-            adata = globals.adata
-        return func(adata, **kwargs)
-    return call
-
-
 @click.group("cli")
-def cli() -> None:
+def cli():
     pass
 
 
-@where_is_adata
-def md(adata, **kwargs):
+def md(**kwargs):
     """Show or set metadata"""
-
     if 'pubmed' in kwargs:
         pubmed_id = kwargs['pubmed']
         pmd = termite.util.query_pubmed(pubmed_id)
-        termite.h5ad.set1(adata, 'author', pmd['author'])
-        termite.h5ad.set1(adata, 'title', pmd['title'])
-        termite.h5ad.set1(adata, 'year', pmd['year'])
-        termite.h5ad.set1(adata, 'abstract', pmd['abstract'])
-        termite.h5ad.set1(adata, 'doi', pmd['doi'])
+        termite.h5ad.set1(globals.adata, 'author', pmd['author'])
+        termite.h5ad.set1(globals.adata, 'title', pmd['title'])
+        termite.h5ad.set1(globals.adata, 'year', pmd['year'])
+        termite.h5ad.set1(globals.adata, 'abstract', pmd['abstract'])
+        termite.h5ad.set1(globals.adata, 'doi', pmd['doi'])
 
     for k, v in kwargs.items():
-        termite.h5ad.set1(adata, k, v)
-
-    if 'termite' not in adata.uns:
-        print("no annotations")
-        return
-
-    if in_jupyter():
-        return adata.uns['termite']['metadata']
-
-    # not in jupyter - print to screen
-    for k, v in adata.uns['termite']['metadata'].items():
+        termite.h5ad.set1(globals.adata, k, v)
+    
+    for k, v in globals.adata.uns['termite']['metadata'].items():
         print(k + ": " + "\n".join(
             textwrap.wrap(str(v), subsequent_indent='...')))
 
-
-@where_is_adata
-def get_layerdata(adata, *args):
+        
+def get_layerdata():
     """Create stats on the layers in this adata"""
-    ldata = adata.uns['termite']['layers']
+    ldata = globals.adata.uns['termite']['layers']
     d = []
     def check_layer(name: str,
                     X):
@@ -89,7 +61,7 @@ def get_layerdata(adata, *args):
         if isinstance(
                 X, anndata._core.sparse_dataset.SparseDataset):
             X = X.value.todense()
-
+            
         row = {}
         row['name'] = name
         row['dtype'] = X.dtype
@@ -98,7 +70,7 @@ def get_layerdata(adata, *args):
         row['entries'] = entries = X.shape[0] * X.shape[1]
         row['min'] = X.min()
         row['max'] = X.max()
-
+        
         zeros = len((X==0).nonzero()[0])
         perc_zeros = 100 * zeros / entries
         row['zeros'] = zeros
@@ -107,19 +79,17 @@ def get_layerdata(adata, *args):
         row['termite_type'] = ldata.get(name, {}).get('type', '-')
         row['import?'] = ldata.get(name, {}).get('load', '-')
 
-    check_layer('X', adata.X)
-    for layer in adata.layers.keys():
-        check_layer(layer, adata.layers[layer])
+    check_layer('X', globals.adata.X)
+    for layer in globals.adata.layers.keys():
+        check_layer(layer, globals.adata.layers[layer])
 
     df = pd.DataFrame(d)
     return df
 
 
-@where_is_adata
-def obsm(adata: sc.AnnData,
-         name: Optional[str] = None,
+def obsm(name: Optional[str] = None,
          load: bool = True):
-
+    adata = globals.adata
     termite.h5ad.check(adata)
     ao = adata.uns['termite']['obsm']
 
@@ -129,7 +99,7 @@ def obsm(adata: sc.AnnData,
             ao[name] = {}
         if load:
             ao[name]['load'] = True
-
+        
     rv = []
     for o in adata.obsm_keys():
         rv.append(dict(name=o,
@@ -140,73 +110,46 @@ def obsm(adata: sc.AnnData,
     return rv
 
 
-@where_is_adata
-def layers(adata, name=None, ltype=None, load=None) -> Optional[pd.DataFrame]:
+def layers(name=None, ltype=None, load=None) -> Optional[pd.DataFrame]:
     """Get or set layer data.
 
     Usage:
        layers(): returns a dataframe
-       layers(name='layername', [type='layertype', [load=True/False]]):
+       layers(name='layername', [type='layertype', [load=True/False]]): 
     """
     if name is not None:
-        ldata = adata.uns['termite']['layers']
+        ldata = globals.adata.uns['termite']['layers']
         if name not in ldata:
             ldata[name] = {}
-
+            
         if ltype is not None:
             ldata[name]['type'] = ltype
         if load is not None:
             ldata[name]['load'] = load
         return
-
+    
     df = get_layerdata()
     return df.T
 
 
-@where_is_adata
-def save(adata,
-         filename: Optional[str] = None):
+def save(filename: Optional[str] = None):
 
     if filename is None:
-        h5adfile = h5adfile
+        h5adfile = globals.h5adfile
     else:
         h5adfile = Path(filename)
-
+        
     lg.info(f"Saving adata to {h5adfile}")
-    adata.write_h5ad(h5adfile)
+    globals.adata.write_h5ad(h5adfile)
 
-
-@where_is_adata
-def check(adata: sc.AnnData):
+    
+def check():
     if not globals.init:
         lg.warning("no adata loaded?")
     else:
-        termite.h5ad.check(adata)
+        termite.h5ad.check(globals.adata)
 
-
-def register(h5adfile: Path | str,
-             adata) -> None:
-
-    if isinstance(h5adfile, str):
-        h5adfile = Path(h5adfile)
-
-    basename = h5adfile.name
-    if not basename.endswith('.h5ad'):
-        lg.warning("h5adfile must end with '.h5ad' extension")
-    experiment = basename[:-5]
-    lg.info(f"experiment name: {experiment}")
-
-    globals.h5adfile = h5adfile
-    globals.adata = adata
-    globals.init = True
-    check()
-
-    termite.h5ad.set1(globals.adata, 'experiment', experiment)
-    if not 'study' in globals.adata.uns['termite']['metadata']:
-        globals.adata.uns['termite']['metadata']['study'] = experiment
-
-
-
+        
 def load(filename: Optional[str] = None) -> None:
     if filename is None:
         if not globals.init:
@@ -239,8 +182,8 @@ def obs_conv_skip(name):
     pass
 def obs_conv_categorical(name):
     globals.adata.obs[name] = globals.adata.obs[name].astype(str)
-
-
+    
+    
 OBS_CONV_FUNCTIONS = {
     'int': obs_conv_int,
     'float': obs_conv_float,
@@ -248,8 +191,13 @@ OBS_CONV_FUNCTIONS = {
     'skip': obs_conv_skip}
 
 
-def obs(name=None, dtype=None, nice_name=None, what=None) -> Optional[pd.DataFrame]:
+def obs(name=None,
+        dtype=None,
+        nice_name=None,
+        what=None) -> Optional[pd.DataFrame]:
+    
     termite.h5ad.check(globals.adata)
+    
     if name is not None:
         td = globals.adata.uns['termite']
         if dtype is not None:
@@ -260,7 +208,7 @@ def obs(name=None, dtype=None, nice_name=None, what=None) -> Optional[pd.DataFra
                 lg.warning(f"Convert obs column {name} to {dtype}")
                 OBS_CONV_FUNCTIONS[dtype](name)
                 td['obs_force'][name] = dtype
-
+            
         if nice_name is not None:
             td['obs_nice'][name] = nice_name
 
@@ -283,7 +231,7 @@ def todb(logrpm: bool = True,
          skip_obs: bool = False,
          skip_obsm: bool = False,
          dim2load: int=2 ) -> None:
-
+     
     adata = globals.adata
     termite.h5ad.check(adata)
 
@@ -316,15 +264,15 @@ def todb(logrpm: bool = True,
                     dtype='dimred',
                     dimred_name=o,
                     dimred_dim=i)
-
-
+                
+        
     layerdata = adata.uns['termite']['layers']
 
     logrpm_in_adata = False
     for lname, ldata in layerdata.items():
         if ldata.get('type') == 'logrpm':
             logrpm_in_adata = True
-
+        
     for lname, ldata in layerdata.items():
         if not ldata.get('load'):
             lg.info(f"Skipping load of layer {lname}")
@@ -344,7 +292,7 @@ def todb(logrpm: bool = True,
 
         if ltype == 'raw' and (not logrpm_in_adata) and logrpm:
             dataset_id_2 = termite.h5ad.import_experiment_md(
-                adata, 'auto_logrpm', 'logrpm')
+                adata, 'auto_logrpm', 'logrpm') 
             if not skip_layers:
                 termite.h5ad.import_counts(
                     dataset_id_2, adata, lname, normalize='logrpm')
@@ -361,11 +309,11 @@ def test():
           """
     return termite.db.raw_sql(sql)
 
-
+            
 
 def sql(sql):
     return termite.db.raw_sql(sql)
-
+    
 def helptables():
     lg.warning("creating support tables")
     termite.db.helptables()

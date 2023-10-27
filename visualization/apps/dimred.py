@@ -5,8 +5,7 @@ import pandas as pd
 import streamlit as st
 import views
 
-from termite.vis import util as vutil
-from termite import util
+from termite.vis import util
 
 def dimred():
 
@@ -18,36 +17,33 @@ def dimred():
     exp_id = dataset_rec['experiment_id']
     dimred = blocks.get_dimred_name(exp_id)
 
-    color_what = vutil.selectbox_mem(
-        st.sidebar, "Color on",
-        options=["Gene", "Numeric md", "Categorical md"],
-        key='colon')
 
-    #if color_what == 'gene'
+    col_what, col_name, col = blocks.get_gcn(
+        "Color on", ds_id, exp_id, key='color')
 
-    gene = blocks.get_gene('gene', dataset_id =ds_id)
-    gene_expr = blocks.get_expr(dataset_id=ds_id, gene=gene)
+    filter_what, filter_name, filter_col = blocks.get_gcn(
+        "Filter on", ds_id, exp_id, key='filter',
+        allow_nothing=True)
+
+    
     dim1 = blocks.get_obs_num(exp_id=exp_id, colname=f"{dimred}/00")
     dim2 = blocks.get_obs_num(exp_id=exp_id, colname=f"{dimred}/01")
 
-    data = pd.DataFrame(dict(dim1=dim1, dim2=dim2, zcol=gene_expr))
-
     
-    scatter = partial(
-        views.scatter,
-        labels=dict(
-            dim1=f"{dimred}/00", 
-            dim2=f"{dimred}/01",
-            zcol=gene)
-        )
+    data = pd.DataFrame(
+        {'dim1': dim1,
+         'dim2': dim2,
+         })
+    
+    data = data.merge(col, how='inner', left_index=True, right_index=True)
 
-    view = vutil.DictSelect(
-        "View",
-        dict(Scatter=scatter,
-             ))
+    if filter_what != "None":
+        data = data.merge(filter_col, how='inner', left_index=True, right_index=True)
+        
+    views.Multi(
+        views.Scatter(data=data, xloggable=False, yloggable=False,
+                      zloggable=(col_what != 'Cat'),
+                      pointsize=3, subject=f"{dimred}"),
 
-
-    ctxPlot = st.empty()
-    ctxParam = st.container()
-    view(data, ctxPlot, ctxParam)
+    ).view()
     

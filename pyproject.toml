@@ -3,13 +3,15 @@ name = "termite"
 authors = [
         {name="Mark Fiers", email="mark@fie.rs"}]
 version = "0.0.2"
+
 dependencies = [
+    "altair",
     "click",
     "duckdb",
     "numpy",
-    "pymed", 
     "pandas",
     "plotly",
+    "pymed", 
     "scanpy",
     "streamlit",
     'importlib-metadata; python_version<"3.8"',
@@ -22,3 +24,8 @@ termite = "termite.cli.run:run"
 [build-system]
 requires = ["setuptools"]
 build-backend = "setuptools.build_meta"
+
+[tool.pylsp-mypy]
+enabled = true
+live_mode = true
+strict = true

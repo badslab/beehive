@@ -1,4 +1,6 @@
 
+
+import logging
 from textwrap import dedent
 from urllib.parse import quote
 
@@ -12,6 +14,7 @@ from termite.vis import util
 
 import blocks
 
+lg = logging.getLogger(__name__)
 
 def dataset():
 
@@ -54,11 +57,11 @@ def dataset():
         return f'<a href="{url}" target="_self">{gene}</a>'
     def format_cat(c):
         cq = quote(c)
-        url = f"/?app=categ&dataset={ds_quote}&exp={exp_quote}&categorical={cq}"
+        url = f"/?app=categ&dataset={ds_quote}&exp={exp_quote}&cat={cq}"
         return f'<a href="{url}" target="_self">{c}</a>'
     def format_num(c):
         cq = quote(c)
-        url = f"/?app=numer&dataset={ds_quote}&exp={exp_quote}&numerical={cq}"
+        url = f"/?app=numer&dataset={ds_quote}&exp={exp_quote}&num={cq}"
         return f'<a href="{url}" target="_self">{c}</a>'
     
     obscat = "&nbsp;&middot;&nbsp;".join(
@@ -82,11 +85,11 @@ def dataset():
                    obsfloat=obsfloat, obsint=obsint)),
                 unsafe_allow_html=True)
 
-
 def categorical():
     dataset_rec = blocks.get_dataset()
-    categ_name = blocks.get_categorical(dataset_rec['experiment_id'])
-    cat = vdata.get_obs_cat(dataset_rec['experiment_id'], categ_name)
+    exp_id=dataset_rec['experiment_id']
+    ds_id=dataset_rec['dataset_id']
+    categ_name, cat = blocks.get_categorical(exp_id)
     cvc = cat.value_counts()
     cvc.index = cvc.index.astype(str)
     cvc.index.name = categ_name
@@ -148,8 +151,7 @@ def numnum():
     
 def numerical():
     dataset_rec = blocks.get_dataset()
-    num_name = blocks.get_numerical(dataset_rec['experiment_id'])
-    num = vdata.get_obs_num(dataset_rec['experiment_id'], num_name)
+    num_name, num = blocks.get_numerical(dataset_rec['experiment_id'])
     vargs = dict(data=num, subject=num_name)
     views.Multi(
         views.Ecdf(**vargs),

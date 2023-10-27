@@ -21,7 +21,7 @@ if not cache_folder.exists():
 lg.warning(f"caching to {cache_folder}")
 cache = FanoutCache(directory=str(cache_folder), expire=60*60)
 
-    
+
 def prep_sql(sql, data):
     sql = sql.format(**data)
     return sql
@@ -33,7 +33,7 @@ def execute_sql(item, dip):
     df = dip.conn.execute(sql).df()
     lg.debug(f"result: {len(df)} records")
     return df
-    
+
 
 def raw_sql_timer(func):
     from sql_formatter.core import format_sql
