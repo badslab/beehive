@@ -1,35 +1,103 @@
 
-import os
-import textwrap
-from pathlib import Path
-from typing import Optional
+import logging
+from typing import Any, Dict, Optional
 
 import anndata
 import pandas as pd
 import scanpy as sc
 import scipy
+from anndata import AnnData
 
-from termite.util import query_pubmed
+from .util import query_pubmed
 
-# import termite.cli.db
-# import termite.db
-from . import h5ad
-
-
-def in_jupyter() -> bool:
-    """Check if we're called from jupyter."""
-    return 'JPY_PARENT_PID' in os.environ
+lg = logging.getLogger(__name__)
 
 
-def where_is_adata(func):
-    "Decorator to get adata from *args or `globals`"
-    def call(*args, **kwargs):
-        if len(args) == 1 and isinstance(args[0], sc.AnnData):
-            adata = args[0]
-        else:
-            adata = globals.adata
-        return func(adata, **kwargs)
-    return call
+mandatory_metadata = dict([
+    a.strip().split(None, 1) for a in
+    """
+    author          who's responsible?
+    title           Title for this dataset
+    organism        Organism this data dervies from
+    study           short study identifier to group experiments
+    experiment      short experiment identifiers unique for this dataset
+    """.strip().split("\n")])
+
+
+def prepare(adata: AnnData) -> None:
+    """Check h5ad."""
+
+    if 'cellhive' not in adata.uns:
+        adata.uns['cellhive'] = {}
+
+    for sub in ['layers', 'metadata', 'obs', 'obsm']:
+        if sub not in adata.uns['cellhive']:
+            adata.uns['cellhive'][sub] = {}
+
+    for old in ['obs_keep', 'behave_obs_meta', 'obs_skip',
+                'termite']:
+        if old in adata.uns:
+            del adata.uns[old]
+
+
+def check(adata: AnnData) -> None:
+    """
+    Checks if metadata fields are defined in AnnData object.
+
+    Parameters:
+    - adata (AnnData): Annotated data object.
+
+    Returns:
+    - None
+
+    Raises:
+    - None
+    """
+    # Get the keys of the metadata in the AnnData object
+    mdkeys = adata.uns['cellhive']['metadata'].keys()
+
+    msg = []
+
+    # Check if each mandatory metadata field is defined
+    for k, v in mandatory_metadata.items():
+        if k not in mdkeys:
+            # Print a warning message if the field is not defined
+            msg.append(f"Warning: Metadata field '{k}' not defined: {v}")
+
+    adata.uns['cellhive']['metadata']['version'] = \
+        str(adata.uns['cellhive']['metadata']['version'])
+
+    if len(adata.obsm_keys()) == 0:
+        msg.append("No UMAP/TSNE data (obsm is empty)")
+
+    if len(msg) == 0:
+        print("All seems fine")
+    else:
+        for m in msg:
+            print(m)
+
+
+def set1(adata: AnnData, key: str, value: Any) -> None:
+    """
+    Set one key/value in the cellhive data structure.
+
+    Parameters:
+    - adata (AnnData): Annotated data object.
+    - key (str): Key to set in the metadata field.
+    - value (Any): Value to assign to the specified key.
+
+    Returns:
+    - None
+
+    Raises:
+    - None
+    """
+    # Ensure the cellhive data structure is prepared
+    prepare(adata)
+
+    # Set the key/value in the metadata field of the cellhive data structure
+    adata.uns['cellhive']['metadata'][key] = value
+
 
 def md(adata, **kwargs):
     """
@@ -41,41 +109,37 @@ def md(adata, **kwargs):
     if 'pubmed' in kwargs:
         pubmed_id = kwargs['pubmed']
         pmd = query_pubmed(pubmed_id)
-        print(pmd)
-        h5ad.set1(adata, 'author', pmd['author'])
-        h5ad.set1(adata, 'title', pmd['title'])
-        h5ad.set1(adata, 'year', pmd['year'])
-        h5ad.set1(adata, 'abstract', pmd['abstract'])
-        h5ad.set1(adata, 'doi', pmd['doi'])
+        set1(adata, 'author', pmd['author'])
+        set1(adata, 'title', pmd['title'])
+        set1(adata, 'year', pmd['year'])
+        set1(adata, 'abstract', pmd['abstract'])
+        set1(adata, 'doi', pmd['doi'])
 
     for k, v in kwargs.items():
-        h5ad.set1(adata, k, v)
+        set1(adata, k, v)
 
-    if 'termite' not in adata.uns:
+    if 'cellhive' not in adata.uns:
         print("no annotations")
         return
 
-    if in_jupyter():
-        return adata.uns['termite']['metadata']
-
-    # not in jupyter - print to screen
-    for k, v in adata.uns['termite']['metadata'].items():
-        print(k + ": " + "\n".join(
-            textwrap.wrap(str(v), subsequent_indent='...')))
+    return adata.uns['cellhive']['metadata']
 
 
 def get_layerdata(adata):
     """Create stats on the layers in this adata"""
-    ldata = adata.uns['termite']['layers']
-    d = []
+    ldata = adata.uns['cellhive']['layers']
+
     def check_layer(name: str, X):
+
+        if name not in ldata:
+            ldata[name] = {}
 
         if isinstance(X, anndata._core.sparse_dataset.SparseDataset):
             X = X.value.todense()
         elif isinstance(X, scipy.sparse._csr.csr_matrix):
             X = X.todense()
 
-        row = {}
+        row: Dict[str, Any] = {}
         row['name'] = name
         row['dtype'] = X.dtype
         row['rows'] = X.shape[0]
@@ -86,23 +150,43 @@ def get_layerdata(adata):
 
         zeros = len((X==0).nonzero()[0])
         perc_zeros = 100 * zeros / entries
-        row['zeros'] = zeros
+
+        row['no_zeros'] = zeros
         row['% zeros'] = perc_zeros
-        d.append(row)
-        row['termite_type'] = ldata.get(name, {}).get('type', '-')
-        row['ignore?'] = ldata.get(name, {}).get('ignore', 'no')
+        row['ignore?'] = ldata.get(name, {}).get('ignore', '-')
+        row['description'] = ldata.get(name, {}).get('description', '-')
 
-    check_layer('X', adata.X)
+        chtype = ldata.get(name, {}).get('type', '-')
+        if chtype == '-':
+            looks_like_int = (row['max'] == int(row['max']))
+            if looks_like_int and row['max'] > 500:
+                # I think this may be raw counts
+                lg.warning(f"Setting layer {name} to type count!")
+                chtype = ldata[name]['type'] = 'count'
+            elif not looks_like_int and row['max'] > 500:
+                # I think this may be rpm counts
+                lg.warning(f"Setting layer {name} to type: rpm!")
+                chtype = ldata[name]['type'] = 'rpm'
+            elif not looks_like_int and row['max'] < 50:
+                # I think this may be rpm counts
+                lg.warning(f"Setting layer {name} to type: logrpm!")
+                chtype = ldata[name]['type'] = 'logrpm'
+        row['data type'] = chtype
+        return row
+
+    layerdata = []
+    layerdata.append(check_layer('X', adata.X))
     for layer in adata.layers.keys():
-        check_layer(layer, adata.layers[layer])
+        layerdata.append(check_layer(layer, adata.layers[layer]))
 
-    df = pd.DataFrame(d)
-    return df
+    return pd.DataFrame(layerdata)
+
 
 def layers(adata,
            name: str | None = None,
            ltype: str | None = None,
-           ignore: bool | None = None ) -> Optional[pd.DataFrame]:
+           ignore: bool | None = None,
+           description: str | None = None) -> Optional[pd.DataFrame]:
 
     """Get or set layer data.
 
@@ -112,10 +196,9 @@ def layers(adata,
        layers(name='layername', [type='layertype', [load=True/False]]):
     """
     if name is not None:
-        ldata = adata.uns['termite']['layers']
+        ldata = adata.uns['cellhive']['layers']
         if name not in ldata:
             ldata[name] = {}
-
         if ltype is not None:
             ltype = ltype.lower()
             if ltype not in ['count', 'rpm', 'logrpm', 'cell_abundance']:
@@ -124,261 +207,299 @@ def layers(adata,
             ldata[name]['type'] = ltype
         if ignore is not None:
             ldata[name]['ignore'] = ignore
-
-        return
+        if description is not None:
+            ldata[name]['description'] = description
 
     df = get_layerdata(adata)
     return df.T
 
 
-#@where_is_adata
 def obsm(adata: sc.AnnData,
-         name: Optional[str] = None,
-         load: bool = True):
+         name: str | None = None,
+         ignore: bool | None = None,
+         description: str | None = None) -> pd.DataFrame | None:
+    """
+    Retrieve and process dimensionality reduction matrici data from `adata`.
 
-    termite.h5ad.check(adata)
-    ao = adata.uns['termite']['obsm']
+    Args:
+        adata (sc.AnnData): Anndata object containing the data.
+        name (str | None, optional): Name of the `obsm` data to retrieve. Defaults to None.
+        ignore (bool | None, optional): Boolean value indicating whether to ignore the `obsm` data. Defaults to None.
+
+    Returns:
+        pd.DataFrame: Transposed DataFrame containing the retrieved `obsm` data.
+
+    Raises:
+        AssertionError: If `name` is not in the keys of `adata.obsm`.
+
+    """
+
+    prepare(adata)
+    ao = adata.uns['cellhive']['obsm']
 
     if name is not None:
         assert name in adata.obsm_keys()
         if name not in ao:
             ao[name] = {}
-        if load:
-            ao[name]['load'] = True
+        if ignore:
+            ao[name]['ignore'] = ignore
+        if description is not None:
+            ao[name]['description'] = description
 
     rv = []
+
+    if len(adata.obsm_keys()) == 0:
+        lg.warning("No dimred data in obsm?")
+        return None
+
     for o in adata.obsm_keys():
-        rv.append(dict(name=o,
-                       dim=adata.obsm[o].shape[1],
-                       load=ao.get(o, {}).get('load', False),
-                       ))
-    rv = pd.DataFrame(rv).set_index('name').T
-    return rv
+        if o.startswith('_'):
+            continue
+
+        rv.append(dict(
+            name=o,
+            dim=adata.obsm[o].shape[1],
+            ignore=ao.get(o, {}).get('ignore', '-'),
+            description=ao.get(o, {}).get('description', '-'),
+        ))
+
+    return pd.DataFrame(rv).set_index('name').T
 
 
-#@where_is_adata
-def check(adata: sc.AnnData):
-    if not globals.init:
-        lg.warning("no adata loaded?")
-    else:
-        termite.h5ad.check(adata)
+def obs_conv_int(adata, column):
+    """Convert column to integers"""
+    adata.obs[column] = adata.obs[column].astype(int)
 
+def obs_conv_float(adata, column):
+    """Convert column to float"""
+    adata.obs[column] = adata.obs[column].astype(float)
 
-def register(h5adfile: Path | str,
-             adata) -> None:
-
-    if isinstance(h5adfile, str):
-        h5adfile = Path(h5adfile)
-
-    basename = h5adfile.name
-    if not basename.endswith('.h5ad'):
-        lg.warning("h5adfile must end with '.h5ad' extension")
-    experiment = basename[:-5]
-    lg.info(f"experiment name: {experiment}")
-
-    globals.h5adfile = h5adfile
-    globals.adata = adata
-    globals.init = True
-    check()
-
-    termite.h5ad.set1(globals.adata, 'experiment', experiment)
-    if not 'study' in globals.adata.uns['termite']['metadata']:
-        globals.adata.uns['termite']['metadata']['study'] = experiment
-
-
-
-def load(filename: Optional[str] = None) -> None:
-    if filename is None:
-        if not globals.init:
-            lg.warning("No h5adfile loaded")
-            return
-        h5adfile = globals.h5adfile
-    else:
-        h5adfile = Path(filename)
-
-    lg.info(f"Load h5ad file {h5adfile} into adata")
-    basename = h5adfile.name
-    if not basename.endswith('.h5ad'):
-        lg.warning("h5adfile must end with '.h5ad' extension")
-    experiment = basename[:-5]
-    lg.info(f"experiment name: {experiment}")
-    globals.h5adfile = h5adfile
-    globals.adata = sc.read_h5ad(h5adfile)
-    globals.init = True
-    check()
-    termite.h5ad.set1(globals.adata, 'experiment', experiment)
-    if 'study' not in globals.adata.uns['termite']['metadata']:
-        globals.adata.uns['termite']['metadata']['study'] = experiment
-
-
-def obs_conv_int(name):
-    globals.adata.obs[name] = globals.adata.obs[name].astype(int)
-def obs_conv_float(name):
-    globals.adata.obs[name] = globals.adata.obs[name].astype(float)
-def obs_conv_skip(name):
-    pass
-def obs_conv_categorical(name):
-    globals.adata.obs[name] = globals.adata.obs[name].astype(str)
+def obs_conv_categorical(adata, column):
+    """Convert column to categorical"""
+    adata.obs[column] = adata.obs[column].astype(str)
 
 
 OBS_CONV_FUNCTIONS = {
     'int': obs_conv_int,
     'float': obs_conv_float,
-    'categorical': obs_conv_categorical,
-    'skip': obs_conv_skip}
+    'cat': obs_conv_categorical
+    }
+
+def get_obs_col_md(adata: AnnData, col: str, key: str,
+                   default: Any = None) -> Any:
+    """Get a metadata field on an obs column."""
+
+    return adata.uns['cellhive']['obs']\
+        .get(col, {})\
+        .get(key, default)
 
 
-def obs(name=None, dtype=None, nice_name=None, what=None) -> Optional[pd.DataFrame]:
-    termite.h5ad.check(globals.adata)
-    if name is not None:
-        td = globals.adata.uns['termite']
-        if dtype is not None:
-            if dtype not in ['int', 'float', 'categorical', 'skip']:
-                lg.error("dtype must be one of: int, float, categorical or skip")
-                return
-            else:
-                lg.warning(f"Convert obs column {name} to {dtype}")
-                OBS_CONV_FUNCTIONS[dtype](name)
-                td['obs_force'][name] = dtype
+def set_obs_col_md(adata: AnnData, col: str, key: str, val: Any) -> None:
+    """Set a metadata field on an obs column."""
+    if not key in adata.uns['cellhive']['obs']:
+        adata.uns['cellhive']['obs'][col] = {}
+    adata.uns['cellhive']['obs'][col][key] = val
 
-        if nice_name is not None:
-            td['obs_nice'][name] = nice_name
 
-    obs_data = pd.DataFrame(termite.h5ad.prepare_obs(globals.adata)).T
-    obs_data = obs_data.reset_index(drop=True)
-    if name is not None:
-        return obs_data[obs_data['name'] == name].T
+def get_obs_column_metadata(adata: AnnData,
+                            column: str,
+                            max_categories: int = 30):
+    """
+    Determine what datatye a column is
+    """
+
+    # Guess the format from the raw data
+    obs_col = adata.obs[column]
+    no_uniq = len(obs_col.unique())
+    no_example = 3
+    example = ", ".join(map(str, obs_col.head(no_example)))
+
+    forced = False
+
+    if get_obs_col_md(adata, column, 'dtype'):
+        odtype = get_obs_col_md(adata, column, 'dtype')
+        forced = True
     else:
-        if what == 'all':
-            pass
-        elif what is not None:
-            obs_data = obs_data[obs_data['dtype'] == what]
-        else:
-            obs_data = obs_data[obs_data['dtype'] != "skip"]
+        odtype = str(obs_col.dtype)
+
+
+    if 'int' in odtype and len(obs_col.unique()) < 20:
+        if ('leiden' in column.lower()) or ('leuven' in column.lower()):
+            #these are likely cluster names
+            odtype = 'cat'
+            forced = True
+            set_obs_col_md(adata, column, 'dtype', 'cat')
+            lg.warning("Expect {column} to be cluster IDs, forcing to categorical")
+
+
+    print("??", odtype)
+    if odtype in ['categorical', 'category', 'object', 'bool', 'str']:
+        # guess categorical
+        uniq = len(obs_col.unique())
+        example = ", ".join(map(str, obs_col.value_counts().sort_values()[:no_example].index))
+        dtype = 'cat'
+        # unless....
+        if not forced:
+            if uniq > max_categories:
+                # too many categories
+                dtype = 'skip'
+            elif uniq == 1:
+                # not very interesting either...
+                dtype = 'skip'
+
+    elif 'int' in odtype:
+        dtype = 'int'
+    elif odtype.startswith('float'):
+        dtype = 'float'
+        example=", ".join(map(lambda x: f"{x:.3g}",
+                             obs_col.head(no_example)))
+
+    elif odtype == 'skip':
+        dtype = 'skip'
+    else:
+        lg.warning(f"Unknown data type for {column} - {obs_col.dtype}")
+        dtype = 'skip'
+
+    return dict(name=column,
+                dtype=dtype,
+                no_uniq=no_uniq,
+                example=example)
+
+
+def prepare_obs(adata: AnnData) -> pd.DataFrame:
+
+    md_obscol = {}
+    td = adata.uns['cellhive']
+
+    # regular obs columns
+    lg.info("Processing obs table")
+
+    for column in adata.obs.keys():
+        if column.startswith('_'):
+            continue
+        md_obscol[column] \
+            = get_obs_column_metadata(adata, column)
+
+        md_obscol[column]['description'] = \
+            get_obs_col_md(adata, column, 'description', '-')
+
+    return md_obscol
+
+
+def obs(adata: AnnData,
+        column: str | None = None,
+        dtype: str | None = None,
+        ignore: bool | None = None,
+        description: str | None = None,
+        select: str = None) \
+        -> pd.DataFrame | pd.Series | None:
+
+    print('-====')
+    prepare(adata)
+
+    if column is not None:
+        if dtype is not None:
+            if dtype in ['str', 'categorical']:
+                dtype = 'cat'
+
+            if dtype not in ['int', 'float', 'cat']:
+                lg.error("dtype must be one of: int, float or cat")
+                return None
+            else:
+                lg.info(f"Convert obs column {column} to {dtype}")
+                OBS_CONV_FUNCTIONS[dtype](adata, column)
+                set_obs_col_md(adata, column, 'dtype', dtype)
+
+        if description is not None:
+            set_obs_col_md(adata, column, 'description', description)
+
+    obs_data = pd.DataFrame(prepare_obs(adata)).T
+    obs_data = obs_data.reset_index(drop=True)
+
+    if column is not None:
+        return obs_data[obs_data['name'] == column].T
+    else:
+        if select in ['str', 'categorical', 'cat']:
+            obs_data = obs_data[obs_data['dtype'] == 'categorical']
+        elif select == 'int':
+            obs_data = obs_data[obs_data['dtype'] == 'int']
+        elif select == 'float':
+            obs_data = obs_data[obs_data['dtype'] == 'float']
+        elif select in ['num', 'numerical']:
+            obs_data = obs_data[obs_data['dtype'].isin(['int', 'float'])]
+
         return obs_data
 
 
-def todb(logrpm: bool = True,
-         skip_layers: bool = False,
-         skip_obs: bool = False,
-         skip_obsm: bool = False,
-         dim2load: int=2 ) -> None:
 
-    adata = globals.adata
-    termite.h5ad.check(adata)
+# def todb(logrpm: bool = True,
+#          skip_layers: bool = False,
+#          skip_obs: bool = False,
+#          skip_obsm: bool = False,
+#          dim2load: int=2 ) -> None:
 
-    # remove obs_names - enforce numbers to reduce database size
-    expname = adata.uns['termite']['metadata']['experiment']
+#     adata = globals.adata
+#     check(adata)
 
-    exp_id = termite.db.autoincrementor('dataset_md', 'experiment', expname)
-    lg.info(f"Storing experiment {expname} with id {exp_id}")
+#     # remove obs_names - enforce numbers to reduce database size
+#     expname = adata.uns['cellhive']['metadata']['experiment']
 
-    if not skip_obs:
-        termite.h5ad.import_experiment_obs(exp_id, adata)
+#     exp_id = cellhive.db.autoincrementor('dataset_md', 'experiment', expname)
+#     lg.info(f"Storing experiment {expname} with id {exp_id}")
 
-    if not skip_obsm:
-        for (o, od) in adata.uns['termite']['obsm'].items():
-            if not od.get('load'):
-                continue
-            lg.info(f"loading obsm: {o}")
-            # default - load first 2 dimensions
-            obsm = adata.obsm[o]
-            for i in range(min(dim2load, obsm.shape[1])):
-                c = pd.DataFrame(
-                    pd.Series(adata.obsm[o][:,i],
-                              index=adata.obs_names))
-                colname = f"{o}/{i:02d}"
-                termite.h5ad.store_one_obs_col(
-                    exp_id=exp_id,
-                    colname=colname,
-                    col=c,
-                    original_name='-',
-                    dtype='dimred',
-                    dimred_name=o,
-                    dimred_dim=i)
+#     if not skip_obs:
+#         cellhive.h5ad.import_experiment_obs(exp_id, adata)
 
-
-    layerdata = adata.uns['termite']['layers']
-
-    logrpm_in_adata = False
-    for lname, ldata in layerdata.items():
-        if ldata.get('type') == 'logrpm':
-            logrpm_in_adata = True
-
-    for lname, ldata in layerdata.items():
-        if not ldata.get('load'):
-            lg.info(f"Skipping load of layer {lname}")
-        ltype = ldata['type']
-        if not ltype:
-            lg.error(f"cannot load layer {lname} "
-                     + "with no type annotated")
-            exit(-1)
-
-        dataset_id = termite.h5ad.import_experiment_md(
-            adata, lname, ltype)
-
-        if not skip_layers:
-            termite.h5ad.import_counts(
-                dataset_id, adata, lname)
+#     if not skip_obsm:
+#         for (o, od) in adata.uns['cellhive']['obsm'].items():
+#             if not od.get('load'):
+#                 continue
+#             lg.info(f"loading obsm: {o}")
+#             # default - load first 2 dimensions
+#             obsm = adata.obsm[o]
+#             for i in range(min(dim2load, obsm.shape[1])):
+#                 c = pd.DataFrame(
+#                     pd.Series(adata.obsm[o][:,i],
+#                               index=adata.obs_names))
+#                 colname = f"{o}/{i:02d}"
+#                 cellhive.h5ad.store_one_obs_col(
+#                     exp_id=exp_id,
+#                     colname=colname,
+#                     col=c,
+#                     original_name='-',
+#                     dtype='dimred',
+#                     dimred_name=o,
+#                     dimred_dim=i)
 
 
-        if ltype == 'raw' and (not logrpm_in_adata) and logrpm:
-            dataset_id_2 = termite.h5ad.import_experiment_md(
-                adata, 'auto_logrpm', 'logrpm')
-            if not skip_layers:
-                termite.h5ad.import_counts(
-                    dataset_id_2, adata, lname, normalize='logrpm')
+#     layerdata = adata.uns['cellhive']['layers']
+
+#     logrpm_in_adata = False
+#     for lname, ldata in layerdata.items():
+#         if ldata.get('type') == 'logrpm':
+#             logrpm_in_adata = True
+
+#     for lname, ldata in layerdata.items():
+#         if not ldata.get('load'):
+#             lg.info(f"Skipping load of layer {lname}")
+#         ltype = ldata['type']
+#         if not ltype:
+#             lg.error(f"cannot load layer {lname} "
+#                      + "with no type annotated")
+#             exit(-1)
+
+#         dataset_id = cellhive.h5ad.import_experiment_md(
+#             adata, lname, ltype)
+
+#         if not skip_layers:
+#             cellhive.h5ad.import_counts(
+#                 dataset_id, adata, lname)
 
 
-# def test():
-#     # CREATE TABLE help_gene AS
-#     sql = """
-#          select hg.dataset_id, hg.gene, hg.sumval,
-#                 (select hg.sumval / quantile_cont(sumval, 0.99) from help_gene
-#                   where dataset_id=hg.dataset_id) as relsumval
-#            from help_gene as hg
-#           limit 20
-#           """
-#     return termite.db.raw_sql(sql)
+#         if ltype == 'raw' and (not logrpm_in_adata) and logrpm:
+#             dataset_id_2 = cellhive.h5ad.import_experiment_md(
+#                 adata, 'auto_logrpm', 'logrpm')
+#             if not skip_layers:
+#                 cellhive.h5ad.import_counts(
+#                     dataset_id_2, adata, lname, normalize='logrpm')
 
-
-
-# # def sql(sql):
-# #     return termite.db.raw_sql(sql)
-
-# # def helptables():
-# #     lg.warning("creating support tables")
-# #     termite.db.helptables()
-
-# # @cli.command("todb")
-# # @click.option("-l", "--logrpm", is_flag=True,
-# #               default=True,
-# #               help="autoconvert the raw count layer to logrpm")
-# # @click.option("-o", "--skipobs", is_flag=True,
-# #               default=False, help="Skip loading obs data")
-# # @click.option("-s", "--skiplayers", is_flag=True,
-# #               default=False, help="Skip loading all count data")
-# # @click.argument('h5adfile')
-# # def cli_todb(h5adfile, logrpm, skipobs, skiplayers):
-# #     load(h5adfile)
-# #     todb(logrpm=logrpm, skip_layers=skiplayers, skip_obs=skipobs)
-
-
-# # @cli.command()
-# # @click.argument("h5adfile")
-# # def shell(h5adfile):
-# #     load(h5adfile)
-# #     lg.info("Dropping into ipython")
-# #     from IPython import embed
-# #     embed()
-
-
-
-# # #cli.add_command(termite.h5ad.prepare)
-# # #cli.add_command(termite.h5ad.h5ad_import)
-# # #cli.add_command(termite.diffexp.de_run)
-# # cli.add_command(termite.cli.db.db_group)
-
-
-# # def run():
-# #     cli()

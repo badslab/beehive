@@ -10,4 +10,4 @@ logging.basicConfig(
 
 lg = logging.getLogger('termite')
 
-from termite.metadata import layers, md, obsm
+from cellhive.metadata import check, layers, md, obs, obsm

@@ -92,8 +92,6 @@ def simple_disk_cache(cache_path: Path,
             _cache_file = _cache_path / \
                 cache_name.format(CODE=src_hash, **full_kwargs)
 
-            print(_cache_file)
-
             if not _cache_file.parent == _cache_path:
                 if not _cache_file.parent.exists():
                     _cache_file.parent.mkdir(parents=True)
@@ -108,7 +106,8 @@ def simple_disk_cache(cache_path: Path,
         return wrapper
     return decorator
 
-sdc_cache_path = Path('~/.cache/termite').expanduser().resolve()
+
+sdc_cache_path = Path('~/.cache/cellhive').expanduser().resolve()
 sdc = partial(simple_disk_cache, sdc_cache_path)
 
 
