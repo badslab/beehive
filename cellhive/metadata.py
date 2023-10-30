@@ -158,16 +158,20 @@ def get_layerdata(adata):
 
         chtype = ldata.get(name, {}).get('type', '-')
         if chtype == '-':
-            looks_like_int = (row['max'] == int(row['max']))
-            if looks_like_int and row['max'] > 500:
+            looks_like_int = (row['max'] == int(row['max'])) \
+                and (row['min'] == int(row['min']))
+
+            print(looks_like_int, row['max'])
+
+            if looks_like_int and row['max'] > 400:
                 # I think this may be raw counts
                 lg.warning(f"Setting layer {name} to type count!")
                 chtype = ldata[name]['type'] = 'count'
-            elif not looks_like_int and row['max'] > 500:
+            elif (not looks_like_int) and row['max'] > 500:
                 # I think this may be rpm counts
                 lg.warning(f"Setting layer {name} to type: rpm!")
                 chtype = ldata[name]['type'] = 'rpm'
-            elif not looks_like_int and row['max'] < 50:
+            elif (not looks_like_int) and row['max'] < 50:
                 # I think this may be rpm counts
                 lg.warning(f"Setting layer {name} to type: logrpm!")
                 chtype = ldata[name]['type'] = 'logrpm'
@@ -314,15 +318,15 @@ def get_obs_column_metadata(adata: AnnData,
     no_example = 3
     example = ", ".join(map(str, obs_col.head(no_example)))
 
+    # is there a dtype hard specified?
     forced = False
-
     if get_obs_col_md(adata, column, 'dtype'):
         odtype = get_obs_col_md(adata, column, 'dtype')
         forced = True
     else:
         odtype = str(obs_col.dtype)
 
-
+    # is this column already ignored?
     if 'int' in odtype and len(obs_col.unique()) < 20:
         if ('leiden' in column.lower()) or ('leuven' in column.lower()):
             #these are likely cluster names
@@ -331,21 +335,20 @@ def get_obs_column_metadata(adata: AnnData,
             set_obs_col_md(adata, column, 'dtype', 'cat')
             lg.warning("Expect {column} to be cluster IDs, forcing to categorical")
 
-
-    print("??", odtype)
-    if odtype in ['categorical', 'category', 'object', 'bool', 'str']:
+    if odtype in ['categorical', 'category', 'cat', 'object', 'bool', 'str']:
         # guess categorical
         uniq = len(obs_col.unique())
         example = ", ".join(map(str, obs_col.value_counts().sort_values()[:no_example].index))
         dtype = 'cat'
         # unless....
         if not forced:
-            if uniq > max_categories:
-                # too many categories
-                dtype = 'skip'
-            elif uniq == 1:
-                # not very interesting either...
-                dtype = 'skip'
+            if uniq > max_categories or uniq == 1:
+                # too many categories, or only one
+                # was there already an ignore setting on this column?
+                if get_obs_col_md(adata, column, 'ignore') == None:
+                    # so, not interesting, and not specified if it should be ignored
+                    # per efault, we'll set th ignore flag:
+                    set_obs_col_md(adata, column, 'ignore', True)
 
     elif 'int' in odtype:
         dtype = 'int'
@@ -357,7 +360,7 @@ def get_obs_column_metadata(adata: AnnData,
     elif odtype == 'skip':
         dtype = 'skip'
     else:
-        lg.warning(f"Unknown data type for {column} - {obs_col.dtype}")
+        lg.warning(f"Unknown data type for {column} - '{odtype}'")
         dtype = 'skip'
 
     return dict(name=column,
@@ -372,7 +375,7 @@ def prepare_obs(adata: AnnData) -> pd.DataFrame:
     td = adata.uns['cellhive']
 
     # regular obs columns
-    lg.info("Processing obs table")
+    lg.debug("Processing obs table")
 
     for column in adata.obs.keys():
         if column.startswith('_'):
@@ -383,6 +386,9 @@ def prepare_obs(adata: AnnData) -> pd.DataFrame:
         md_obscol[column]['description'] = \
             get_obs_col_md(adata, column, 'description', '-')
 
+        md_obscol[column]['ignore'] = \
+            get_obs_col_md(adata, column, 'ignore', '-')
+
     return md_obscol
 
 
@@ -391,10 +397,9 @@ def obs(adata: AnnData,
         dtype: str | None = None,
         ignore: bool | None = None,
         description: str | None = None,
-        select: str = None) \
-        -> pd.DataFrame | pd.Series | None:
+        select: str | None = None) \
+            -> pd.DataFrame | pd.Series | None:
 
-    print('-====')
     prepare(adata)
 
     if column is not None:
@@ -412,6 +417,8 @@ def obs(adata: AnnData,
 
         if description is not None:
             set_obs_col_md(adata, column, 'description', description)
+        if ignore is not None:
+            set_obs_col_md(adata, column, 'ignore', ignore)
 
     obs_data = pd.DataFrame(prepare_obs(adata)).T
     obs_data = obs_data.reset_index(drop=True)
@@ -420,7 +427,7 @@ def obs(adata: AnnData,
         return obs_data[obs_data['name'] == column].T
     else:
         if select in ['str', 'categorical', 'cat']:
-            obs_data = obs_data[obs_data['dtype'] == 'categorical']
+            obs_data = obs_data[obs_data['dtype'] == 'cat']
         elif select == 'int':
             obs_data = obs_data[obs_data['dtype'] == 'int']
         elif select == 'float':

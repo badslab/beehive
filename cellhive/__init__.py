@@ -4,7 +4,7 @@ Behave!
 
 import logging
 
-FORMAT = "%(message)s"
+FORMAT = "%(levelname)s %(name)s:%(lineno)s - %(message)s %(asctime)s "
 logging.basicConfig(
     level=logging.INFO, format=FORMAT, datefmt="[%X]")
 
