@@ -1,6 +1,6 @@
-
+"""Annotate scanpy h5ad files."""
 import logging
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, Union
 
 import anndata
 import pandas as pd
@@ -129,26 +129,26 @@ def get_layerdata(adata):
     """Create stats on the layers in this adata"""
     ldata = adata.uns['cellhive']['layers']
 
-    def check_layer(name: str, X):
+    def check_layer(name: str, layer_data):
 
         if name not in ldata:
             ldata[name] = {}
 
-        if isinstance(X, anndata._core.sparse_dataset.SparseDataset):
-            X = X.value.todense()
-        elif isinstance(X, scipy.sparse._csr.csr_matrix):
-            X = X.todense()
+        if isinstance(layer_data, anndata._core.sparse_dataset.SparseDataset):   # pylint: disable=protected-access
+            layer_data = layer_data.value.todense()
+        elif isinstance(layer_data, scipy.sparse._csr.csr_matrix): # pylint: disable=protected-access
+            layer_data = layer_data.todense()
 
         row: Dict[str, Any] = {}
         row['name'] = name
-        row['dtype'] = X.dtype
-        row['rows'] = X.shape[0]
-        row['columns'] = X.shape[1]
-        row['entries'] = entries = X.shape[0] * X.shape[1]
-        row['min'] = X.min()
-        row['max'] = X.max()
+        row['dtype'] = layer_data.dtype
+        row['rows'] = layer_data.shape[0]
+        row['columns'] = layer_data.shape[1]
+        row['entries'] = entries = layer_data.shape[0] * layer_data.shape[1]
+        row['min'] = layer_data.min()
+        row['max'] = layer_data.max()
 
-        zeros = len((X==0).nonzero()[0])
+        zeros = len((layer_data==0).nonzero()[0])
         perc_zeros = 100 * zeros / entries
 
         row['no_zeros'] = zeros
@@ -187,10 +187,10 @@ def get_layerdata(adata):
 
 
 def layers(adata,
-           name: str | None = None,
-           ltype: str | None = None,
-           ignore: bool | None = None,
-           description: str | None = None) -> Optional[pd.DataFrame]:
+           name: Union[str, None] = None,
+           ltype: Union[str, None] = None,
+           ignore: Union[bool, None] = None,
+           description: Union[str, None] = None) -> Optional[pd.DataFrame]:
 
     """Get or set layer data.
 
@@ -219,16 +219,17 @@ def layers(adata,
 
 
 def obsm(adata: sc.AnnData,
-         name: str | None = None,
-         ignore: bool | None = None,
-         description: str | None = None) -> pd.DataFrame | None:
+         name: Union[str,  None] = None,
+         ignore: Union[bool,  None] = None,
+         description: Union[str,  None] = None) -> Union[pd.DataFrame, None]:
     """
     Retrieve and process dimensionality reduction matrici data from `adata`.
 
     Args:
         adata (sc.AnnData): Anndata object containing the data.
-        name (str | None, optional): Name of the `obsm` data to retrieve. Defaults to None.
-        ignore (bool | None, optional): Boolean value indicating whether to ignore the `obsm` data. Defaults to None.
+        name (Union[str,  None], optional): Name of the `obsm` data to retrieve. Defaults to None.
+        ignore (Union[bool,  None], optional): Boolean value indicating whether to ignore
+             the `obsm` data. Defaults to None.
 
     Returns:
         pd.DataFrame: Transposed DataFrame containing the retrieved `obsm` data.
@@ -345,7 +346,7 @@ def get_obs_column_metadata(adata: AnnData,
             if uniq > max_categories or uniq == 1:
                 # too many categories, or only one
                 # was there already an ignore setting on this column?
-                if get_obs_col_md(adata, column, 'ignore') == None:
+                if get_obs_col_md(adata, column, 'ignore') is None:
                     # so, not interesting, and not specified if it should be ignored
                     # per efault, we'll set th ignore flag:
                     set_obs_col_md(adata, column, 'ignore', True)
@@ -370,9 +371,9 @@ def get_obs_column_metadata(adata: AnnData,
 
 
 def prepare_obs(adata: AnnData) -> pd.DataFrame:
+    """Prepare the obs metadata by iterating over all columns and collecting data."""
 
     md_obscol = {}
-    td = adata.uns['cellhive']
 
     # regular obs columns
     lg.debug("Processing obs table")
@@ -393,12 +394,13 @@ def prepare_obs(adata: AnnData) -> pd.DataFrame:
 
 
 def obs(adata: AnnData,
-        column: str | None = None,
-        dtype: str | None = None,
-        ignore: bool | None = None,
-        description: str | None = None,
-        select: str | None = None) \
-            -> pd.DataFrame | pd.Series | None:
+        column: Union[str,  None] = None,
+        dtype: Union[str,  None] = None,
+        ignore: Union[bool,  None] = None,
+        description: Union[str,  None] = None,
+        select: Union[str,  None] = None) \
+            -> Union[pd.DataFrame, pd.Series,None]:
+    """Annotate cell metadata."""
 
     prepare(adata)
 
@@ -509,4 +511,3 @@ def obs(adata: AnnData,
 #             if not skip_layers:
 #                 cellhive.h5ad.import_counts(
 #                     dataset_id_2, adata, lname, normalize='logrpm')
-
