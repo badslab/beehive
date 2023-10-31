@@ -6,3 +6,4 @@ dist
 /termite/streamlit/__backup_gene_vs_category.py
 __pycache__
 TAGS
+pbmc.annotated.h5ad
