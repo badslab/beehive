@@ -2,7 +2,11 @@
 Behave!
 """
 
+import importlib.metadata
 import logging
+
+__version__ = importlib.metadata.version("cellhive")
+
 
 FORMAT = "%(levelname)s %(name)s:%(lineno)s - %(message)s %(asctime)s "
 logging.basicConfig(
@@ -10,4 +14,10 @@ logging.basicConfig(
 
 lg = logging.getLogger('termite')
 
-from cellhive.metadata import check, layers, md, obs, obsm
+from cellhive.metadata import (  # pylint: disable=wrong-import-position
+    check,
+    layers,
+    md,
+    obs,
+    obsm,
+)
