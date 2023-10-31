@@ -8,3 +8,5 @@ __pycache__
 TAGS
 pbmc.annotated.h5ad
 build
+data/pbmc3k_raw.h5ad
+data/pbmc3k_processed.h5ad
