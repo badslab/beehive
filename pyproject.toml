@@ -2,18 +2,34 @@
 name = "cellhive"
 authors = [
         {name="Mark Fiers", email="mark@fie.rs"}]
-version = "0.0.4"
-
+version = "0.1.1"
+description = "Annotate & visualize scanpy single cell datasets"
+requires-python = ">=3.9"
+readme = "Readme.md"
+license = { file = "LICENSE" }
+keywords = ["scanpy", "single cell", "bioinformatics"]
+classifiers = [
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python",
+    "Programming Language :: Python :: 3",  ]
 dependencies = [
+    "scanpy",
+    "click",
     "numpy",
     "pandas",
     "pymed",
     'importlib-metadata; python_version<"3.8"',
 ]
 
+[project.urls]
+Homepage = "https://github.com/badslab/cellhive"
+
 [build-system]
-requires = ["setuptools"]
+requires = ["setuptools", "wheel"]
 build-backend = "setuptools.build_meta"
+
+[project.scripts]
+ch = "cellhive.cli:main"
 
 [tool.pylsp-mypy]
 enabled = true
