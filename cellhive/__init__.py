@@ -13,11 +13,3 @@ logging.basicConfig(
     level=logging.INFO, format=FORMAT, datefmt="[%X]")
 
 lg = logging.getLogger('termite')
-
-from cellhive.metadata import (  # pylint: disable=wrong-import-position
-    check,
-    layers,
-    md,
-    obs,
-    obsm,
-)
