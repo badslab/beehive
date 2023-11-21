@@ -4,7 +4,7 @@ authors = [
         {name="Mark Fiers", email="mark@fie.rs"}]
 version = "0.1.1"
 description = "Annotate & visualize scanpy single cell datasets"
-requires-python = ">=3.9"
+requires-python = ">=3.10"
 readme = "Readme.md"
 license = { file = "LICENSE" }
 keywords = ["scanpy", "single cell", "bioinformatics"]
@@ -16,6 +16,8 @@ dependencies = [
     "scanpy",
     "click",
     "numpy",
+    "rich",
+    "duckdb",
     "pandas",
     "pymed",
     'importlib-metadata; python_version<"3.8"',

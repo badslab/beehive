@@ -10,3 +10,4 @@ pbmc.annotated.h5ad
 build
 data/pbmc3k_raw.h5ad
 data/pbmc3k_processed.h5ad
+cellhive.duckdb

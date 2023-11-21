@@ -1,6 +1,6 @@
 
 import os
-from pathlib import Path    
+from pathlib import Path
 
 import click
 import pandas as pd
@@ -35,7 +35,7 @@ def forget(experiment: str) -> None:
     "Forget all about one experiment"
     db.forget(experiment)
 
-    
+
 @db_group.command("sql")
 @click.argument("sql", nargs=-1)
 def db_sql(sql: str) -> None:
@@ -54,7 +54,7 @@ def db_describe(table: str) -> None:
     print(rv)
 
 
-    
+
 def f_status() -> pd.Series:
     rv = {}
     dbfile = rv['dbfile'] = os.environ['TERMITE_DB']
@@ -73,7 +73,7 @@ def f_status() -> pd.Series:
 def db_status() -> None:
     """Show some stats & table counts."""
     print(f_status())
-        
+
 @db_group.command("experiments")
 def experiments() -> None:
     """List known experiments."""
@@ -81,7 +81,7 @@ def experiments() -> None:
     for x in exps['experiment']:
         print(x)
 
-        
+
 @db_group.command("obscol")
 @click.argument('experiment')
 def obscol(experiment: str) -> None:
@@ -102,7 +102,6 @@ def obscol(experiment: str) -> None:
         print(f"num\t{n}")
 
 
-    
 @db_group.command("helptables")
 def db_helptables() -> None:
     """Create helper tables."""

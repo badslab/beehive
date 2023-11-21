@@ -8,6 +8,7 @@ __version__ = importlib.metadata.version("cellhive")
 
 from .metadata_tools import (  # pylint: disable=wrong-import-position,unused-import
     check,
+    check_2,
     layers,
     md,
     obs,

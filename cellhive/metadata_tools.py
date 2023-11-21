@@ -1,12 +1,12 @@
 """Annotate scanpy h5ad files."""
 import logging
-from typing import Any, Dict, Optional, Union
+from typing import Any, Dict, List, Optional, Union, \
+    TYPE_CHECKING
 
-import anndata
-import pandas as pd
-import scanpy as sc
-import scipy
-from anndata import AnnData
+
+if TYPE_CHECKING:
+    import scanpy as sc
+    import pandas as pd
 
 from .util import query_pubmed
 
@@ -24,7 +24,7 @@ mandatory_metadata = dict([
     """.strip().split("\n")])
 
 
-def prepare(adata: AnnData) -> None:
+def prepare(adata: "sc.AnnData") -> None:
     """Check h5ad."""
 
     if 'cellhive' not in adata.uns:
@@ -40,9 +40,9 @@ def prepare(adata: AnnData) -> None:
             del adata.uns[old]
 
 
-def check(adata: AnnData) -> None:
+def check_2(adata: "sc.AnnData") -> List[str]:
     """
-    Checks if metadata fields are defined in AnnData object.
+    Check metadata fields defined in AnnData object.
 
     Parameters:
     - adata (AnnData): Annotated data object.
@@ -56,7 +56,7 @@ def check(adata: AnnData) -> None:
     # Get the keys of the metadata in the AnnData object
     mdkeys = adata.uns['cellhive']['metadata'].keys()
 
-    msg = []
+    msg: List[str] = []
 
     # Check if each mandatory metadata field is defined
     for k, v in mandatory_metadata.items():
@@ -70,6 +70,12 @@ def check(adata: AnnData) -> None:
     if len(adata.obsm_keys()) == 0:
         msg.append("No UMAP/TSNE data (obsm is empty)")
 
+    return msg
+
+def check(adata: "sc.AnnData") -> None:
+    """Check function that prints problems to stdout."""
+
+    msg = check_2(adata)
     if len(msg) == 0:
         print("All seems fine")
     else:
@@ -77,7 +83,9 @@ def check(adata: AnnData) -> None:
             print(m)
 
 
-def set1(adata: AnnData, key: str, value: Any) -> None:
+def set1(adata: "sc.AnnData",
+         key: str,
+         value: Any) -> None:
     """
     Set one key/value in the cellhive data structure.
 
@@ -125,8 +133,13 @@ def md(adata, **kwargs):
     return adata.uns['cellhive']['metadata']
 
 
-def get_layerdata(adata):
-    """Create stats on the layers in this adata"""
+def get_layerdata(adata: "sc.AnnData"):
+    """Create stats on the layers in this adata."""
+    from anndata._core.sparse_dataset import SparseDataset
+    import scanpy as sc
+    import scipy
+    import pandas as pd
+
     ldata = adata.uns['cellhive']['layers']
 
     def check_layer(name: str, layer_data):
@@ -134,9 +147,9 @@ def get_layerdata(adata):
         if name not in ldata:
             ldata[name] = {}
 
-        if isinstance(layer_data, anndata._core.sparse_dataset.SparseDataset):   # pylint: disable=protected-access
+        if isinstance(layer_data, SparseDataset):
             layer_data = layer_data.value.todense()
-        elif isinstance(layer_data, scipy.sparse._csr.csr_matrix): # pylint: disable=protected-access
+        elif isinstance(layer_data, scipy.sparse._csr.csr_matrix):
             layer_data = layer_data.todense()
 
         row: Dict[str, Any] = {}
@@ -152,16 +165,14 @@ def get_layerdata(adata):
         perc_zeros = 100 * zeros / entries
 
         row['no_zeros'] = zeros
-        row['% zeros'] = perc_zeros
-        row['ignore?'] = ldata.get(name, {}).get('ignore', '-')
+        row['percentage_zeros'] = perc_zeros
+        row['ignore'] = ldata.get(name, {}).get('ignore', '-')
         row['description'] = ldata.get(name, {}).get('description', '-')
 
         chtype = ldata.get(name, {}).get('type', '-')
         if chtype == '-':
             looks_like_int = (row['max'] == int(row['max'])) \
                 and (row['min'] == int(row['min']))
-
-            print(looks_like_int, row['max'])
 
             if looks_like_int and row['max'] > 400:
                 # I think this may be raw counts
@@ -175,13 +186,18 @@ def get_layerdata(adata):
                 # I think this may be rpm counts
                 lg.warning(f"Setting layer {name} to type: logrpm!")
                 chtype = ldata[name]['type'] = 'logrpm'
-        row['data type'] = chtype
+        row['layer_type'] = chtype
         return row
 
     layerdata = []
     layerdata.append(check_layer('X', adata.X))
     for layer in adata.layers.keys():
         layerdata.append(check_layer(layer, adata.layers[layer]))
+
+    if adata.raw is not None:
+#        ar = adata.raw.to_adata()
+        ar = adata.raw.to_adata()
+        layerdata.append(check_layer('!raw', ar.X))
 
     return pd.DataFrame(layerdata)
 
@@ -190,8 +206,8 @@ def layers(adata,
            name: Union[str, None] = None,
            ltype: Union[str, None] = None,
            ignore: Union[bool, None] = None,
-           description: Union[str, None] = None) -> Optional[pd.DataFrame]:
-
+           description: Union[str, None] = None) \
+        -> Optional["pd.DataFrame"]:
     """Get or set layer data.
 
     ltype
@@ -218,26 +234,28 @@ def layers(adata,
     return df.T
 
 
-def obsm(adata: sc.AnnData,
+def obsm(adata: "sc.AnnData",
          name: Union[str,  None] = None,
          ignore: Union[bool,  None] = None,
-         description: Union[str,  None] = None) -> Union[pd.DataFrame, None]:
+         description: Union[str,  None] = None) -> Union["pd.DataFrame", None]:
     """
     Retrieve and process dimensionality reduction matrici data from `adata`.
 
     Args:
         adata (sc.AnnData): Anndata object containing the data.
-        name (Union[str,  None], optional): Name of the `obsm` data to retrieve. Defaults to None.
-        ignore (Union[bool,  None], optional): Boolean value indicating whether to ignore
-             the `obsm` data. Defaults to None.
+        name (Union[str,  None], optional): Name of the `obsm` data to
+            retrieve. Defaults to None.
+        ignore (Union[bool,  None], optional): Boolean value indicating whether
+            to ignore the `obsm` data. Defaults to None.
 
     Returns:
-        pd.DataFrame: Transposed DataFrame containing the retrieved `obsm` data.
+        pd.DataFrame: Transposed DataFrame containing the retrieved
+            `obsm` data.
 
     Raises:
         AssertionError: If `name` is not in the keys of `adata.obsm`.
-
     """
+    import pandas as pd
 
     prepare(adata)
     ao = adata.uns['cellhive']['obsm']
@@ -271,16 +289,19 @@ def obsm(adata: sc.AnnData,
     return pd.DataFrame(rv).set_index('name').T
 
 
-def obs_conv_int(adata, column):
-    """Convert column to integers"""
+def obs_conv_int(adata: "scanpy.AnnData", column: str) -> None:   # noqa: F821
+    """Convert column to integers."""
     adata.obs[column] = adata.obs[column].astype(int)
 
-def obs_conv_float(adata, column):
-    """Convert column to float"""
+
+def obs_conv_float(adata: "scanpy.AnnData", column: str) -> None:  # noqa: F821
+    """Convert column to float."""
     adata.obs[column] = adata.obs[column].astype(float)
 
-def obs_conv_categorical(adata, column):
-    """Convert column to categorical"""
+
+def obs_conv_categorical(adata: "scanpy.AnnData", column: str) \
+        -> None:  # noqa: F821
+    """Convert column to categorical."""
     adata.obs[column] = adata.obs[column].astype(str)
 
 
@@ -290,29 +311,31 @@ OBS_CONV_FUNCTIONS = {
     'cat': obs_conv_categorical
     }
 
-def get_obs_col_md(adata: AnnData, col: str, key: str,
+
+def get_obs_col_md(adata: "sc.AnnData",
+                   col: str,
+                   key: str,
                    default: Any = None) -> Any:
     """Get a metadata field on an obs column."""
-
     return adata.uns['cellhive']['obs']\
         .get(col, {})\
         .get(key, default)
 
 
-def set_obs_col_md(adata: AnnData, col: str, key: str, val: Any) -> None:
-    """Set a metadata field on an obs column."""
-    if not key in adata.uns['cellhive']['obs']:
+def set_obs_col_md(adata: "sc.AnnData",
+                   col: str,
+                   key: str,
+                   val: Any) -> None:
+    """Set metadata on an obs column."""
+    if key not in adata.uns['cellhive']['obs']:
         adata.uns['cellhive']['obs'][col] = {}
     adata.uns['cellhive']['obs'][col][key] = val
 
 
-def get_obs_column_metadata(adata: AnnData,
+def get_obs_column_metadata(adata: "sc.AnnData",
                             column: str,
                             max_categories: int = 30):
-    """
-    Determine what datatye a column is
-    """
-
+    """Determine what datatye a column is."""
     # Guess the format from the raw data
     obs_col = adata.obs[column]
     no_uniq = len(obs_col.unique())
@@ -351,6 +374,7 @@ def get_obs_column_metadata(adata: AnnData,
                     # per efault, we'll set th ignore flag:
                     set_obs_col_md(adata, column, 'ignore', True)
 
+
     elif 'int' in odtype:
         dtype = 'int'
     elif odtype.startswith('float'):
@@ -358,11 +382,15 @@ def get_obs_column_metadata(adata: AnnData,
         example=", ".join(map(lambda x: f"{x:.3g}",
                              obs_col.head(no_example)))
 
-    elif odtype == 'skip':
-        dtype = 'skip'
-    else:
-        lg.warning(f"Unknown data type for {column} - '{odtype}'")
-        dtype = 'skip'
+    if not forced and no_uniq == 1:
+        # for the non-cat fields - set to ignore if they have
+        # only one value - no information
+        if get_obs_col_md(adata, column, 'ignore') is None:
+            # so, not interesting, and not specified if it should be ignored
+            # per efault, we'll set th ignore flag:
+            set_obs_col_md(adata, column, 'ignore', True)
+
+
 
     return dict(name=column,
                 dtype=dtype,
@@ -370,9 +398,8 @@ def get_obs_column_metadata(adata: AnnData,
                 example=example)
 
 
-def prepare_obs(adata: AnnData) -> pd.DataFrame:
-    """Prepare the obs metadata by iterating over all columns and collecting data."""
-
+def prepare_obs(adata: "sc.AnnData") -> "pd.DataFrame":
+    """Prepare the obs metadata."""
     md_obscol = {}
 
     # regular obs columns
@@ -393,14 +420,16 @@ def prepare_obs(adata: AnnData) -> pd.DataFrame:
     return md_obscol
 
 
-def obs(adata: AnnData,
+def obs(adata: "sc.AnnData",
         column: Union[str,  None] = None,
         dtype: Union[str,  None] = None,
         ignore: Union[bool,  None] = None,
         description: Union[str,  None] = None,
         select: Union[str,  None] = None) \
-            -> Union[pd.DataFrame, pd.Series,None]:
+            -> Union["pd.DataFrame", "pd.Series", None]:
     """Annotate cell metadata."""
+
+    import pandas as pd
 
     prepare(adata)
 
@@ -490,7 +519,7 @@ def obs(adata: AnnData,
 
 #     for lname, ldata in layerdata.items():
 #         if not ldata.get('load'):
-#             lg.info(f"Skipping load of layer {lname}")
+#             lg.info(f"Skipping load of layer {lname}")#
 #         ltype = ldata['type']
 #         if not ltype:
 #             lg.error(f"cannot load layer {lname} "

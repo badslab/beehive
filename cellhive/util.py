@@ -4,8 +4,27 @@ import gzip
 import logging
 from functools import lru_cache, partial
 from pathlib import Path
+from typing import Any
+
 
 lg = logging.getLogger(__name__)
+
+
+
+
+def mdget(key:str,
+          *rest,
+          default:bool = None,
+          data:dict = {}
+          ) -> Any:
+    """Get metadata from adata.uns."""
+    if key not in data:
+        return default
+    if len(rest) == 0:
+        return data[key]
+
+    return mdget(rest[0], *rest[1:], data=data[key],
+               default=default)
 
 
 def simple_disk_cache(cache_path: Path,

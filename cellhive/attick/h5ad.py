@@ -702,4 +702,3 @@ def h5ad_import_old(h5adfile, expname, datatype, layer, chunksize, forget):
 
     # ensure index
     # print(db.raw_sql('create index idx_expr_eg on expr (exp_id, gene)'))
-
