@@ -6,22 +6,20 @@ Command line interface dispatcher.
 # late imports speed up startup time!
 # pylint: disable=import-outside-toplevel
 
-from functools import partial
 import importlib
 import logging
-from pprint import pprint   # noqa: F401
 import sys
+from functools import partial
+from pprint import pprint  # noqa: F401
 from typing import Any, Union
 
 import click
 from click.core import Context
 from rich.logging import RichHandler
 
-from . import db, util
+from . import cli_db_upload, cli_query, db
 from . import metadata_tools as mdtools
-from . import cli_query
-from . import cli_db_upload
-
+from . import util
 
 FORMAT = "%(message)s"
 if '-vv' in sys.argv:
@@ -47,7 +45,7 @@ lg.debug("Start CellHive!")
 def cli(ctx: Context, dbfile: str, verbose: int) -> None:
     """Click group."""
     ctx.ensure_object(dict)
-    ctx.obj['chdb'] = db.CHDB(dbfile)
+    ctx.obj['chdb'] = db.CHDB(dbfile, read_only=True)
 
 
 @cli.group("db")

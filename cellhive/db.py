@@ -41,9 +41,22 @@ class CHDB:
             else:
                 dbfile = 'cellhive.duckdb'
 
-        self.dbfile = dbfile
+        self.dbfile = str(dbfile)
+        lg.debug(f'connect to {self.dbfile}')
+
         self.read_only = read_only
         self.conn = duckdb.connect(self.dbfile, read_only=read_only)
+
+    def rw(self):
+        """Reopen the connection in RW"""
+        import duckdb
+        if not self.read_only:
+            lg.info("db is already in rw mode")
+            return
+        self.conn.close()
+        self.read_only = False
+        self.conn = duckdb.connect(self.dbfile, read_only=False)
+
 
     def status(self) -> Dict[str, Any]:
         """Return a few db statistics."""
