@@ -1,13 +1,13 @@
 
-from functools import partial
 import logging
+from functools import partial
 
 import click
 from click.core import Context
 
-from . import db, util
+from . import db
 from . import metadata_tools as mdtools
-
+from . import util
 
 lg = logging.getLogger(__name__)
 
@@ -29,8 +29,8 @@ def upload(ctx: Context,
     """Upload an h5ad file to the database."""
 
     # late import to speed up matters
-    import scanpy as sc
     import pandas as pd
+    import scanpy as sc
 
     # database object.
     chdb = ctx.obj['chdb']
@@ -94,6 +94,10 @@ def upload(ctx: Context,
         obs_data = mdtools.obs(adata)
         for _, obs in obs_data.iterrows():
             od = obs.to_dict()
+            if od.get('ignore') is True:
+                lg.info(f"Ignoring obs col {obs['name']}")
+                continue
+
             lg.info(f"storing obs col {obs['name']}")
             chdb.store_obscol(
                 col=adata.obs[od['name']],
