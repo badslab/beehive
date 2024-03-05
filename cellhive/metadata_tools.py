@@ -197,7 +197,7 @@ def get_layerdata(adata: "sc.AnnData"):
     if adata.raw is not None:
 #        ar = adata.raw.to_adata()
         ar = adata.raw.to_adata()
-        layerdata.append(check_layer('!raw', ar.X))
+        layerdata.append(check_layer('RAW', ar.X))
 
     return pd.DataFrame(layerdata)
 

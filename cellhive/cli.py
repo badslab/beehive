@@ -124,7 +124,7 @@ def meta_tables(
 
 #add external commands
 cli.add_command(cli_query.query)
-db_group.add_command(cli_db_upload.upload)
+cli.add_command(cli_db_upload.upload)
 
 def main() -> None:
     """Run the main click CLI function."""

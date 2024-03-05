@@ -3,12 +3,13 @@
 import logging
 import os
 from pathlib import Path
-from typing import Any, Optional, Union, TYPE_CHECKING, Dict, List, Sequence
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Sequence, Union
+
 from typing_extensions import LiteralString
 
 if TYPE_CHECKING:
-    from anndata import AnnData
     import pandas as pd
+    from anndata import AnnData
 
 
 lg = logging.getLogger()
@@ -157,7 +158,7 @@ class CHDB:
 
         if layer == 'X':
             x = adata.to_df()
-        elif layer == '!raw':
+        elif layer == 'RAW':
             x = adata.raw.to_adata().to_df()
         else:
             x = adata.to_df(layer=layer)
