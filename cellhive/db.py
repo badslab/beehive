@@ -45,7 +45,11 @@ class CHDB:
         lg.debug(f'connect to {self.dbfile}')
 
         self.read_only = read_only
-        self.conn = duckdb.connect(self.dbfile, read_only=read_only)
+        try:
+            self.conn = duckdb.connect(self.dbfile, read_only=read_only)
+        except duckdb.CatalogException:
+            # db does not exists?
+            self.conn = None
 
     def rw(self):
         """Reopen the connection in RW"""
@@ -53,7 +57,8 @@ class CHDB:
         if not self.read_only:
             lg.info("db is already in rw mode")
             return
-        self.conn.close()
+        if self.conn is not None:
+            self.conn.close()
         self.read_only = False
         self.conn = duckdb.connect(self.dbfile, read_only=False)
 
