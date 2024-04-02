@@ -34,6 +34,7 @@ def upload(ctx: Context,
 
     # database object.
     chdb = ctx.obj['chdb']
+    chdb.rw()
 
     # import the h5ad file
     adata = sc.read_h5ad(h5ad)
