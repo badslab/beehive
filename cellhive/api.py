@@ -16,6 +16,22 @@ class API():
         self.db = CHDB(dbfile=dbfile,
                        read_only=read_only)
 
+    def sql(self, sql: str):
+        """
+        This method allows you to pass a SQL query (in the form of a string)
+        to be executed against the underlying database. The results are
+        returned by the `db` object.
+
+        Parameters:
+        - sql (str): The SQL query to execute.
+
+        Returns:
+        - A pandas dataframe with the results from executing the SQL
+          statement on the database.
+        """
+        return self.db.sql(sql)
+
+
     def obsm_names(self, exp_id: int):
         sql = f"""
             SELECT DISTINCT name
@@ -96,6 +112,7 @@ class API():
         rv = self.db.sql(sql)
         return rv
 
+
     def datasets(self, query: str | None = None) -> "pd.DataFrame":
         sql = """
             SELECT DISTINCT *
@@ -108,6 +125,7 @@ class API():
             """
         rv = self.db.sql(sql)
         return rv
+
 
     def gene(self, dataset_id: int, gene: str) -> "pd.Series":
         sql = f"""
