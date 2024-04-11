@@ -16,6 +16,8 @@ lg = logging.getLogger(__name__)
 @click.argument('h5ad', type=click.Path(exists=True))
 @click.option("-c", "skip_counts", is_flag=True, default=False,
               help="Skip count table.")
+@click.option("-F", "force", is_flag=True, default=False,
+              help="Ignore problems, try to upload anyhow.")
 @click.option("-o", "skip_obs", is_flag=True, default=False,
               help="Skip obs table.")
 @click.option("-m", "skip_obsm", is_flag=True, default=False,
@@ -23,6 +25,7 @@ lg = logging.getLogger(__name__)
 @click.pass_context
 def upload(ctx: Context,
            h5ad: str,
+           force: bool,
            skip_counts: bool,
            skip_obs: bool,
            skip_obsm: bool,) -> None:
@@ -44,7 +47,8 @@ def upload(ctx: Context,
     if problems:
         for p in problems:
             print(p)
-        return
+        if not force:
+            return
 
     # helper fuction
     mdget = partial(util.mdget, data=adata.uns['cellhive'])
