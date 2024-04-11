@@ -17,7 +17,7 @@ import click
 from click.core import Context
 from rich.logging import RichHandler
 
-from . import cli_db_upload, cli_query, db
+from . import cli_db_upload, cli_file, cli_query, db
 from . import metadata_tools as mdtools
 from . import util
 
@@ -123,6 +123,7 @@ def meta_tables(
 #add external commands
 cli.add_command(cli_query.query)
 cli.add_command(cli_db_upload.upload)
+cli.add_command(cli_file.file_group)
 
 def main() -> None:
     """Run the main click CLI function."""
